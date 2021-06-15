@@ -16,7 +16,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"math/rand"
 	"net"
 	"os"
 	"reflect"
@@ -39,7 +38,7 @@ import (
 	"github.com/google/uuid"
 )
 
-type CreateNetworkContainerRequest struct {
+type CreateNetworkContainerRequestV2 struct {
 	AllocationRequest          api.AllocationRequest
 	AssociationInfo            api.AssociationInfo
 	AllowHostToNCCommunication bool
@@ -47,7 +46,7 @@ type CreateNetworkContainerRequest struct {
 	EndpointPolicies           []cns.NetworkContainerRequestPolicies
 }
 
-type CreateNetworkContainerRequestV2 struct {
+type CreateNetworkContainerRequestV1 struct {
 	ReservationID              string
 	AllocationRequest          api.AllocationRequest
 	AssociationInfo            api.AssociationInfo
@@ -86,7 +85,7 @@ var (
 	orchContext, _        = json.Marshal(podInfo)
 	validEndPointPolicies = composeNetworkContainerEndpointPolicies("6", "Allow", "In", "127.0.0.1", "10.0.0.1", "1111",
 		"1112", "Switch", 2000, "AclPolicy", "APIPA")
-	networkContainerReq = CreateNetworkContainerRequest{
+	networkContainerReq = CreateNetworkContainerRequestV2{
 		AllocationRequest: api.AllocationRequest{
 			SubnetName:     "subnet1",
 			IPConstraint:   "10.0.0.15",
@@ -102,7 +101,7 @@ var (
 		LocationType:     "",
 		OrchestratorType: cns.Kubernetes,
 	}
-	networkContainerReq6 = CreateNetworkContainerRequest{
+	networkContainerReq6 = CreateNetworkContainerRequestV2{
 		AllocationRequest: api.AllocationRequest{
 			SubnetName:     "subnet1",
 			IPConstraint:   "",
@@ -494,7 +493,7 @@ func TestNCCreationWithInUseReservation(t *testing.T) {
 		respErr api.JsonErr
 	)
 
-	ncReq1 := CreateNetworkContainerRequestV2{
+	ncReq1 := CreateNetworkContainerRequestV1{
 		AllocationRequest:          networkContainerReq.AllocationRequest,
 		AssociationInfo:            networkContainerReq.AssociationInfo,
 		ReservationID:              reservationID}
@@ -520,7 +519,7 @@ func TestNCCreationWithInUseReservation(t *testing.T) {
 	WaitForResourceState(t, ncURLStatus, "Completed", http.StatusOK, 2)
 
 	// create another NC with the same reservation - this NC should fail as we cannot associate same reservation with multiple NCs
-	ncReq2 := CreateNetworkContainerRequestV2{
+	ncReq2 := CreateNetworkContainerRequestV1{
 		AllocationRequest:          networkContainerReq.AllocationRequest,
 		AssociationInfo:            networkContainerReq.AssociationInfo,
 		ReservationID:              reservationID}
@@ -587,6 +586,155 @@ func TestNCCreationWithInUseReservation(t *testing.T) {
 	nodeURL := dncEP + "/nodes/" + nodeID + apiVersion
 	deleteResource(t, nodeURL, http.StatusOK)
 }
+
+func createNC(t *testing.T, ncID, nodeID, iface, vnetID, subnet string, orchestratorContext []byte, cnsResponderContextMap CnsResponderContextMap) {
+	var (
+		body    bytes.Buffer
+		respErr api.JsonErr
+	)
+
+	ncReq := CreateNetworkContainerRequestV2{
+		AllocationRequest: api.AllocationRequest{SubnetName: subnet},
+		AssociationInfo: api.AssociationInfo{NodeID: nodeID, InterfaceID: iface, ContainerType: cns.AzureContainerInstance, OrchestratorContext: orchestratorContext},
+	}
+
+	json.NewEncoder(&body).Encode(ncReq)
+
+	ncURL := dncEP + "/networks/" + vnetID + "/networkcontainer/" + ncID + apiVersion
+	ncURLStatus := dncEP + "/networks/" + vnetID + "/networkcontainer/" + ncID + "/status" + apiVersion
+	response, err := http.Post(ncURL, "application/json", &body)
+	if err != nil {
+		t.Fatalf("CreateNetworkContainer1 failed with error: %+v\n", err)
+	}
+
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		if err = utils.DecodeResponse(response, &respErr); err != nil || respErr.Code != 0 {
+			t.Fatalf("CreateNetworkContainer1 failed with response %+v Err:%+v", respErr, err)
+		}
+	}
+
+	fmt.Printf("Waiting for create NC Url:%s\n", ncURL)
+	<-cnsResponderContextMap.getContext(ncID).CreateOrUpdateNCResponse.SignalInfo.Signal
+	WaitForResourceState(t, ncURLStatus, "Completed", http.StatusOK, 2)
+}
+
+func TestCleanupAndDeleteSubnet(t *testing.T) {
+	ncID1 := newGUID()
+	ncID2 := newGUID()
+	ncID3 := newGUID()
+	vnetID := newGUID()
+	nodeID := "testNode"
+	subnet1 := "subnet1"
+	iface := "127.0.0.1"
+
+	ncDeploymentRequests := []*NCDeploymentRequest{{NCID: ncID1}, {NCID: ncID2}, {NCID: ncID3}}
+
+	cnsServer.SetupTest()
+	cnsResponderContextMap := generateDefaultCnsResponderContextMap(t, ncDeploymentRequests)
+	cnsServer.Lock.Lock()
+	cnsServer.ResponseFunc = CNSResponder
+	cnsServer.Context = cnsResponderContextMap
+	cnsServer.Lock.Unlock()
+
+	setupNetworkAndJoinSubnet(t, dncEP, vnetID, subnet1, apiVersion, true, 0)
+	addOrUpdateNode(t, dncEP, nodeID, apiVersion, &nodeReq)
+
+	// Create NC1
+	orchContext1, _ := json.Marshal(OrchestratorContext{PodName: "testpodname", PodNamespace: "testpodnamespace1"})
+	createNC(t, ncID1, nodeID, iface, vnetID, subnet1, orchContext1, cnsResponderContextMap)
+
+	// Create NC2
+	orchContext2, _ := json.Marshal(OrchestratorContext{PodName: "testpodname", PodNamespace: "testpodnamespace2"})
+	createNC(t, ncID2, nodeID, iface, vnetID, subnet1, orchContext2, cnsResponderContextMap)
+
+	// Cleanup subnet1
+	cleanupSubnet(t, vnetID, subnet1)
+
+	ncURL1 := dncEP + "/networks/" + vnetID + "/networkcontainer/" + ncID1 + apiVersion
+	ncURL2 := dncEP + "/networks/" + vnetID + "/networkcontainer/" + ncID2 + apiVersion
+
+	// Validate that all the NCs in the subnet are successfully deleted.
+	// Since there were no other registered subnets in this vnet, validate that network config and subnet configs are deleted from the table
+	if !WaitForResourceCleanup(t, ncURL1, 2) || !WaitForResourceCleanup(t, ncURL2, 2) {
+		t.Fatalf("Failed to delete NCs during subnet cleanup")
+	}
+
+	// Validate that the vnet is deleted from the table
+	vnetURL := fmt.Sprintf("%s/networks/%s%s",dncEP, vnetID, apiVersion)
+	if !WaitForResourceCleanup(t, vnetURL, 10) {
+		t.Fatalf("Failed to cleanup vnet %s\n", vnetURL)
+	}
+
+	// Validate that user can join the deleted subnet again and create NCs.
+	// Join the same subnet again
+	setupNetworkAndJoinSubnet(t, dncEP, vnetID, subnet1, apiVersion, true, 0)
+
+	// Create NC3
+	orchContext3, _ := json.Marshal(OrchestratorContext{PodName: "testpodname", PodNamespace: "testpodnamespace3"})
+	createNC(t, ncID3, nodeID, iface, vnetID, subnet1, orchContext3, cnsResponderContextMap)
+
+	// Register another subnet in this vnet. CLeaning up the first subnet should still succeed by marking that subnet as 'not joined' which
+	// returns 404. But since there is another joined subnet, cleaning up of first subnet shouldn't delete the vnet and subnet configs.
+	// Cleanup the second subnet which should result into deletion of vnet and subnet configs.
+	subnet2 := "subnet2"
+	joinSubnet(t, dncEP, vnetID, subnet2, apiVersion)
+
+	// Cleanup subnet2
+	cleanupSubnet(t, vnetID, subnet2)
+
+	// validate that the vnet config is still not deleted
+	vnetConfig, _ := datamodel.TryQueryNetworkConfiguration(vnetID)
+	if vnetConfig == nil {
+		t.Fatalf("Expected vnetConfig to be present")
+	}
+
+	// Cleanup subnet1
+	cleanupSubnet(t, vnetID, subnet1)
+
+	ncURL3 := dncEP + "/networks/" + vnetID + "/networkcontainer/" + ncID3 + apiVersion
+	// Validate that all the NCs in the subnet are successfully deleted.
+	if !WaitForResourceCleanup(t, ncURL3, 2) {
+		t.Fatalf("Failed to delete NCs during subnet cleanup")
+	}
+
+	// vnet should be deleted now that all the subnets are cleaned up
+	// Validate that the vnet is deleted from the table
+	if !WaitForResourceCleanup(t, vnetURL, 10) {
+		t.Fatalf("Failed to cleanup vnet %s\n", vnetURL)
+	}
+}
+
+func cleanupSubnet(t *testing.T, vnetID, subnetName string) {
+	subnetCleanupURL := fmt.Sprintf("%s/networks/%s/subnets/%s%s&%s",dncEP, vnetID, subnetName, apiVersion_2021_02_24, forceDeleteQueryParam)
+	subnetStatusURL := fmt.Sprintf("%s/networks/%s/subnets/%s/status%s",dncEP, vnetID, subnetName, apiVersion)
+
+	// Cleanup the subnet
+	req, err := http.NewRequest("DELETE", subnetCleanupURL, nil)
+	if err != nil {
+		t.Fatalf("ResourceURL %s, Create delete request failed with error: %+v\n", subnetCleanupURL, err)
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("URL:%s, Delete failed with error: %+v\n", subnetCleanupURL, err)
+	}
+
+	defer resp.Body.Close()
+
+	// Expect 202 as response code as subnet cleanup is async operation.
+	if resp.StatusCode != http.StatusAccepted {
+		t.Fatalf("URL:%s, Delete didn't returned expected response: got: %d expected: %d\n", subnetCleanupURL, resp.StatusCode, http.StatusAccepted)
+	}
+
+	fmt.Printf("Waiting for subnet cleanup: %s\n", subnetName)
+	if !WaitForResourceCleanup(t, subnetStatusURL, 10) {
+		t.Fatalf("Failed to cleanup subnet %s\n", subnetStatusURL)
+	}
+}
+
+
 
 func TestDeleteContainer(t *testing.T) {
 	fmt.Println("****TestDeleteContainer**********")
@@ -834,7 +982,7 @@ func validateNetworkContainerInfoResponse(
 	vnetID string,
 	ncID string,
 	apiVersion string,
-	networkContainerInfoReq *CreateNetworkContainerRequest) error {
+	networkContainerInfoReq *CreateNetworkContainerRequestV2) error {
 	networkContainerConfigResponse := getNetworkContainerConfiguration(t, dncEP, vnetID, ncID, apiVersion)
 
 	if !reflect.DeepEqual(networkContainerConfigResponse.AssociationInfo,
@@ -879,7 +1027,7 @@ func validateNetworkContainerEndpointPolicies(
 	invalidActionPolicy := composeNetworkContainerEndpointPolicies("6", "InvalidAction", "In", "127.0.0.1", "10.0.0.1", "1111",
 		"1112", "Switch", 2000, "AclPolicy", "APIPA")
 
-	networkcontainerReqInvalidAction := CreateNetworkContainerRequest{
+	networkcontainerReqInvalidAction := CreateNetworkContainerRequestV2{
 		AllocationRequest:          *allocationRequest,
 		AssociationInfo:            *associationInfo,
 		AllowHostToNCCommunication: true,
@@ -889,7 +1037,7 @@ func validateNetworkContainerEndpointPolicies(
 	invalidDirectionPolicy := composeNetworkContainerEndpointPolicies("6", "Allow", "InvalidDirection", "127.0.0.1", "10.0.0.1", "1111",
 		"1112", "Switch", 2000, "AclPolicy", "APIPA")
 
-	networkcontainerReqInvalidDirection := CreateNetworkContainerRequest{
+	networkcontainerReqInvalidDirection := CreateNetworkContainerRequestV2{
 		AllocationRequest:          *allocationRequest,
 		AssociationInfo:            *associationInfo,
 		AllowHostToNCCommunication: true,
@@ -899,7 +1047,7 @@ func validateNetworkContainerEndpointPolicies(
 	invalidPriorityPolicy := composeNetworkContainerEndpointPolicies("6", "Allow", "In", "127.0.0.1", "10.0.0.1", "1111",
 		"1112", "Switch", 0, "AclPolicy", "APIPA")
 
-	networkcontainerreqinvalidPrior := CreateNetworkContainerRequest{
+	networkcontainerreqinvalidPrior := CreateNetworkContainerRequestV2{
 		AllocationRequest:          *allocationRequest,
 		AssociationInfo:            *associationInfo,
 		AllowHostToNCCommunication: true,
@@ -1698,14 +1846,21 @@ func setupNetwork(t *testing.T, dncEP, apiVersion string, networkDeploymentReque
 }
 
 func setupNetworkAndJoinSubnet(t *testing.T, dncEP, vnetID, subnetName, apiVersion string, addDNSServers bool, tagCount int) {
-	var body bytes.Buffer
-	resourceURL := dncEP + "/networks/" + vnetID + "/subnets/" + subnetName + apiVersion
+
 	networkDeploymentRequests := []*NetworkDeploymentRequest{{vnetID: vnetID, UseCustomDnsServers: addDNSServers, TagCount: tagCount, WaitForJoin: true, WaitForGet: true}}
 
 	setupNetwork(t, dncEP, apiVersion, networkDeploymentRequests)
-	subnetReq := api.SubnetRequest{
-		AuthenticationToken: vnetID}
+
+	joinSubnet(t, dncEP, vnetID, subnetName, apiVersion)
+}
+
+func joinSubnet(t *testing.T, dncEP, vnetID, subnetName, apiVersion string) {
+	var body bytes.Buffer
+	resourceURL := dncEP + "/networks/" + vnetID + "/subnets/" + subnetName + apiVersion
+	subnetReq := api.SubnetRequest{AuthenticationToken: vnetID}
+
 	json.NewEncoder(&body).Encode(subnetReq)
+
 	fmt.Printf("Joining subnet %s, network %s. AccessToken:%s\n", subnetName, vnetID, subnetReq.AuthenticationToken)
 	response, err := http.Post(resourceURL, "application/json", &body)
 	if err != nil {
@@ -1909,7 +2064,7 @@ func createNetworkContainer(
 	var body bytes.Buffer
 	var respErr api.JsonErr
 	if len(reservationID) > 0 {
-		networkcontainerreq := CreateNetworkContainerRequestV2{
+		networkcontainerreq := CreateNetworkContainerRequestV1{
 			AllocationRequest:          *allocationRequest,
 			AssociationInfo:            *associationInfo,
 			ReservationID:              reservationID,
@@ -1918,7 +2073,7 @@ func createNetworkContainer(
 			EndpointPolicies:           endPointPolicies}
 		json.NewEncoder(&body).Encode(networkcontainerreq)
 	} else {
-		networkcontainerreq := CreateNetworkContainerRequest{
+		networkcontainerreq := CreateNetworkContainerRequestV2{
 			AllocationRequest:          *allocationRequest,
 			AssociationInfo:            *associationInfo,
 			AllowHostToNCCommunication: allowHostToNCCommunication,
@@ -1974,7 +2129,7 @@ func createNetworkContainer(
 		fmt.Printf("Successfully created network container using specific IP [%s]\n", ncid)
 	}
 
-	networkcontainerreq := CreateNetworkContainerRequest{
+	networkcontainerreq := CreateNetworkContainerRequestV2{
 		AllocationRequest:          *allocationRequest,
 		AssociationInfo:            *associationInfo,
 		AllowHostToNCCommunication: allowHostToNCCommunication}
@@ -2035,7 +2190,7 @@ func createNetworkContainer(
 func CreateNetworkContainer(
 	t *testing.T,
 	nodeID string,
-	nodeInfoReq api.NodeInfoRequest, networkcontainerreq CreateNetworkContainerRequest, dncEP, vnetID, ncid, apiVersion string, skipDelete bool) {
+	nodeInfoReq api.NodeInfoRequest, networkcontainerreq CreateNetworkContainerRequestV2, dncEP, vnetID, ncid, apiVersion string, skipDelete bool) {
 	createNetworkContainer(
 		t,
 		nodeID,
@@ -2058,7 +2213,7 @@ func createNetworkContainerAndUpdateNetworkConfig(
 	t *testing.T,
 	nodeID string,
 	nodeInfoReq api.NodeInfoRequest,
-	networkcontainerreq CreateNetworkContainerRequest,
+	networkcontainerreq CreateNetworkContainerRequestV2,
 	dncEP, vnetID, ncid, apiVersion string,
 	updatedNMAgentResponsderContext *NMAgentResponderContext,
 	addDNSServersInConfig bool,
@@ -2226,7 +2381,7 @@ func createNetworkContainerAndUpdateNetworkConfig(
 	deleteResource(t, nodeURL, http.StatusOK)
 }
 
-func CreateNetworkContainerAndUpdateCnetSpace(t *testing.T, nodeID string, nodeInfoReq api.NodeInfoRequest, networkcontainerreq CreateNetworkContainerRequest, dncEP, vnetID, ncid, apiVersion string) {
+func CreateNetworkContainerAndUpdateCnetSpace(t *testing.T, nodeID string, nodeInfoReq api.NodeInfoRequest, networkcontainerreq CreateNetworkContainerRequestV2, dncEP, vnetID, ncid, apiVersion string) {
 	fmt.Println("****CreateNetworkContainerAndUpdateCnetSpace Test**********")
 	networkDeploymentRequests := []*NetworkDeploymentRequest{
 		&NetworkDeploymentRequest{vnetID: vnetID, UseCustomDnsServers: true, TagCount: 0, WaitForJoin: true, WaitForGet: true}}
@@ -2256,7 +2411,7 @@ func CreateNetworkContainerAndUpdateCnetSpace(t *testing.T, nodeID string, nodeI
 		0)
 }
 
-func CreateNetworkContainerAndAddCnetSpace(t *testing.T, nodeID string, nodeInfoReq api.NodeInfoRequest, networkcontainerreq CreateNetworkContainerRequest, dncEP, vnetID, ncid, apiVersion string) {
+func CreateNetworkContainerAndAddCnetSpace(t *testing.T, nodeID string, nodeInfoReq api.NodeInfoRequest, networkcontainerreq CreateNetworkContainerRequestV2, dncEP, vnetID, ncid, apiVersion string) {
 	fmt.Println("****CreateNetworkContainerAndAddCnetSpace Test**********")
 	networkDeploymentRequests := []*NetworkDeploymentRequest{
 		&NetworkDeploymentRequest{vnetID: vnetID, UseCustomDnsServers: true, TagCount: 0, WaitForJoin: true, WaitForGet: true}}
@@ -2286,7 +2441,7 @@ func CreateNetworkContainerAndAddCnetSpace(t *testing.T, nodeID string, nodeInfo
 		0)
 }
 
-func CreateNetworkContainerAndRemoveCnetSpace(t *testing.T, nodeID string, nodeInfoReq api.NodeInfoRequest, networkcontainerreq CreateNetworkContainerRequest, dncEP, vnetID, ncid, apiVersion string) {
+func CreateNetworkContainerAndRemoveCnetSpace(t *testing.T, nodeID string, nodeInfoReq api.NodeInfoRequest, networkcontainerreq CreateNetworkContainerRequestV2, dncEP, vnetID, ncid, apiVersion string) {
 	fmt.Println("****CreateNetworkContainerAndRemoveCnetSpace Test**********")
 	networkDeploymentRequests := []*NetworkDeploymentRequest{
 		&NetworkDeploymentRequest{vnetID: vnetID, UseCustomDnsServers: true, TagCount: 0, WaitForJoin: true, WaitForGet: true}}
@@ -2316,7 +2471,7 @@ func CreateNetworkContainerAndRemoveCnetSpace(t *testing.T, nodeID string, nodeI
 		0)
 }
 
-func CreateNetworkContainerAndAddNewDNSServer(t *testing.T, nodeID string, nodeInfoReq api.NodeInfoRequest, networkcontainerreq CreateNetworkContainerRequest, dncEP, vnetID, ncid, apiVersion string) {
+func CreateNetworkContainerAndAddNewDNSServer(t *testing.T, nodeID string, nodeInfoReq api.NodeInfoRequest, networkcontainerreq CreateNetworkContainerRequestV2, dncEP, vnetID, ncid, apiVersion string) {
 	fmt.Println("****CreateNetworkContainerAndAddNewDNSServer Test**********")
 	networkDeploymentRequests := []*NetworkDeploymentRequest{
 		&NetworkDeploymentRequest{vnetID: vnetID, UseCustomDnsServers: true, TagCount: 0, WaitForJoin: true, WaitForGet: true}}
@@ -2347,7 +2502,7 @@ func CreateNetworkContainerAndAddNewDNSServer(t *testing.T, nodeID string, nodeI
 		0)
 }
 
-func CreateNetworkContainerAndRemoveDNSServerInNetworkConfig(t *testing.T, nodeID string, nodeInfoReq api.NodeInfoRequest, networkcontainerreq CreateNetworkContainerRequest, dncEP, vnetID, ncid, apiVersion string) {
+func CreateNetworkContainerAndRemoveDNSServerInNetworkConfig(t *testing.T, nodeID string, nodeInfoReq api.NodeInfoRequest, networkcontainerreq CreateNetworkContainerRequestV2, dncEP, vnetID, ncid, apiVersion string) {
 	fmt.Println("****CreateNetworkContainerAndUpdateToUseAzureDNSServers Test**********")
 	networkDeploymentRequests := []*NetworkDeploymentRequest{
 		&NetworkDeploymentRequest{vnetID: vnetID, UseCustomDnsServers: true, TagCount: 0, WaitForJoin: true, WaitForGet: true}}
@@ -2377,7 +2532,7 @@ func CreateNetworkContainerAndRemoveDNSServerInNetworkConfig(t *testing.T, nodeI
 		0)
 }
 
-func CreateNetworkContainerAndUpdateToUseAzureDNSServers(t *testing.T, nodeID string, nodeInfoReq api.NodeInfoRequest, networkcontainerreq CreateNetworkContainerRequest, dncEP, vnetID, ncid, apiVersion string) {
+func CreateNetworkContainerAndUpdateToUseAzureDNSServers(t *testing.T, nodeID string, nodeInfoReq api.NodeInfoRequest, networkcontainerreq CreateNetworkContainerRequestV2, dncEP, vnetID, ncid, apiVersion string) {
 	fmt.Println("****CreateNetworkContainerAndUpdateToUseAzureDNSServers Test**********")
 	networkDeploymentRequests := []*NetworkDeploymentRequest{
 		&NetworkDeploymentRequest{vnetID: vnetID, UseCustomDnsServers: false, TagCount: 0, WaitForJoin: true, WaitForGet: true}}
@@ -2406,7 +2561,7 @@ func CreateNetworkContainerAndUpdateToUseAzureDNSServers(t *testing.T, nodeID st
 		0)
 }
 
-func CreateNetworkContainerAndUpdateToUseCustomDNSServers(t *testing.T, nodeID string, nodeInfoReq api.NodeInfoRequest, networkcontainerreq CreateNetworkContainerRequest, dncEP, vnetID, ncid, apiVersion string) {
+func CreateNetworkContainerAndUpdateToUseCustomDNSServers(t *testing.T, nodeID string, nodeInfoReq api.NodeInfoRequest, networkcontainerreq CreateNetworkContainerRequestV2, dncEP, vnetID, ncid, apiVersion string) {
 	fmt.Println("****CreateNetworkContainerAndUpdateToUseCustomDNSServers Test**********")
 	networkDeploymentRequests := []*NetworkDeploymentRequest{
 		&NetworkDeploymentRequest{vnetID: vnetID, UseCustomDnsServers: true, TagCount: 0, WaitForJoin: true, WaitForGet: true}}
@@ -2720,13 +2875,13 @@ func DeployNetworkContainers(
 			var body bytes.Buffer
 			var respErr api.JsonErr
 			if len(ncDeploymentRequest.ReservationID) > 0 {
-				networkcontainerreq := CreateNetworkContainerRequestV2{
+				networkcontainerreq := CreateNetworkContainerRequestV1{
 					AllocationRequest: ncDeploymentRequest.AllocationRequest,
 					AssociationInfo:   ncDeploymentRequest.AssociationInfo,
 					ReservationID:     ncDeploymentRequest.ReservationID}
 				json.NewEncoder(&body).Encode(networkcontainerreq)
 			} else {
-				networkcontainerreq := CreateNetworkContainerRequest{
+				networkcontainerreq := CreateNetworkContainerRequestV2{
 					AllocationRequest: ncDeploymentRequest.AllocationRequest,
 					AssociationInfo:   ncDeploymentRequest.AssociationInfo}
 				json.NewEncoder(&body).Encode(networkcontainerreq)
@@ -2889,7 +3044,7 @@ func TestValidateSubnetExhaustion(t *testing.T) {
 
 	id, _ = uuid.NewUUID()
 	ncIDToFail := id.String()
-	deploymentRequestToFail := CreateNetworkContainerRequest{
+	deploymentRequestToFail := CreateNetworkContainerRequestV2{
 		AllocationRequest: api.AllocationRequest{SubnetName: "subnet1"},
 		AssociationInfo:   api.AssociationInfo{NodeID: nodeID, InterfaceID: "127.0.0.1", ContainerType: cns.AzureContainerInstance, OrchestratorContext: orchContext},
 	}
@@ -3844,7 +3999,7 @@ func TestUnsupportedOrchTypeCNSResponse(t *testing.T) {
 		PodName:      "testpodname1",
 		PodNamespace: "testpodnamespace1"}
 	orchContext, _ := json.Marshal(podInfo)
-	networkContainerReq := CreateNetworkContainerRequest{
+	networkContainerReq := CreateNetworkContainerRequestV2{
 		AllocationRequest: api.AllocationRequest{
 			SubnetName:     "subnet1",
 			IPConstraint:   "10.0.0.16",
@@ -3952,13 +4107,17 @@ func TestUnsupportedOrchTypeCNSResponse(t *testing.T) {
 
 	// Get NC state. Validate that it is stuck in Associate - Pending
 	time.Sleep(time.Millisecond * 1000)
-	ncConfig, errnc := datamodel.TryQueryNetworkContainer(vnetID, ncID)
+	nc, errnc := datamodel.NcRepo.TryQueryNetworkContainer(vnetID, ncID)
 	if errnc != nil {
-		t.Fatalf("TryQueryNetworkContainer failed. Err:%+v", err)
+		t.Fatalf("TryQueryNetworkContainer failed. Err: %+v", errnc)
 	}
 
-	if ncConfig.State != datamodel.Associate && ncConfig.Status != datamodel.Pending {
-		t.Fatalf("NC is expected to be stuck in Associate:Pending. Got %s:%s", ncConfig.State.String(), ncConfig.Status.String())
+	if nc.RowKey == "" {
+		t.Fatalf("TryQueryNetworkContainer failed. No data for NC: %s", ncID)
+	}
+
+	if nc.Config.State != datamodel.Associate && nc.Config.Status != datamodel.Pending {
+		t.Fatalf("NC is expected to be stuck in Associate:Pending. Got %s:%s", nc.Config.State.String(), nc.Config.Status.String())
 	}
 
 	// Update the cns response to return success and NC should move to complete.
@@ -4172,6 +4331,7 @@ func TestManagedDncAPIs(t *testing.T) {
 // Induce error in the processing
 // This function induces error with provided percent probability
 func induceError(percentProbability int) bool {
+	/*
 	induceError := false
 	// Create a random num generator with a new seed every time to
 	// avoid deterministic number generation
@@ -4182,4 +4342,7 @@ func induceError(percentProbability int) bool {
 	}
 
 	return induceError
+	 */
+	//todo: remove inducing the error to remove unpredictability in the tests
+	return false
 }

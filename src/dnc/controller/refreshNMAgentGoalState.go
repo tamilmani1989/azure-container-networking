@@ -60,8 +60,8 @@ func (c *Controller) RefreshNetworkContainersNMAgentGoalState() {
 	}
 
 	networksMap := make(map[string]bool)
-	for _, ncconfig := range ncsMap {
-		networksMap[ncconfig.NetworkID] = true
+	for _, nc := range ncsMap {
+		networksMap[nc.Config.NetworkID] = true
 	}
 
 	c.ReJoinAllNetworks(networksMap)
@@ -70,16 +70,16 @@ func (c *Controller) RefreshNetworkContainersNMAgentGoalState() {
 	for ok := true; ok; ok = len(ncsMap) > 0 {
 		iteration++
 		index := 0
-		failedNCsMap := make(map[string]datamodel.NCConfiguration)
-		for ncKey, ncConfig := range ncsMap {
-			sessionInfo := c.getNCSessionInfo(&ncConfig)
+		failedNCsMap := make(map[string]datamodel.NetworkContainerEntity)
+		for ncKey, nc := range ncsMap {
+			sessionInfo := c.getNCSessionInfo(&nc.Config)
 			_, err := c.refreshNetworkContainerNMAgentGoalState(ncKey, sessionInfo)
 
 			time.Sleep(1 * time.Second)
 
 			if err != nil {
 				loggershim.LS.Errorf("Failed to refresh NMAgent goal state for NC %s with error:%+v", ncKey, err)
-				failedNCsMap[ncKey] = ncConfig
+				failedNCsMap[ncKey] = nc
 			}
 			index++
 		}
@@ -100,26 +100,26 @@ func (c *Controller) refreshNetworkContainerNMAgentGoalState(ncKey string,
 	c.SessionManager.BeginWriteSession(sessionInfoWrite)
 	defer c.SessionManager.EndWriteSession(sessionInfoWrite)
 
-	repoNCConfig, err := datamodel.TryQueryNetworkContainerByKey(ncKey)
+	repoNCData, err := datamodel.NcRepo.TryQueryNetworkContainerByKey(ncKey)
 	if err != nil {
 		return false, err
 	}
 
-	if repoNCConfig == nil {
+	if repoNCData.RowKey == "" {
 		return true, nil
 	}
 
-	if repoNCConfig.MarkedForDelete {
+	if repoNCData.Config.MarkedForDelete {
 		return true, nil
 	}
 
 	sessionInfoRead := map[string]string{
-		datamodel.ReservationRepositoryName: repoNCConfig.ReservationID,
-		datamodel.NetworkRepositoryName:     repoNCConfig.NetworkID,
-		datamodel.NodeRepositoryName:        repoNCConfig.GetAssociationInfo().NodeID,
+		datamodel.ReservationRepositoryName: repoNCData.Config.ReservationID,
+		datamodel.NetworkRepositoryName:     repoNCData.Config.NetworkID,
+		datamodel.NodeRepositoryName:        repoNCData.Config.GetAssociationInfo().NodeID,
 	}
 	c.SessionManager.BeginReadSession(sessionInfoRead)
-	ncGoalState, _, ncGoalStateErr := datamodel.GetNCGoalState(repoNCConfig)
+	ncGoalState, _, ncGoalStateErr := datamodel.GetNCGoalState(&repoNCData.Config)
 	c.SessionManager.EndReadSession(sessionInfoRead)
 
 	if ncGoalStateErr != nil {
@@ -148,59 +148,38 @@ func (c *Controller) refreshNetworkContainerNMAgentGoalState(ncKey string,
 
 	resp, respErr := c.httpClient.Post(createNCURL, "application/json", &body)
 	if respErr != nil {
-		msg := fmt.Sprintf("Failed to publish network container goal state for Id %s to host agent with error %v "+
-			"Marking as retriable error \n",
-			repoNCConfig.NetworkContainerID,
-			respErr.Error())
-		return false, &api.JsonErr{
-			Code:       api.PublishingFailed,
-			Text:       msg,
-			HTTPStatus: http.StatusInternalServerError}
+		return false, api.InternalServerErrorf(api.PublishingFailed,
+			"could not publish NC goal state for NC: %s to NMAgent. error: %s. Marking as retryable error.",
+			repoNCData.Config.NetworkContainerID, respErr.Error())
 	}
 
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		msg := fmt.Sprintf("Failed to publish network container goal state for Id %s to host agent with error code %d "+
-			"Marking as retriable error \n",
-			repoNCConfig.NetworkContainerID,
-			resp.StatusCode)
-		return false, &api.JsonErr{
-			Code:       api.PublishingFailed,
-			Text:       msg,
-			HTTPStatus: http.StatusInternalServerError}
+		return false, api.InternalServerErrorf(api.PublishingFailed,
+			"could not publish NC goal state for NC: %s to NMAgent. error code: %d. Marking as retryable error.",
+			repoNCData.Config.NetworkContainerID, resp.StatusCode)
 	}
 
 	var createNetworkContainerResponse nmagentcontracts.CreateNetworkContainerResponse
 	decodeRespErr := utils.DecodeResponse(resp, &createNetworkContainerResponse)
 	if decodeRespErr != nil {
-		msg := fmt.Sprintf("Failed to decode get put NC response for NC %s due to error %s.",
-			repoNCConfig.NetworkContainerID,
-			decodeRespErr.Error())
-		return false, &api.JsonErr{
-			Code:       api.DecodeResponseFailed,
-			Text:       msg,
-			HTTPStatus: http.StatusInternalServerError}
+		return false, api.InternalServerErrorf(api.DecodeResponseFailed,
+			"could not decode putNC response from NMAgent for NC: %s. error: %s", repoNCData.Config.NetworkContainerID, decodeRespErr.Error())
 	}
 
 	loggershim.LS.Debugf("[NMAgent][Response] refresh %s\n", createNetworkContainerResponse.String())
 	putNCResponseCode, parseErr := strconv.ParseInt(createNetworkContainerResponse.ResponseCode, 10, 32)
 	if parseErr != nil {
-		msg := fmt.Sprintf(
-			"Failed to convert response code %s to integer when parsing put NC response for NC %s.",
-			createNetworkContainerResponse.ResponseCode,
-			repoNCConfig.NetworkContainerID)
-		return false, &api.JsonErr{
-			Code:       api.ParseResponseCodeFailed,
-			Text:       msg,
-			HTTPStatus: http.StatusInternalServerError}
+		return false, api.InternalServerErrorf(api.ParseResponseCodeFailed,
+			"could not convert response code: %s to int when parsing putNC response for NC: %s. error: %s",
+			createNetworkContainerResponse.ResponseCode, repoNCData.Config.NetworkContainerID, parseErr.Error())
 	}
 
 	if putNCResponseCode != http.StatusOK {
-		msg := fmt.Sprintf("Failed to publish NC with status code %v.", putNCResponseCode)
 		return false, &api.JsonErr{
 			Code:       api.PublishingFailed,
-			Text:       msg,
+			Text:       fmt.Sprintf("Failed to publish NC with status code %v.", putNCResponseCode),
 			HTTPStatus: int(putNCResponseCode)}
 	}
 

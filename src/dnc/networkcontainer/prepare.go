@@ -16,7 +16,7 @@ import (
 // todo: convert to interfaces, which can be reused across state transitions
 type UpdateNodeContainersFunc func(nodeID, networkID, ncID, reservationID, containerType string, updateVlan, remove bool, ncLimit int) *api.JsonErr
 
-type PersistNCFunc func(ncConfiguration *datamodel.NCConfiguration, addToPendingQueue bool) *api.JsonErr
+type PersistNCFunc func(nc *datamodel.NetworkContainerEntity) *api.JsonErr
 
 type Preparer struct {
 	CNS                  cnsinterface.CnsInterface
@@ -29,39 +29,39 @@ type Preparer struct {
 
 // PrepareNetworkContainerV2 prepares a network container that requires implicit reservations, and attempts to move it to reserve state.
 // Returns whether item should be removed from pending queue, and any error during preparation
-func (p *Preparer) PrepareNetworkContainerV2(ncConfig *datamodel.NCConfiguration) (bool, *api.JsonErr) {
+func (p *Preparer) PrepareNetworkContainerV2(repoNCData *datamodel.NetworkContainerEntity) (bool, *api.JsonErr) {
 	var res datamodel.ReservationConfiguration
-	if ncConfig.ReservationID == "" {
-		res = newReservation(*ncConfig)
-		ncConfig.ReservationID = res.ReservationID
+	if repoNCData.Config.ReservationID == "" {
+		res = newReservation(repoNCData.Config)
+		repoNCData.Config.ReservationID = res.ReservationID
 	} else {
-		existingRes, err := p.Reservations.TryQueryIPReservation(ncConfig.NetworkID, ncConfig.ReservationID)
+		existingRes, err := p.Reservations.TryQueryIPReservation(repoNCData.Config.NetworkID, repoNCData.Config.ReservationID)
 		switch {
 		case err != nil:
 			return false, err
 		case existingRes.Configuration == nil: // reservation id previously assigned, but no reservation created
-			res = newReservation(*ncConfig)
+			res = newReservation(repoNCData.Config)
 		default: // reservation previously created, this is preparing an update
-			p.Logger.Debugf("processing update for nc id %s, reservation id %s", ncConfig.NetworkContainerID, existingRes.Configuration.ReservationID)
-			res, err = getUpdatedReservation(ncConfig.RequestV2, *existingRes.Configuration)
+			p.Logger.Debugf("processing update for nc id %s, reservation id %s", repoNCData.Config.NetworkContainerID, existingRes.Configuration.ReservationID)
+			res, err = getUpdatedReservation(repoNCData.Config.RequestV2, *existingRes.Configuration)
 			if err != nil {
-				return p.markNCAsFailed(ncConfig, *err)
+				return p.markNCAsFailed(repoNCData, *err)
 			}
 		}
 	}
 
-	if err := p.registerNCinNode(*ncConfig); err != nil {
+	if err := p.registerNCinNode(repoNCData); err != nil {
 		// if NC limit has been reached the error is non-retryable
 		if err.Code == api.NodeContainerCapacityExhausted {
-			return p.markNCAsFailed(ncConfig, *err)
+			return p.markNCAsFailed(repoNCData, *err)
 		}
 		return false, err
 	}
 
 	reservation := datamodel.ReservationRow{
-		RowKey: datamodel.GetReservationKey(ncConfig.NetworkID, ncConfig.ReservationID),
+		RowKey: datamodel.GetReservationKey(repoNCData.Config.NetworkID, repoNCData.Config.ReservationID),
 		Configuration: &res,
-		SubnetKey: datamodel.GetSubnetKey(ncConfig.NetworkID, ncConfig.RequestV2.AllocationRequest.SubnetName),
+		SubnetKey: datamodel.GetSubnetKey(repoNCData.Config.NetworkID, repoNCData.Config.RequestV2.AllocationRequest.SubnetName),
 		SetKey: "",
 	}
 
@@ -69,8 +69,8 @@ func (p *Preparer) PrepareNetworkContainerV2(ncConfig *datamodel.NCConfiguration
 		return false, api.InternalServerError(api.StatusInternalServerError, err.Error())
 	}
 
-	p.Logger.Debugf("successfully persisted reservation config: %+v for nc %s", res, ncConfig.NetworkContainerID)
-	err := p.moveNCToReserveState(ncConfig)
+	p.Logger.Debugf("successfully persisted reservation config: %+v for nc %s", res, repoNCData.Config.NetworkContainerID)
+	err := p.moveNCToReserveState(repoNCData)
 	return false, err
 }
 
@@ -147,8 +147,8 @@ func getUpdatedReservation(req api.NetworkContainerRequestV2, res datamodel.Rese
 	return res, nil
 }
 
-func (p *Preparer) registerNCinNode(ncConfig datamodel.NCConfiguration) *api.JsonErr {
-	nodeID := ncConfig.GetAssociationInfo().NodeID
+func (p *Preparer) registerNCinNode(nc *datamodel.NetworkContainerEntity) *api.JsonErr {
+	nodeID := nc.Config.GetAssociationInfo().NodeID
 
 	ncLimit, err := p.CNS.GetNCLimitForNode(nodeID)
 	if err != nil {
@@ -160,63 +160,63 @@ func (p *Preparer) registerNCinNode(ncConfig datamodel.NCConfiguration) *api.Jso
 	// Add NC to the container map on the node. This will fail if the node has reached the NC limit
 	err = p.UpdateNodeContainers(
 		nodeID,
-		ncConfig.NetworkID,
-		ncConfig.NetworkContainerID,
-		ncConfig.ReservationID,
-		ncConfig.RequestV2.AssociationInfo.ContainerType,
-		ShouldUpdateVlan(ncConfig.RequestV2.AssociationInfo.ContainerType),
+		nc.Config.NetworkID,
+		nc.Config.NetworkContainerID,
+		nc.Config.ReservationID,
+		nc.Config.RequestV2.AssociationInfo.ContainerType,
+		ShouldUpdateVlan(nc.Config.RequestV2.AssociationInfo.ContainerType),
 		false,
 		ncLimit,
 	)
 	p.Locks.EndWriteSession(nodeIDLock)
 
 	if err != nil {
-		err.Text = fmt.Sprintf("Failed to add NC %s to node %s. Error %v", ncConfig.NetworkContainerID, nodeID, err.Text)
+		err.Text = fmt.Sprintf("Failed to add NC %s to node %s. Error %v", nc.Config.NetworkContainerID, nodeID, err.Text)
 		return err
 	}
 	return nil
 }
 
-func (p *Preparer) markNCAsFailed(ncConfig *datamodel.NCConfiguration, err api.JsonErr) (bool, *api.JsonErr) {
-	ncConfig.Status = datamodel.Failed
-	ncConfig.FailureDetail = err
-	if err := p.PersistNC(ncConfig, datamodel.DontAddToPendingQ); err != nil {
+func (p *Preparer) markNCAsFailed(repoNCData *datamodel.NetworkContainerEntity, err api.JsonErr) (bool, *api.JsonErr) {
+	repoNCData.Config.Status = datamodel.Failed
+	repoNCData.Config.FailureDetail = err
+	if err := p.PersistNC(repoNCData); err != nil {
 		return false, err // don't remove from queue until failure can be persisted
 	}
 	return true, nil
 }
 
-func (p *Preparer) moveNCToReserveState(ncConfig *datamodel.NCConfiguration) *api.JsonErr {
-	ncConfig.State = datamodel.Reserve
-	ncConfig.Status = datamodel.Pending
-	ncConfig.FailureDetail = api.JsonErr{}
-	ncConfig.LogStateCompletion(datamodel.Prepare)
-	return p.PersistNC(ncConfig, datamodel.DontAddToPendingQ)
+func (p *Preparer) moveNCToReserveState(repoNCData *datamodel.NetworkContainerEntity) *api.JsonErr {
+	repoNCData.Config.State = datamodel.Reserve
+	repoNCData.Config.Status = datamodel.Pending
+	repoNCData.Config.FailureDetail = api.JsonErr{}
+	repoNCData.Config.LogStateCompletion(datamodel.Prepare)
+	return p.PersistNC(repoNCData)
 }
 
-func (p *Preparer) PrepareNetworkContainer(repoNCConfig *datamodel.NCConfiguration) (bool, *api.JsonErr) {
-	if !repoNCConfig.ImplicitReservation {
-		return p.PrepareNetworkContainerV1(repoNCConfig)
+func (p *Preparer) PrepareNetworkContainer(repoNCData *datamodel.NetworkContainerEntity) (bool, *api.JsonErr) {
+	if !repoNCData.Config.ImplicitReservation {
+		return p.PrepareNetworkContainerV1(repoNCData)
 	}
 
-	return p.PrepareNetworkContainerV2(repoNCConfig)
+	return p.PrepareNetworkContainerV2(repoNCData)
 }
 
 // PrepareNetworkContainerV1 prepare, validate the NC request v1.
 // todo: moved with minor changes from requestmonitor.go. need to clean up further and add tests
-func (p *Preparer) PrepareNetworkContainerV1(ncConfig *datamodel.NCConfiguration) (bool, *api.JsonErr) {
-	associationInfo := ncConfig.GetAssociationInfo()
+func (p *Preparer) PrepareNetworkContainerV1(repoNCData *datamodel.NetworkContainerEntity) (bool, *api.JsonErr) {
+	associationInfo := repoNCData.Config.GetAssociationInfo()
 
 	// Process reservation if the reservation ID is specified in the NC config
 	// In case of reservation set, no reservation ID will be specified and the allocation of the unassigned reservation
 	// will be processed during reserve phase
-	if ncConfig.ReservationID != "" {
-		reservation, err := datamodel.QueryIPReservation(ncConfig.NetworkID, ncConfig.ReservationID)
+	if repoNCData.Config.ReservationID != "" {
+		reservation, err := datamodel.QueryIPReservation(repoNCData.Config.NetworkID, repoNCData.Config.ReservationID)
 		if err != nil {
 			if err.HTTPStatus == http.StatusInternalServerError {
 				return false, err
 			}
-			return p.markNCAsFailed(ncConfig, *err)
+			return p.markNCAsFailed(repoNCData, *err)
 		}
 
 		// Compare with frontendIP in a case insensitive manner or any purpose tag defined, DNC should prevent create NC on this IP
@@ -224,7 +224,7 @@ func (p *Preparer) PrepareNetworkContainerV1(ncConfig *datamodel.NCConfiguration
 		if strings.EqualFold(requestType, api.FrontendIP) || requestType != "" {
 			err = api.BadRequestf(api.ReservationTypeNotMatch,
 				"Reservation has been reserved as %s, can't create container with it", requestType)
-			return p.markNCAsFailed(ncConfig, *err)
+			return p.markNCAsFailed(repoNCData, *err)
 		}
 	}
 
@@ -234,7 +234,7 @@ func (p *Preparer) PrepareNetworkContainerV1(ncConfig *datamodel.NCConfiguration
 	}
 
 	sessionInfoWrite := map[string]string{
-		datamodel.ReservationRepositoryName: ncConfig.RequestV1.ReservationID,
+		datamodel.ReservationRepositoryName: repoNCData.Config.RequestV1.ReservationID,
 		datamodel.NodeRepositoryName:        associationInfo.NodeID,
 	}
 	p.Locks.BeginWriteSession(sessionInfoWrite)
@@ -242,9 +242,9 @@ func (p *Preparer) PrepareNetworkContainerV1(ncConfig *datamodel.NCConfiguration
 
 	err = datamodel.NodeConfigRepo.UpdateNodeConfigurationNetworkContainerSet(
 		associationInfo.NodeID,
-		ncConfig.NetworkID,
-		ncConfig.NetworkContainerID,
-		ncConfig.RequestV1.ReservationID,
+		repoNCData.Config.NetworkID,
+		repoNCData.Config.NetworkContainerID,
+		repoNCData.Config.RequestV1.ReservationID,
 		associationInfo.ContainerType,
 		ShouldUpdateVlan(associationInfo.ContainerType),
 		false,
@@ -255,9 +255,9 @@ func (p *Preparer) PrepareNetworkContainerV1(ncConfig *datamodel.NCConfiguration
 		if err.HTTPStatus == http.StatusInternalServerError {
 			return false, err
 		}
-		return p.markNCAsFailed(ncConfig, *err)
+		return p.markNCAsFailed(repoNCData, *err)
 	}
 
-	err = p.moveNCToReserveState(ncConfig)
+	err = p.moveNCToReserveState(repoNCData)
 	return false, err
 }

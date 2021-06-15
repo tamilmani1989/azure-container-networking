@@ -211,7 +211,7 @@ func serializeNetworkContainerPublishData(
 	var (
 		networkContainerVersion uint64
 		err                     error
-		ncData                  C.struct_NC_DATA
+		nc                  C.struct_NC_DATA
 		ncDataSize              C.size_t
 		serializedNcData        unsafe.Pointer
 	)
@@ -225,32 +225,32 @@ func serializeNetworkContainerPublishData(
 		return nil, err
 	}
 
-	ncData.NetworkContainerVersion = C.uint64_t(networkContainerVersion)
-	ncData.SubnetPrefix = C.CString(cachedSubnetConfig.addressPrefix)
-	ncData.CustomerAddress = C.CString(ncPublishRequest.PrimaryIP)
-	ncData.SecondaryCustomerAddresses = C.CString(strings.Join(ncPublishRequest.SecondaryIPs, ","))
-	ncData.RoleInstanceId = C.CString(ncRoleInstanceId)
-	ncData.RoleInstanceName = C.CString(ncRoleInstanceName)
-	ncData.VnetId = C.CString(ncPublishRequest.VirtualNetworkID)
-	ncData.VlanId = C.CString(fmt.Sprintf("%d", ncPublishRequest.VlanID))
-	ncData.NcSlbGreKey = C.CString(fmt.Sprintf("%d", ncPublishRequest.GreKey))
+	nc.NetworkContainerVersion = C.uint64_t(networkContainerVersion)
+	nc.SubnetPrefix = C.CString(cachedSubnetConfig.addressPrefix)
+	nc.CustomerAddress = C.CString(ncPublishRequest.PrimaryIP)
+	nc.SecondaryCustomerAddresses = C.CString(strings.Join(ncPublishRequest.SecondaryIPs, ","))
+	nc.RoleInstanceId = C.CString(ncRoleInstanceId)
+	nc.RoleInstanceName = C.CString(ncRoleInstanceName)
+	nc.VnetId = C.CString(ncPublishRequest.VirtualNetworkID)
+	nc.VlanId = C.CString(fmt.Sprintf("%d", ncPublishRequest.VlanID))
+	nc.NcSlbGreKey = C.CString(fmt.Sprintf("%d", ncPublishRequest.GreKey))
 
 	defer func() {
-		// Free the C memory holding the serialized NC data and ncData allocated strings
+		// Free the C memory holding the serialized NC data and nc allocated strings
 		C.free(serializedNcData)
-		C.free(unsafe.Pointer(ncData.SubnetPrefix))
-		C.free(unsafe.Pointer(ncData.CustomerAddress))
-		C.free(unsafe.Pointer(ncData.SecondaryCustomerAddresses))
-		C.free(unsafe.Pointer(ncData.RoleInstanceId))
-		C.free(unsafe.Pointer(ncData.RoleInstanceName))
-		C.free(unsafe.Pointer(ncData.VnetId))
-		C.free(unsafe.Pointer(ncData.VlanId))
-		C.free(unsafe.Pointer(ncData.NcSlbGreKey))
+		C.free(unsafe.Pointer(nc.SubnetPrefix))
+		C.free(unsafe.Pointer(nc.CustomerAddress))
+		C.free(unsafe.Pointer(nc.SecondaryCustomerAddresses))
+		C.free(unsafe.Pointer(nc.RoleInstanceId))
+		C.free(unsafe.Pointer(nc.RoleInstanceName))
+		C.free(unsafe.Pointer(nc.VnetId))
+		C.free(unsafe.Pointer(nc.VlanId))
+		C.free(unsafe.Pointer(nc.NcSlbGreKey))
 	}()
 
 	var resultStatus C.struct_ResultStatus
 	if resultStatus = C.SerializeNetworkContainerPublishData(
-		&ncData, &serializedNcData, &ncDataSize); resultStatus.ResultCode != 0 {
+		&nc, &serializedNcData, &ncDataSize); resultStatus.ResultCode != 0 {
 		err = fmt.Errorf("Failed to serialize NC publish data for NC: %s due to error: %s",
 			ncPublishRequest.NcID, C.GoString(resultStatus.ErrorDetails))
 		return nil, err

@@ -6,7 +6,6 @@ const (
 	ipReservationsTableName                          = "IPReservationsTable"
 	pendingWorkItemsTableName                        = "PendingWorkItemsTable"
 	networkConfigurationTableName                    = "NetworkConfigurationTable"
-	networkContainerTableName                        = "NetworkContainerTable"
 	tagDefinitionTableName                           = "TagDefinitionsTable"
 	sharedSubnetDelegationMigrationTableName         = "SharedSubnetDelegationMigrationTable"
 	sharedSubnetDelegationMigrationRegionalTableName = "SharedSubnetDelegationMigrationRegionalTable"
@@ -20,9 +19,7 @@ const (
 	networkKey                 = "Network_%s"
 	subnetConfigurationKey     = "Network_%s_Subnet_%s"
 	ipReservationKey           = "Network_%s_Reservation_%s"
-	networkcontainerKey        = "NC_%s"
 	nodeKey                    = "Node_%s"
-	ncKey                      = "Network_%s_ID_%s"
 	tagDefinitionKey           = "Tag_%s_%s"
 	ncPendingPublishContextKey = "Network_%s_NC_%s_PubSubId_%s"
 )
@@ -33,7 +30,6 @@ const (
 	reservationConfigurationTag        = "ReservationConfiguration"
 	nodeConfigurationTag               = "NodeConfiguration"
 	requestContextTag                  = "RequestContext"
-	networkContainerConfigurationTag   = "NetworkContainerConfiguration"
 	tagDefinitionsTag                  = "TagDefinitions"
 	sharedSubnetDelegationMigrationTag = "SharedSubnetDelegationMigrationComplete"
 	masterElectionTag                  = "MasterElection"
@@ -43,9 +39,6 @@ const (
 )
 
 const (
-	// NCRepositoryName - Repository name for network container.
-	NCRepositoryName = "NCRepository"
-
 	// ReservationRepositoryName - Repository name for reservation.
 	ReservationRepositoryName = "ReservationRepository"
 
@@ -62,13 +55,6 @@ const (
 	NCPendingPublishRepositoryName = "NCPendingPublishRepository"
 )
 
-const (
-	// AddToPendingQ - add item to pending queue
-	AddToPendingQ = true
-	// DontAddToPendingQ - do not add to pending queue
-	DontAddToPendingQ = false
-)
-
 // todo: a value is only required if the table contains a single property that contains a json blob.
 //  in general, this is not an pattern we want to continue across the code, since it makes it difficult
 //  to leverage secondary indexes/more properties per row. this map will eventually be deprecated, and table
@@ -81,7 +67,7 @@ var TableToColumnMap = map[string]string{
 	ipReservationsTableName:                          reservationConfigurationTag,
 	pendingWorkItemsTableName:                        requestContextTag,
 	networkConfigurationTableName:                    networkConfigurationTag,
-	networkContainerTableName:                        networkContainerConfigurationTag,
+	networkContainerTableName:                        networkContainerConfigProperty,
 	tagDefinitionTableName:                           tagDefinitionsTag,
 	IPAllocationsTableName:                           IPAllocationProperty,
 	sharedSubnetDelegationMigrationTableName:         sharedSubnetDelegationMigrationTag,

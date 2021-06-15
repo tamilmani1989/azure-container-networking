@@ -54,15 +54,15 @@ func unpublishFromPendingPublishRequests(ctx context.Context, repo *partitionRep
 
 // This will unpublish the pending NC state for all the Pending NetworkContainers in the NC table
 func unpublishFromPendingNetworkContainers(ctx context.Context, repo *partitionRepo) *api.JsonErr {
-	networkContainersConfig, err := repo.ncRepo.GetAllNetworkContainers()
+	ncs, err := repo.ncRepo.GetAllNetworkContainers()
 	if err != nil {
 		Log(ctx).Errorf("error GetAllNetworkContainers: %v", err)
 		return err
 	}
 
-	for _, repoNCConfig := range networkContainersConfig {
+	for _, nc := range ncs {
 		// Get the associated Node for a given NC to fetch InfraVnetId
-		nodeID := repoNCConfig.GetAssociationInfo().NodeID
+		nodeID := nc.Config.GetAssociationInfo().NodeID
 		repoNodeConfig, err := repo.nodeRepo.TryQueryNodeConfiguration(nodeID)
 		if err != nil {
 			Log(ctx).Errorf("error TryQueryNodeConfiguration: %v", err)
@@ -70,13 +70,13 @@ func unpublishFromPendingNetworkContainers(ctx context.Context, repo *partitionR
 		}
 
 		if repoNodeConfig == nil {
-			Log(ctx).Errorf("error repoNodeConfig is nil for nc %s", repoNCConfig.NetworkContainerID)
+			Log(ctx).Errorf("error repoNodeConfig is nil for nc %s", nc.Config.NetworkContainerID)
 			return api.BadRequestf(api.NodeNotFound,
-				"configuration for node: %s not found. Associated NC: %s", nodeID, repoNCConfig.NetworkContainerID)
+				"configuration for node: %s not found. Associated NC: %s", nodeID, nc.Config.NetworkContainerID)
 		}
 
 		var nodeInterfaceIp string
-		assocInfo := repoNCConfig.GetAssociationInfo()
+		assocInfo := nc.Config.GetAssociationInfo()
 
 		if len(assocInfo.InterfaceID) == 0 {
 			nodeInterfaceIp = repoNodeConfig.NodeInfo.IPAddresses[0]
@@ -85,7 +85,7 @@ func unpublishFromPendingNetworkContainers(ctx context.Context, repo *partitionR
 		}
 
 		// todo: retry? Caller will but...
-		err = pubsubproxy.ForceUnpublishInAllAzs(repoNodeConfig.NodeInfo.InfrastructureNetwork, nodeInterfaceIp, repoNCConfig.NetworkContainerID)
+		err = pubsubproxy.ForceUnpublishInAllAzs(repoNodeConfig.NodeInfo.InfrastructureNetwork, nodeInterfaceIp, nc.Config.NetworkContainerID)
 		if err != nil {
 			Log(ctx).Errorf("error ForceUnpublishInAllAzs %s, %v", err)
 			return err

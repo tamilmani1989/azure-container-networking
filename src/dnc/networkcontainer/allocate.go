@@ -202,18 +202,19 @@ func (a *IPAllocator) getAllAddressesInUse(baseSubnet *net.IPNet, allocationStat
 	}
 
 	if req.AssociatedNCID != "" {
-		ncConfig, err := a.NCs.TryQueryNetworkContainer(req.NetworkID, req.AssociatedNCID)
+		nc, err := a.NCs.TryQueryNetworkContainer(req.NetworkID, req.AssociatedNCID)
 		if err != nil {
 			return nil, err
 		}
-		if ncConfig == nil {
+
+		if nc.RowKey == "" {
 			return nil, api.NotFound(api.NetworkContainerNotFound, fmt.Sprintf("Failed to find configuration for network container %s", req.AssociatedNCID))
 		}
 
-		nodeID := ncConfig.GetAssociationInfo().NodeID
+		nodeID := nc.Config.GetAssociationInfo().NodeID
 		// This needs to be fixed for scenarios where we are using the reserve IP
 		// API to dump allocations on a node and orchestrator is WebApps.
-		if nodeID != "" && ncConfig.GetAssociationInfo().ContainerType == cns.WebApps {
+		if nodeID != "" && nc.Config.GetAssociationInfo().ContainerType == cns.WebApps {
 			allocatedAddressesOnNode, err := a.getAllocationsOnNode(nodeID)
 			if err != nil {
 				return nil, err

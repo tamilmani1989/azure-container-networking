@@ -334,40 +334,44 @@ func CreateAssociationTask(nodeID, networkID, networkContainerID string) *api.Js
 	sessionManager.BeginWriteSession(sessionInfo)
 	defer sessionManager.EndWriteSession(sessionInfo)
 
-	repoNetworkContainerConfiguration, err := datamodel.TryQueryNetworkContainer(
-		networkID,
-		networkContainerID)
+	nc, err := datamodel.NcRepo.TryQueryNetworkContainer(networkID, networkContainerID)
 	if err != nil {
-		logger.Errorf("Failed to retrieve configuration for NC %s due to error %s",
-			networkContainerID,
-			err.String())
+		logger.Errorf("Failed to retrieve configuration for NC %s due to error %s", networkContainerID, err.String())
 		return err
 	}
 
-	if repoNetworkContainerConfiguration == nil {
-		logger.Debugf("Configuration for NC %s not found.",
-			networkContainerID)
+	if nc.RowKey == "" {
+		logger.Debugf("Configuration for NC %s not found.", networkContainerID)
 		return nil
 	}
 
-	if repoNetworkContainerConfiguration.MarkedForDelete {
+	if nc.Config.MarkedForDelete {
 		return nil
 	}
 
-	if repoNetworkContainerConfiguration.Status == datamodel.Failed ||
-		repoNetworkContainerConfiguration.Status == datamodel.Denied {
+	if nc.Config.Status == datamodel.Failed || nc.Config.Status == datamodel.Denied {
 		return nil
 	}
 
-	// Additonal check for NC state of RefreshAssociation is needed because
+	// Additional check for NC state of RefreshAssociation is needed because
 	// it may happen that NC state changes to refreshAssociation from Program but
 	// DNC fails to add pending request in the queue due to DNC crash or upgrading
 	// the DNC during deployment
-	if (repoNetworkContainerConfiguration.State == datamodel.Program ||
-		repoNetworkContainerConfiguration.State == datamodel.RefreshAssociation) &&
-		repoNetworkContainerConfiguration.Status == datamodel.Completed {
-		repoNetworkContainerConfiguration.State = datamodel.RefreshAssociation
-		return datamodel.PersistNCConfiguration(repoNetworkContainerConfiguration, datamodel.AddToPendingQ)
+	if (nc.Config.State == datamodel.Program || nc.Config.State == datamodel.RefreshAssociation) &&
+		nc.Config.Status == datamodel.Completed {
+		nc.Config.State = datamodel.RefreshAssociation
+		if err = datamodel.NcRepo.PersistNetworkContainerData(&nc); err != nil {
+			return err
+		}
+
+		// Add request to pending queue table
+		requestContext := datamodel.RequestContext{
+			Type:      datamodel.NetworkContainerRequest,
+			NetworkID: nc.Config.NetworkID,
+			NodeID:    nc.Config.GetAssociationInfo().NodeID,
+		}
+		ncKey := datamodel.GetNCKey(nc.Config.NetworkID, nc.Config.NetworkContainerID)
+		return datamodel.AddRequestToPendingQueue(ncKey, &requestContext)
 	}
 
 	return nil
@@ -672,9 +676,9 @@ func validateAndRetrieveNetworkConfigurationUpdate(
 
 			currentSubnet, err := utils.ParseIPNet(repoSubnetConfig.IPSubnet)
 			if err != nil {
-				msg := fmt.Sprintf("Failed to parse IPSubnet %s from repo config %s.",
+				msg := fmt.Sprintf("Failed to parse IPSubnet %s from repo config %+v.",
 					subnet.AddressPrefix,
-					repoSubnetConfig.String())
+					*repoSubnetConfig)
 				return false, &api.JsonErr{
 					Code:       api.NetworkJoinFailed,
 					Text:       msg,

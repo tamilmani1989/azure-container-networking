@@ -137,7 +137,7 @@ type ncJob struct {
 	context jobContext
 	ncId    string
 	vnetId  string
-	ncData  []byte
+	nc  []byte
 }
 
 // vnetJob
@@ -310,7 +310,7 @@ func processNcPendingRequests() {
 				context: jobContext,
 				ncId:    requestContext.NetworkContainerID,
 				vnetId:  requestContext.NetworkID,
-				ncData:  requestContext.NcData,
+				nc:  requestContext.NcData,
 			}
 
 			workerPool().scheduleJob(job)
@@ -414,14 +414,14 @@ func (job *ncJob) process() error {
 	logDebugf("Process Job-%s: %s", jobContext.jobType.String(), jobContext.id)
 
 	if jobContext.jobType == NetworkContainerPublish {
-		err = publishData(jobContext.pubsubAzId, jobContext.partitionKey, jobContext.relativePath, job.ncData)
+		err = publishData(jobContext.pubsubAzId, jobContext.partitionKey, jobContext.relativePath, job.nc)
 	} else if jobContext.jobType == NetworkContainerUnpublish {
 		err = unpublishData(jobContext.pubsubAzId, jobContext.partitionKey, jobContext.relativePath)
 	} else if jobContext.jobType == BareMetalContainerPublish || jobContext.jobType == BareMetalContainerUnpublish {
 		primary := pubsubContext{
 			Key:  jobContext.partitionKey,
 			Path: jobContext.relativePath,
-			Data: job.ncData,
+			Data: job.nc,
 		}
 
 		if jobContext.jobType == BareMetalContainerPublish {

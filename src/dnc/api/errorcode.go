@@ -305,6 +305,9 @@ const (
 	// AzureStorageError - Error coming from Azure storage
 	AzureStorageError
 
+	// SubnetMarkedForDeletion - Subnet is marked for deletion.
+	SubnetMarkedForDeletion
+
 	// EntityNotFound - Entity not found
 	EntityNotFound
 )
@@ -598,6 +601,9 @@ func (e ErrorCode) String() string {
 
 	case AzureStorageError:
 		return "AzureStorageError"
+
+	case SubnetMarkedForDeletion:
+		return "SubnetMarkedForDeletion"
 
 	case EntityNotFound:
 		return "EntityNotFound"

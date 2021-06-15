@@ -408,10 +408,16 @@ func (c *Controller) CreateOrUpdateReservationSetRequest(
 		return
 	}
 
-	// Allow creation of the reservation set only if the subnet is in joined state
+	// Return error if the subnet is not joined or if the subnet is marked for deletion
 	if !subnetConfig.Joined {
 		err = api.BadRequestf(api.SubnetIsNotJoined, "cannot create reservation set: %s as the subnet: %s "+
 			"in vnet: %s is not registered with dnc", reservationSetID, request.SubnetName, networkID)
+		return
+	}
+
+	if subnetConfig.MarkedForDelete {
+		err = api.BadRequestf(api.SubnetMarkedForDeletion, "cannot create reservation set: %s as the subnet: %s " +
+			"in vnet: %s is marked for deletion", reservationSetID, request.SubnetName, networkID)
 		return
 	}
 
@@ -719,6 +725,16 @@ func (c *Controller) GetSubnetStatus(networkID, subnetName string) (*api.Request
 		requestStatus.Status = datamodel.Pending.String()
 		requestReturnCode = http.StatusAccepted
 		requestError = api.NotFoundf(api.JoinPending, "Network: %s subnet: %s join pending", networkID, subnetName)
+
+	case datamodel.SubnetCleanupFailed:
+		requestStatus.Status = datamodel.Failed.String()
+		requestReturnCode = subnetConfig.FailureDetail.HTTPStatus
+		requestError = api.InternalServerErrorf(subnetConfig.FailureDetail.Code, subnetConfig.FailureDetail.Text)
+
+	case datamodel.SubnetCleanupPending:
+		requestStatus.Status = datamodel.Pending.String()
+		requestReturnCode = http.StatusAccepted
+		requestError = api.NotFoundf(api.ProcessingPending, "Network: %s subnet: %s cleanup pending", networkID, subnetName)
 	}
 
 	return &requestStatus, requestReturnCode, requestError
@@ -771,26 +787,22 @@ func (c *Controller) GetNetworkContainerStatus(
 	// No read lock is required because Azure Storage uses snapshot isolation to allow
 	// read operations to happen concurrently with writes in the same partition. It
 	// guarantees reads to see consistent data while updates are happening
-	ncConfig, err := datamodel.GetNetworkContainerConfiguration(networkID, networkContainerID)
+	nc, err := datamodel.NcRepo.GetNetworkContainerData(networkID, networkContainerID)
 	if err != nil {
 		return nil, http.StatusInternalServerError, err
 	}
 
-	if ncConfig == nil {
-		msg := fmt.Sprintf(
-			"NetworkContainer %s in network %s is not found", networkContainerID, networkID)
-		return nil, http.StatusNotFound, &api.JsonErr{
-			Code:       api.NetworkContainerNotFound,
-			HTTPStatus: http.StatusNotFound,
-			Text:       msg}
+	if nc.RowKey == "" {
+		return nil, http.StatusNotFound, api.NotFoundf(api.NetworkContainerNotFound,
+			"could not find NC: %s in network: %s", networkContainerID, networkID)
 	}
 
-	ncType := ncConfig.GetAssociationInfo().ContainerType
+	ncType := nc.Config.GetAssociationInfo().ContainerType
 	//nicStatus set by default to Not Applicable in case it is a non-Baremetal scenario
 	nicStatus := "N/A"
 	//checking if NC type is Baremetal to call GetNICProgammingStatus and to set the nicStatus
 	if ncType == api.BareMetalContainerType {
-		aznmNICStatusData, aznmstatusError := pubsubproxy.GetNICProgrammingStatus(ncConfig.ReservationID)
+		aznmNICStatusData, aznmstatusError := pubsubproxy.GetNICProgrammingStatus(nc.Config.ReservationID)
 		nicStatus = aznmNICStatusData
 		//if the aznm NIC status returned is not nil, return the error string to api
 		if aznmstatusError != nil {
@@ -799,12 +811,12 @@ func (c *Controller) GetNetworkContainerStatus(
 	}
 
 	var requestStatus = &api.NCRequestStatus{
-		State:         ncConfig.State.String(),
-		Status:        ncConfig.Status.String(),
+		State:         nc.Config.State.String(),
+		Status:        nc.Config.Status.String(),
 		NICStatus:     nicStatus,
-		FailureDetail: ncConfig.FailureDetail}
+		FailureDetail: nc.Config.FailureDetail}
 
-	return requestStatus, generateStatus(ncConfig.Status, &ncConfig.FailureDetail), nil
+	return requestStatus, generateStatus(nc.Config.Status, &nc.Config.FailureDetail), nil
 }
 
 // PersistNetworkJoinRequest - Persists network join request
@@ -971,6 +983,16 @@ func (c *Controller) updateSubnetV1(networkID, subnet string, subnetRequest api.
 	return datamodel.PutSubnetConfiguration(subnetConfiguration)
 }
 
+func (c *Controller) CleanupSubnet(networkID, subnetName string) *api.JsonErr {
+	loggershim.LS.Debugf("[Request] CleanupSubnet: Network: %s, Subnet: %s", networkID, subnetName)
+
+	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: networkID}
+	c.SessionManager.BeginWriteSession(sessionInfo)
+	defer c.SessionManager.EndWriteSession(sessionInfo)
+
+	return datamodel.CreateSubnetCleanupRequest(networkID, subnetName)
+}
+
 func (c *Controller) DeleteSubnetV2(networkID, subnetName string, apiversion string) *api.JsonErr {
 	loggershim.LS.Debugf("[Request] DeleteSubnetV2: Network: %s, Subnet: %s", networkID, subnetName)
 	if !config.PubSubProxySettings.EnablePubSubProxy {
@@ -1008,6 +1030,13 @@ func (c *Controller) DeleteSubnetV2(networkID, subnetName string, apiversion str
 		return nil
 	}
 
+	// Delete subnet is not allowed while the subnet is already being cleaned up with CleanupAndDeleteSubnet API
+	if requestedSubnetConfig.MarkedForDelete && requestedSubnetConfig.UpdateStatus == datamodel.SubnetCleanupPending {
+		errMsg := fmt.Sprintf("Delete subnet not allowed while it's already being cleaned up. subnet: %s, network: %s", subnetName, networkID)
+		loggershim.LS.Errorf(errMsg)
+		return api.BadRequestf(api.StatusBadRequest, errMsg)
+	}
+
 	reservations, err := datamodel.TryQueryAllReservationsInSubnet(networkID, subnetName)
 	if err != nil {
 		loggershim.LS.Errorf("Failed to retrieve reservations for subnet: %s in network: %s. Error: %v", subnetName, networkID, err)
@@ -1027,7 +1056,8 @@ func (c *Controller) DeleteSubnetV2(networkID, subnetName string, apiversion str
 
 	// Mark the subnet as 'not joined' anymore and persist the updated subnet config
 	requestedSubnetConfig.Joined = false
-	loggershim.LS.Debugf("Marking 'Joined as false' for subnet: %s in network: %s", subnetName, networkID)
+	requestedSubnetConfig.MarkedForDelete = true
+	loggershim.LS.Debugf("Updating subnet: %s in network: %s for deletion", subnetName, networkID)
 	if err := datamodel.PutSubnetConfiguration(requestedSubnetConfig); err != nil {
 		loggershim.LS.Errorf("Failed to persist subnet configuration for subnet: %s in network: %s. Error: %v", subnetName, networkID, err)
 		return err
@@ -1104,6 +1134,14 @@ func (c *Controller) PersistSubnetDelegationRequestV2(networkID, subnet string, 
 			UpdateStatus: datamodel.SubnetUpdatePending,
 		}
 	} else {
+		// Cannot join the subnet if it's marked for deletion
+		if subnetConfig.MarkedForDelete {
+			errMsg := fmt.Sprintf("Cannot register/join subnet: %s as it's marked for deletion",
+				datamodel.GetSubnetKey(subnetConfig.NetworkID, subnetConfig.SubnetName))
+			loggershim.LS.Errorf(errMsg)
+			return api.BadRequest(api.StatusBadRequest, errMsg)
+		}
+
 		loggershim.LS.Debugf("Updating the subnet config for Network: %s, Subnet: %s with access token and marking it as Joined", networkID, subnet)
 		subnetConfig.AccessToken = subnetRequest.AuthenticationToken
 		subnetConfig.Joined = true
@@ -1240,12 +1278,17 @@ func (c *Controller) PromoteContainerState(networkID, ncID string) *api.JsonErr 
 	c.SessionManager.BeginWriteSession(sessionInfo)
 	defer c.SessionManager.EndWriteSession(sessionInfo)
 
-	repoNCConfig, err := datamodel.TryQueryNetworkContainer(networkID, ncID)
+	nc, err := datamodel.NcRepo.TryQueryNetworkContainer(networkID, ncID)
 	if err != nil {
 		return err
 	}
 
-	return datamodel.PromoteContainerState(repoNCConfig)
+	if nc.RowKey == "" {
+		return api.NotFoundf(api.NetworkContainerNotFound, "could not find NC: %s to promote the state",
+			datamodel.GetNCKey(networkID, ncID))
+	}
+
+	return datamodel.PromoteContainerState(nc)
 }
 
 // SkipNodeCleanupForNetworkContainer - Attempt to promote container stuck in an undesirable state (as a result of unreachable node)
@@ -1254,13 +1297,17 @@ func (c *Controller) SkipNodeCleanupForNetworkContainer(networkID, ncID string) 
 	c.SessionManager.BeginWriteSession(sessionInfo)
 	defer c.SessionManager.EndWriteSession(sessionInfo)
 
-	repoNCConfig, err := datamodel.TryQueryNetworkContainer(networkID, ncID)
+	nc, err := datamodel.NcRepo.TryQueryNetworkContainer(networkID, ncID)
 	if err != nil {
 		return err
 	}
 
-	if repoNCConfig.FailureDetail.Code == api.DisAssociationFailed {
-		return datamodel.PromoteContainerState(repoNCConfig)
+	if nc.RowKey == "" {
+		return api.NotFoundf(api.NetworkContainerNotFound, "could not find the data for NC: %s", datamodel.GetNCKey(networkID, ncID))
+	}
+
+	if nc.Config.FailureDetail.Code == api.DisAssociationFailed {
+		return datamodel.PromoteContainerState(nc)
 	}
 
 	return nil
@@ -1271,35 +1318,36 @@ func (c *Controller) GetNetworkContainerConfiguration(networkID, ncID string) (*
 	// No read lock is required because Azure Storage uses snapshot isolation to allow
 	// read operations to happen concurrently with writes in the same partition. It
 	// guarantees reads to see consistent data while updates are happening
-	ncConfig, err := datamodel.GetNetworkContainerConfiguration(networkID, ncID)
-
+	nc, err := datamodel.NcRepo.GetNetworkContainerData(networkID, ncID)
 	if err != nil {
 		return nil, err
 	}
 
-	if ncConfig.GetAssociationInfo().ContainerType == api.BareMetalContainerType {
+	if nc.RowKey == "" {
+		return nil, api.NotFoundf(api.NetworkContainerNotFound, "could not find NC: %s in network: %s", ncID, networkID)
+	}
+
+	if nc.Config.GetAssociationInfo().ContainerType == api.BareMetalContainerType {
 		context := client.OrchestratorContext{}
-		unmarshalErr := json.Unmarshal([]byte(ncConfig.GetAssociationInfo().OrchestratorContext), &context)
+		unmarshalErr := json.Unmarshal([]byte(nc.Config.GetAssociationInfo().OrchestratorContext), &context)
 		if unmarshalErr != nil {
 			loggershim.LS.Debugf("Unmarshalling OrchestratorContext Failed %+v", unmarshalErr)
-			return nil, &api.JsonErr{
-				Code:       api.StatusInternalServerError,
-				HTTPStatus: http.StatusInternalServerError,
-				Text:       unmarshalErr.Error()}
+			return nil, api.InternalServerError(api.StatusInternalServerError, unmarshalErr.Error())
 		}
 		//split string to take the latter part of PodName for LogicalContainerID
 		logicalContainerID := strings.Split(context.PodName, "_")
-		ncConfig.BMContainerInfo = fmt.Sprintf("{Physical ContainerID: %s, Logical NICID: %s, Logical ContainerID: %s}", ncConfig.GetInstanceID(), ncConfig.ReservationID, logicalContainerID[1])
+		nc.Config.BMContainerInfo = fmt.Sprintf("{Physical ContainerID: %s, Logical NICID: %s, Logical ContainerID: %s}",
+			nc.Config.GetInstanceID(), nc.Config.ReservationID, logicalContainerID[1])
 	}
 
-	return ncConfig, nil
+	return &nc.Config, nil
 }
 
 // GetNetworkContainerCleanupStatus returns the cleanup status of the nc.
 func (c *Controller) GetNetworkContainerCleanupStatus(networkID, ncID string) (api.NetworkContainerCleanupResponse, *api.JsonErr) {
 	cleanupResp := api.NetworkContainerCleanupResponse{Completed: false}
 	// First, check the network container table to see if the NC exists
-	_, err := datamodel.GetNetworkContainerConfiguration(networkID, ncID)
+	_, err := datamodel.NcRepo.GetNetworkContainerData(networkID, ncID)
 	if err == nil {
 		// no error means the nc exists, so cleanup isn't done
 		return cleanupResp, nil
@@ -1330,12 +1378,12 @@ func (c *Controller) GetNetworkContainerCleanupStatus(networkID, ncID string) (a
 
 // GetNetworkContainerRequest - Retrieves cns.CreateNetworkContainerRequest
 func (c *Controller) GetNetworkContainerRequest(networkID, ncID string) (*cns.CreateNetworkContainerRequest, *api.JsonErr) {
-	ncConfig, err := datamodel.GetNetworkContainerConfiguration(networkID, ncID)
+	nc, err := datamodel.NcRepo.GetNetworkContainerData(networkID, ncID)
 	if err != nil {
 		return nil, err
 	}
 
-	ncGoalState, isRetriable, err := datamodel.GetNCGoalState(ncConfig)
+	ncGoalState, isRetriable, err := datamodel.GetNCGoalState(&nc.Config)
 	if err != nil {
 		if isRetriable {
 			err.HTTPStatus = http.StatusProcessing
@@ -1343,7 +1391,7 @@ func (c *Controller) GetNetworkContainerRequest(networkID, ncID string) (*cns.Cr
 		return nil, err
 	}
 
-	ncRequest, isRetriable, err := datamodel.GetNetworkContainerRequest(ncGoalState, ncConfig)
+	ncRequest, isRetriable, err := datamodel.GetNetworkContainerRequest(ncGoalState, &nc)
 	if err != nil {
 		if isRetriable {
 			err.HTTPStatus = http.StatusProcessing
@@ -1626,7 +1674,7 @@ func deleteSubnetViaRNM(networkID, subnetName string, networkConfiguration *data
 	// Delete the network if there are no other 'Joined' subnets left in this network
 	for subnet, subnetConfig := range subnetConfigs {
 		// If there is at least one 'Joined' subnet left in this network, there is no further processing needed
-		if subnetConfig.Joined == true && subnet != subnetName {
+		if subnetConfig.Joined && subnet != subnetName {
 			loggershim.LS.Debugf("Cannot delete the network: %s as subnet: %s is in 'Joined' state", networkID, subnet)
 			return nil
 		}
@@ -1660,7 +1708,7 @@ func deleteSubnetViaRNC(networkID, subnetId string, networkConfiguration *datamo
 	joinedSubnetFound := false
 	for subnet, subnetConfig := range subnetConfigs {
 		// If there is at least one 'Joined' subnet left in this network, there is no further processing needed
-		if subnetConfig.Joined == true && subnet != subnetId {
+		if subnetConfig.Joined && subnet != subnetId {
 			joinedSubnetFound = true
 			loggershim.LS.Debugf("deleteSubnetViaRNC: Not deleting network: %s as subnet: %s is in 'Joined' state", networkID, subnet)
 		}

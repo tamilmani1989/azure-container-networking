@@ -22,8 +22,15 @@ type NodeRepo interface {
 
 // A NetworkContainerRepo performs CRUD operations on network containers
 type NCRepo interface {
-	TryQueryNetworkContainer(networkID, ncID string) (*datamodel.NCConfiguration, *api.JsonErr)
-	PersistNCConfiguration(ncConfiguration *datamodel.NCConfiguration, addToPendingQueue bool) *api.JsonErr
+	TryQueryNetworkContainer(networkID, ncID string) (datamodel.NetworkContainerEntity, *api.JsonErr)
+	QueryNetworkContainersInSubnet(networkID, subnetName string) ([]datamodel.NetworkContainerEntity, *api.JsonErr)
+	PersistNetworkContainerData(nc *datamodel.NetworkContainerEntity) *api.JsonErr
+	TryQueryNetworkContainerByKey(ncKey string) (datamodel.NetworkContainerEntity, *api.JsonErr)
+	GetNetworkContainerData(networkID, networkContainerID string) (datamodel.NetworkContainerEntity, *api.JsonErr)
+	DeleteNetworkContainer(networkID, networkContainerID string) *api.JsonErr
+	DeleteAllRows() *api.JsonErr
+	AnyNetworkContainerExists() (bool, *api.JsonErr)
+	GetAllNetworkContainers() (map[string]datamodel.NetworkContainerEntity, *api.JsonErr)
 }
 
 // A SubnetRepo performs CRUD operations on subnets

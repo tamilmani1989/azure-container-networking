@@ -9,14 +9,14 @@ import (
 	"testing"
 )
 
-func assertNCInReservePending(t *testing.T, nc datamodel.NCConfiguration) {
-	if nc.State != datamodel.Reserve {
-		t.Errorf("expected NC to be in reserve state, got %s", nc.State)
+func assertNCInReservePending(t *testing.T, nc datamodel.NetworkContainerEntity) {
+	if nc.Config.State != datamodel.Reserve {
+		t.Errorf("expected NC to be in reserve state, got %s", nc.Config.State)
 	}
-	if nc.Status != datamodel.Pending {
-		t.Errorf("expected NC to be in pending status, got %s", nc.Status)
+	if nc.Config.Status != datamodel.Pending {
+		t.Errorf("expected NC to be in pending status, got %s", nc.Config.Status)
 	}
-	if nc.ReservationID == "" {
+	if nc.Config.ReservationID == "" {
 		t.Error("expected reservation id to have been assigned to NC, got none")
 	}
 }
@@ -32,7 +32,7 @@ func assertReservationIn(t *testing.T, res datamodel.ReservationConfiguration, s
 
 func TestPrepareNetworkContainer_CreateHappyPath(t *testing.T) {
 	var (
-		nextNCState   datamodel.NCConfiguration
+		nextNCState   datamodel.NetworkContainerEntity
 		nextNodeState datamodel.NodeConfiguration
 	)
 
@@ -54,7 +54,7 @@ func TestPrepareNetworkContainer_CreateHappyPath(t *testing.T) {
 			}
 			return nil
 		},
-		PersistNC: func(nc *datamodel.NCConfiguration, _ bool) *api.JsonErr {
+		PersistNC: func(nc *datamodel.NetworkContainerEntity) *api.JsonErr {
 			if nc != nil {
 				nextNCState = *nc
 			}
@@ -67,21 +67,26 @@ func TestPrepareNetworkContainer_CreateHappyPath(t *testing.T) {
 
 	ncID := "nc1"
 	vnetID := "network1"
+	subnetName := "subnet1"
 	nodeID := "node1"
 	secondaryIPCount := 10
 
-	currentNCState := datamodel.NCConfiguration{
-		NetworkContainerID: ncID,
-		NetworkID:          vnetID,
-		RequestV2: api.NetworkContainerRequestV2{
-			AllocationRequest: api.AllocationRequest{
-				SecondaryIPCount: secondaryIPCount,
+	currentNCState := datamodel.NetworkContainerEntity{
+		RowKey: datamodel.GetNCKey(vnetID, ncID),
+		Config: datamodel.NCConfiguration{
+			NetworkContainerID: ncID,
+			NetworkID:          vnetID,
+			RequestV2: api.NetworkContainerRequestV2{
+				AllocationRequest: api.AllocationRequest{
+					SecondaryIPCount: secondaryIPCount,
+				},
+				AssociationInfo: api.AssociationInfo{
+					NodeID: nodeID,
+				},
+				ToBeDeletedIPIds: nil,
 			},
-			AssociationInfo: api.AssociationInfo{
-				NodeID: nodeID,
-			},
-			ToBeDeletedIPIds: nil,
 		},
+		SubnetKey: datamodel.GetSubnetKey(vnetID, subnetName),
 	}
 
 	removeFromQueue, err := preparer.PrepareNetworkContainerV2(&currentNCState)
@@ -100,7 +105,7 @@ func TestPrepareNetworkContainer_CreateHappyPath(t *testing.T) {
 	assertNCInReservePending(t, currentNCState)
 
 	// reservation assertions
-	expectedResKey := datamodel.GetReservationKey(currentNCState.NetworkID, currentNCState.ReservationID)
+	expectedResKey := datamodel.GetReservationKey(currentNCState.Config.NetworkID, currentNCState.Config.ReservationID)
 	nextReservationState, ok := reservationRepo.Data[expectedResKey]
 	if !ok {
 		t.Fatalf("expected reservation with key %s, got none", expectedResKey)
@@ -279,19 +284,26 @@ func TestPrepareNetworkContainer_Error(t *testing.T) {
 			preparer := Preparer{
 				Reservations:         reservationRepo,
 				UpdateNodeContainers: func(_, _, _, _, _ string, _, _ bool, _ int) *api.JsonErr { return tt.nodeErr },
-				PersistNC:            func(_ *datamodel.NCConfiguration, _ bool) *api.JsonErr { return tt.ncErr },
+				PersistNC:            func(_ *datamodel.NetworkContainerEntity) *api.JsonErr { return tt.ncErr },
 				CNS:                  &fakeCNSChannel{limit: 3, err: nil},
 				Locks:                utils.NewSessionManager(nil),
 				Logger:               loggermock.NewDummyLogger(),
 			}
 
-			currentNCState := datamodel.NCConfiguration{
-				NetworkContainerID: "nc1",
-				NetworkID:          "vnet1",
-				RequestV2: api.NetworkContainerRequestV2{
-					AllocationRequest: api.AllocationRequest{SecondaryIPCount: 5},
-					AssociationInfo:   api.AssociationInfo{NodeID: "node1"},
+			ncID := "nc1"
+			vnetID := "vnet1"
+			subnetName := "subnet1"
+			currentNCState := datamodel.NetworkContainerEntity{
+				RowKey: datamodel.GetNCKey(vnetID, ncID),
+				Config: datamodel.NCConfiguration{
+					NetworkContainerID: ncID,
+					NetworkID:          vnetID,
+					RequestV2: api.NetworkContainerRequestV2{
+						AllocationRequest: api.AllocationRequest{SecondaryIPCount: 5},
+						AssociationInfo:   api.AssociationInfo{NodeID: "node1"},
+					},
 				},
+				SubnetKey: datamodel.GetSubnetKey(vnetID, subnetName),
 			}
 
 			removeFromQueue, err := preparer.PrepareNetworkContainerV2(&currentNCState)

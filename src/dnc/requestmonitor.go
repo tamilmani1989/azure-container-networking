@@ -107,6 +107,9 @@ func processRequest(requestID string, requestContext *datamodel.RequestContext) 
 		if err != nil && err.HTTPStatus == http.StatusProcessing {
 			requestContext.RetryInterval = requestContextRetryInterval
 		}
+
+	case datamodel.SubnetCleanupRequest:
+		removeWorkItem, err = processSubnetCleanupRequest(requestContext)
 	}
 
 	if err == nil && removeWorkItem {
@@ -128,6 +131,149 @@ func processRequest(requestID string, requestContext *datamodel.RequestContext) 
 	}
 }
 
+func processSubnetCleanupRequest(requestContext *datamodel.RequestContext) (bool, *api.JsonErr) {
+	networkID := requestContext.NetworkID
+	subnetName := requestContext.SubnetName
+
+	// Remove the network containers in this subnet.
+	ncList, err := datamodel.NcRepo.QueryNetworkContainersInSubnet(networkID, subnetName)
+	if err != nil {
+		return dontRemoveFromPendingQ, err
+	}
+
+	ncDeletionInitiated := false
+	var errCleanup []string
+	for _, nc := range ncList {
+		// Create delete request for the NC if it's not marked for delete already
+		if !nc.Config.MarkedForDelete {
+			ncID := datamodel.GetNCIdFromKey(nc.RowKey)
+			sessionInfo := map[string]string{datamodel.NCRepositoryName: ncID}
+			sessionManager.BeginWriteSession(sessionInfo)
+			if err := datamodel.ProcessNetworkContainerForRelease(networkID, ncID); err != nil {
+				errCleanup = append(errCleanup, fmt.Sprintf("NC: %s error: %+v", nc.RowKey, err))
+			}
+			sessionManager.EndWriteSession(sessionInfo)
+			ncDeletionInitiated = true
+		}
+	}
+
+	// todo: If all the NCs are removed from the subnet, delete any explicit reservations in that subnet.
+	//  this is not applicable to openai. This will be handled in a separate PR.
+
+	if errCleanup != nil {
+		errString := strings.Join(errCleanup, ", ")
+		loggershim.LS.Errorf("could not trigger NC deletion request(s) for subnet cleanup: %s. error: %s",
+			datamodel.GetSubnetKey(networkID, subnetName), errString)
+		return dontRemoveFromPendingQ, api.InternalServerErrorf(api.StatusInternalServerError, errString)
+	}
+
+	// Return if the NC deletion was just initiated. The ncList read above is stale as those NCs which were in the failed
+	// state now have their failureDetail reset. We need to read from NC table again to get the updated data
+	if ncDeletionInitiated {
+		return dontRemoveFromPendingQ, nil
+	}
+
+	// Check if any NC failed with non-retryable error. The delete subnet request will be failed as a result.
+	var failedNC datamodel.NetworkContainerEntity
+	for _, nc := range ncList {
+		if nc.RowKey != "" && nc.Config.Status == datamodel.Failed {
+			failedNC = nc
+			break
+		}
+	}
+
+	// Return for retrying the request if NCs are pending deletion and none of NCs are in the failed state
+	if failedNC.RowKey == "" && len(ncList) > 0 {
+		return dontRemoveFromPendingQ, api.InternalServerErrorf(api.ProcessingPending, "Deletion pending for %d NCs", len(ncList))
+	}
+
+	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: networkID}
+	sessionManager.BeginWriteSession(sessionInfo)
+	defer sessionManager.EndWriteSession(sessionInfo)
+
+	requestedSubnetConfig, err := datamodel.TryQuerySubnetConfiguration(networkID, subnetName)
+	if err != nil {
+		loggershim.LS.Errorf("Failed to retrieve subnet configuration for subnet: %s in network: %s. Error: %v", subnetName, networkID, err)
+		return dontRemoveFromPendingQ, err
+	}
+
+	if requestedSubnetConfig == nil {
+		loggershim.LS.Errorf("[Inconsistent state] No subnet configuration for subnet: %s in network: %s", subnetName, networkID)
+		return removeFromPendingQ, nil
+	}
+
+	// If the NC deletion failed, mark the subnet cleanup as failed
+	if failedNC.RowKey != "" {
+		requestedSubnetConfig.UpdateStatus = datamodel.SubnetCleanupFailed
+		requestedSubnetConfig.FailureDetail = api.JsonErr{
+			Code:       api.StatusInternalServerError,
+			Text:       fmt.Sprintf("could not delete NC: %s. NC failure detail: %+v", failedNC.RowKey, failedNC.Config.FailureDetail),
+			HTTPStatus: http.StatusInternalServerError}
+		if err := datamodel.PutSubnetConfiguration(requestedSubnetConfig); err != nil {
+			loggershim.LS.Errorf("Failed to persist subnet configuration for subnet: %s in network: %s. Error: %v", subnetName, networkID, err)
+			return dontRemoveFromPendingQ, api.InternalServerErrorf(api.StatusInternalServerError,
+				"could not persist subnet: %s", datamodel.GetSubnetKey(networkID, subnetName))
+		}
+
+		loggershim.LS.Errorf("subnet cleanup failed for subnet: %s as NC: %s could not be deleted. NC failure details: %+v",
+			datamodel.GetSubnetKey(networkID, subnetName), failedNC.RowKey, failedNC.Config.FailureDetail)
+		return removeFromPendingQ, nil//todo: should the error be nil?
+	}
+
+	networkConfiguration, err := datamodel.TryQueryNetworkConfiguration(networkID)
+	if err != nil {
+		loggershim.LS.Errorf("Failed to retrieve network configuration for network: %s. Error: %v", networkID, err)
+		return dontRemoveFromPendingQ, err
+	}
+
+	if networkConfiguration == nil {
+		loggershim.LS.Debugf("[Inconsistent state] No network configuration for network: %s", networkID)
+		return removeFromPendingQ, nil
+	}
+
+	// Update markedForDelete to false to allow user to be able to join this subnet again
+	// Joined is set to false here so that if user calls GET status on the subnet while the cleanup is in process
+	// it still returns the status as CleanupPending instead of 404.
+	requestedSubnetConfig.Joined = false
+	requestedSubnetConfig.MarkedForDelete = false
+	requestedSubnetConfig.UpdateStatus = datamodel.SubnetUpdateCompleted
+	if err := datamodel.PutSubnetConfiguration(requestedSubnetConfig); err != nil {
+		loggershim.LS.Errorf("Failed to persist subnet configuration for subnet: %s in network: %s. Error: %v", subnetName, networkID, err)
+		return dontRemoveFromPendingQ, api.InternalServerErrorf(api.StatusInternalServerError,
+			"could not persist subnet: %s. error: %+v", datamodel.GetSubnetKey(networkID, subnetName), err)
+	}
+
+	// Delete the network configuration if there are no subnets left in 'joined' state.
+	subnetConfigs, err := datamodel.TryQueryAllSubnetConfigsInNetworkConfig(networkConfiguration)
+	if err != nil {
+		loggershim.LS.Errorf("Failed to get all the subnet configs in network: %s. Error: %v", networkID, err)
+		return dontRemoveFromPendingQ, err
+	}
+
+	// Delete the network if there are no 'Joined' subnets in this network
+	for subnet, subnetConfig := range subnetConfigs {
+		if subnetConfig.Joined {
+			loggershim.LS.Debugf("Cannot delete the network: %s as subnet: %s. Joined: %t", networkID, subnet, subnetConfig.Joined)
+			// No further processing is needed and we should remove the pending work item for subnet cleanup request
+			return removeFromPendingQ, nil
+		}
+	}
+
+	loggershim.LS.Debugf("Deleting network: %s", networkID)
+	if config.PubSubProxySettings.EnablePubSubProxy {
+		// Unsubscribe vnet notifications for PubSubProxy
+		pubsubproxy.UnregisterVnet(networkID)
+	}
+
+	// Delete the network configuration and subnet configurations in the network
+	if err = datamodel.DeleteNetworkConfiguration(networkID); err != nil {
+		loggershim.LS.Errorf("could not delete the network: %s", networkID)
+		return dontRemoveFromPendingQ, err
+	}
+
+	return removeFromPendingQ, nil
+}
+
 // Routine that processes virtual network request.
 func processVirtualNetworkRequest(requestContext *datamodel.RequestContext) (bool, *api.JsonErr) {
 	repoNetworkConfiguration, err := datamodel.TryQueryNetworkConfiguration(requestContext.NetworkID)
@@ -136,7 +282,7 @@ func processVirtualNetworkRequest(requestContext *datamodel.RequestContext) (boo
 	}
 
 	if repoNetworkConfiguration == nil {
-		logger.Debugf("Failed to find configuration in repository for network %s\n", requestContext.NetworkID)
+		logger.Debugf("Failed to find configuration in repository for network %s", requestContext.NetworkID)
 		return true, nil
 	}
 
@@ -181,21 +327,18 @@ func getAllocatedLocalAddressesOnNode(nodeConfiguration datamodel.NodeConfigurat
 	if nodeConfiguration.DeployedNetworkContainerMap != nil {
 		for networkID, ncMap := range nodeConfiguration.DeployedNetworkContainerMap {
 			for networkContainerID := range ncMap {
-				repoNetworkContainerConfiguration, err := datamodel.TryQueryNetworkContainer(
-					networkID,
-					networkContainerID)
+				repoNetworkContainerData, err := datamodel.NcRepo.TryQueryNetworkContainer(networkID, networkContainerID)
 				if err != nil {
 					return nil, err
 				}
 
-				if repoNetworkContainerConfiguration == nil {
-					logger.Debugf("Configuration for network container %s not found.",
-						networkContainerID)
+				if repoNetworkContainerData.RowKey == "" {
+					logger.Debugf("Data for network container %s not found", networkContainerID)
 					continue
 				}
 
-				if repoNetworkContainerConfiguration.LocalIP != "" {
-					localIPSubnetString := repoNetworkContainerConfiguration.LocalIP + utils.PrefixDelimiter + utils.IPV4DefaultPrefix
+				if repoNetworkContainerData.Config.LocalIP != "" {
+					localIPSubnetString := repoNetworkContainerData.Config.LocalIP + utils.PrefixDelimiter + utils.IPV4DefaultPrefix
 					localIPSubnet, _ := utils.ParseIPNet(localIPSubnetString)
 					allocatedLocalAddresses[localIPSubnetString] = localIPSubnet
 				}
@@ -208,7 +351,7 @@ func getAllocatedLocalAddressesOnNode(nodeConfiguration datamodel.NodeConfigurat
 
 // This function allocate a local ip from 169.254.128.0/17 address space
 func processAllocateLocalIP(
-	repoNCConfig *datamodel.NCConfiguration) (bool, *api.JsonErr) {
+	nc *datamodel.NetworkContainerEntity) (bool, *api.JsonErr) {
 	var (
 		markProcessingFailed bool
 		allocatedIP          *net.IPNet
@@ -218,7 +361,7 @@ func processAllocateLocalIP(
 		vlanID uint16
 	)
 
-	nodeID := repoNCConfig.GetAssociationInfo().NodeID
+	nodeID := nc.Config.GetAssociationInfo().NodeID
 
 	sessionInfo := map[string]string{datamodel.NodeRepositoryName: nodeID}
 	sessionManager.BeginWriteSession(sessionInfo)
@@ -274,23 +417,23 @@ func processAllocateLocalIP(
 	}
 
 	if nodeConfiguration.NetworkVlanIDMap != nil {
-		vlanID = nodeConfiguration.NetworkVlanIDMap[repoNCConfig.NetworkID]
+		vlanID = nodeConfiguration.NetworkVlanIDMap[nc.Config.NetworkID]
 	}
 
 	greErr = datamodel.CheckGreConditions(
 		nodeConfiguration.NodeID,
-		repoNCConfig.NetworkContainerID,
+		nc.Config.NetworkContainerID,
 		nodeConfiguration.UpdateGreCapable,
-		repoNCConfig.GreKey,
+		nc.Config.GreKey,
 		vlanID)
 
 	//Allocate GRE Key for this NC
 	if greErr == nil {
 		interfaceID := ""
-		if !repoNCConfig.ImplicitReservation {
-			interfaceID = repoNCConfig.RequestV1.AssociationInfo.InterfaceID
+		if !nc.Config.ImplicitReservation {
+			interfaceID = nc.Config.RequestV1.AssociationInfo.InterfaceID
 		} else {
-			interfaceID = repoNCConfig.RequestV2.AssociationInfo.InterfaceID
+			interfaceID = nc.Config.RequestV2.AssociationInfo.InterfaceID
 		}
 
 		if interfaceID != "" {
@@ -306,14 +449,14 @@ func processAllocateLocalIP(
 					Code:       nextGreErr.Code,
 					HTTPStatus: http.StatusInternalServerError,
 					Text: fmt.Sprintf(
-						"%s NetworkContainer: %s, Node: %s", nextGreErr.Text, repoNCConfig.NetworkContainerID, nodeID)}
+						"%s NetworkContainer: %s, Node: %s", nextGreErr.Text, nc.Config.NetworkContainerID, nodeID)}
 				goto Cleanup
 
 			}
-			repoNCConfig.GreKey = greKey
-			nodeConfiguration.InterfaceGreKeyMap[interfaceID][repoNCConfig.ReservationID] = greKey
+			nc.Config.GreKey = greKey
+			nodeConfiguration.InterfaceGreKeyMap[interfaceID][nc.Config.ReservationID] = greKey
 			logger.Debugf("Assigning GreKey for NC: %s, Node: %s, interface ID is %s, reservation ID is %s, GreKey is %d",
-				repoNCConfig.NetworkContainerID, nodeID, interfaceID, repoNCConfig.ReservationID, greKey)
+				nc.Config.NetworkContainerID, nodeID, interfaceID, nc.Config.ReservationID, greKey)
 
 			nodeErr := datamodel.NodeConfigRepo.PersistNodeConfiguration(nodeConfiguration)
 			if nodeErr != nil {
@@ -321,27 +464,27 @@ func processAllocateLocalIP(
 			}
 		} else {
 			logger.Debugf("Could not find Interface AssiciationInfo while assinging GreKey for NC: %s, Node: %s",
-				repoNCConfig.NetworkContainerID, nodeID)
+				nc.Config.NetworkContainerID, nodeID)
 		}
 
 	} else {
 		logger.Debugf(greErr.Error())
 	}
 
-	repoNCConfig.LocalIP = allocatedIP.IP.String()
+	nc.Config.LocalIP = allocatedIP.IP.String()
 	if config.DNCSettings.Managed {
-		return false, transitionNCStateAndLog(repoNCConfig, datamodel.AllocateLocalIP, datamodel.Publish, datamodel.Pending)
+		return false, transitionNCStateAndLog(nc, datamodel.AllocateLocalIP, datamodel.Publish, datamodel.Pending)
 	} else {
-		return false, transitionNCStateAndLog(repoNCConfig, datamodel.AllocateLocalIP, datamodel.Associate, datamodel.Pending)
+		return false, transitionNCStateAndLog(nc, datamodel.AllocateLocalIP, datamodel.Associate, datamodel.Pending)
 	}
 
 Cleanup:
 	if markProcessingFailed { // todo: this is always true once this is reached, clean once gotos are removed
-		repoNCConfig.Status = datamodel.Failed
-		repoNCConfig.FailureDetail = *failureDetail
+		nc.Config.Status = datamodel.Failed
+		nc.Config.FailureDetail = *failureDetail
 	}
 
-	if err = datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ); err != nil {
+	if err = datamodel.NcRepo.PersistNetworkContainerData(nc); err != nil {
 		return false, err
 	}
 
@@ -349,24 +492,24 @@ Cleanup:
 }
 
 // This will create the pending IP cleanup job for ToBeDeleted Secondary IPs during NC update.
-func processPrepareSecondaryIpCleanup(repoNCConfig *datamodel.NCConfiguration, createdDateTime time.Time) (bool, *api.JsonErr) {
+func processPrepareSecondaryIpCleanup(nc *datamodel.NetworkContainerEntity, createdDateTime time.Time) (bool, *api.JsonErr) {
 	if config.PubSubProxySettings.EnablePubSubProxy {
-		ncKey := datamodel.GetNCKey(repoNCConfig.NetworkID, repoNCConfig.NetworkContainerID)
+		ncKey := datamodel.GetNCKey(nc.Config.NetworkID, nc.Config.NetworkContainerID)
 		loggershim.LS.Debugf("processPrepareSecondaryIpCleanup, NCKey %s", ncKey)
 
 		// get reservation
 		var subnetName = ""
-		if repoNCConfig.ImplicitReservation {
-			subnetName = repoNCConfig.RequestV2.AllocationRequest.SubnetName
+		if nc.Config.ImplicitReservation {
+			subnetName = nc.Config.RequestV2.AllocationRequest.SubnetName
 		} else {
 			loggershim.LS.Debugf("processPrepareSecondaryIpCleanup: Getting Subnet name from Reservation record, nckey %s, reservationId %s",
 				ncKey,
-				repoNCConfig.ReservationID)
-			repoReservation, err := datamodel.TryQueryIPReservation(repoNCConfig.NetworkID, repoNCConfig.ReservationID)
+				nc.Config.ReservationID)
+			repoReservation, err := datamodel.TryQueryIPReservation(nc.Config.NetworkID, nc.Config.ReservationID)
 			if err != nil {
 				loggershim.LS.Errorf("processPrepareSecondaryIpCleanup: Failed to query associated Reservation repo, NcKey %s, reservationId %s, err %+v",
 					ncKey,
-					repoNCConfig.ReservationID,
+					nc.Config.ReservationID,
 					err)
 				return false, err
 			}
@@ -374,7 +517,7 @@ func processPrepareSecondaryIpCleanup(repoNCConfig *datamodel.NCConfiguration, c
 			if repoReservation.RowKey == "" {
 				loggershim.LS.Errorf("processPrepareSecondaryIpCleanup: associated Reservation config not found, NcKey %s, reservationId %s, err %+v",
 					ncKey,
-					repoNCConfig.ReservationID,
+					nc.Config.ReservationID,
 					err)
 				return false, err
 			}
@@ -385,13 +528,13 @@ func processPrepareSecondaryIpCleanup(repoNCConfig *datamodel.NCConfiguration, c
 		if subnetName == "" {
 			return true, api.InternalServerErrorf(api.InvalidSubnetName,
 				"ProcessPrepareSecondaryIpCleanup: associated subnetName is empty, NcKey %s, reservationId %s",
-				ncKey, repoNCConfig.ReservationID)
+				ncKey, nc.Config.ReservationID)
 		}
 
 		// We have already updated IpAllocations table with ToBeDeletedOwner for ToBeDeletedIpIds
 		// in Reserve state, thus it is safe to request all pending deleting IPs and
 		// create or Merge the PendingResourceCleanupJob
-		err := ipAllocator.CreateIpCleanupRequest(repoNCConfig.NetworkID, subnetName, repoNCConfig.NetworkContainerID)
+		err := ipAllocator.CreateIpCleanupRequest(nc.Config.NetworkID, subnetName, nc.Config.NetworkContainerID)
 		if err != nil {
 			loggershim.LS.Errorf("processPrepareSecondaryIpCleanup: Failed to create the cleanup request err:  %+v",
 				err)
@@ -399,14 +542,14 @@ func processPrepareSecondaryIpCleanup(repoNCConfig *datamodel.NCConfiguration, c
 		}
 
 		creationTimeMs := time.Since(createdDateTime).Milliseconds()
-		sendNCMetric(aiwrapper.NCProcessTimeMetric, float64(creationTimeMs), aiwrapper.Succeeded, "Container"+datamodel.Program.String(), repoNCConfig, nil)
-		aiwrapper.LogNCSnapsnot(repoNCConfig.NetworkContainerID, repoNCConfig.NetworkID, subnetName, repoNCConfig.GetAssociationInfo().NodeID)
+		sendNCMetric(aiwrapper.NCProcessTimeMetric, float64(creationTimeMs), aiwrapper.Succeeded, "Container"+datamodel.Program.String(), &nc.Config, nil)
+		aiwrapper.LogNCSnapsnot(nc.Config.NetworkContainerID, nc.Config.NetworkID, subnetName, nc.Config.GetAssociationInfo().NodeID)
 	}
 
 	// todo: we have to log program completion before transitioning state, since program can be transitioned to
 	//   from refresh but we don't want to log completion in those cases
-	repoNCConfig.LogStateCompletion(datamodel.Program)
-	return false, transitionNCStateAndLog(repoNCConfig, datamodel.PrepareSecondaryIpCleanup, datamodel.Program, datamodel.Pending)
+	nc.Config.LogStateCompletion(datamodel.Program)
+	return false, transitionNCStateAndLog(nc, datamodel.PrepareSecondaryIpCleanup, datamodel.Program, datamodel.Pending)
 }
 
 // validateAndGetExplicitReservationID - If the request has specified ReservationID, validate that reservation and use that reservationID.
@@ -565,26 +708,26 @@ func validateAndGetExplicitReservationIDFromSet(
 }
 
 func processNetworkContainerReserve(
-	repoNCConfig *datamodel.NCConfiguration) (bool, *api.JsonErr) {
+	nc *datamodel.NetworkContainerEntity) (bool, *api.JsonErr) {
 	var (
 		err                  *api.JsonErr
 		failureDetail        *api.JsonErr
 		markProcessingFailed bool
 		repoReservation      datamodel.ReservationRow
-		reservationID = repoNCConfig.ReservationID
+		reservationID = nc.Config.ReservationID
 	)
 
-	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: repoNCConfig.NetworkID}
+	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: nc.Config.NetworkID}
 
 	// Acquire Node lock if the ContainerType is WebApps
-	if repoNCConfig.GetAssociationInfo().ContainerType == cns.WebApps {
-		sessionInfo[datamodel.NodeRepositoryName] = repoNCConfig.GetAssociationInfo().NodeID
+	if nc.Config.GetAssociationInfo().ContainerType == cns.WebApps {
+		sessionInfo[datamodel.NodeRepositoryName] = nc.Config.GetAssociationInfo().NodeID
 	}
 
-	if !repoNCConfig.ImplicitReservation {
+	if !nc.Config.ImplicitReservation {
 		var isErrRetryable bool
-		if reservationID, isErrRetryable, err = validateAndGetExplicitReservationID(repoNCConfig); err != nil {
-			loggershim.LS.Errorf("validateAndGetExplicitReservationID failed for NC: %s error: %+v", repoNCConfig.NetworkContainerID, err)
+		if reservationID, isErrRetryable, err = validateAndGetExplicitReservationID(&nc.Config); err != nil {
+			loggershim.LS.Errorf("validateAndGetExplicitReservationID failed for NC: %s error: %+v", nc.Config.NetworkContainerID, err)
 			// If the error is retryable, do not remove the request from pending queue
 			if isErrRetryable {
 				return false, err
@@ -597,7 +740,7 @@ func processNetworkContainerReserve(
 		}
 
 		// Update the reservation ID in network container config
-		repoNCConfig.ReservationID = reservationID
+		nc.Config.ReservationID = reservationID
 	}
 
 	sessionInfo[datamodel.ReservationRepositoryName] = reservationID
@@ -605,7 +748,7 @@ func processNetworkContainerReserve(
 	sessionManager.BeginWriteSession(sessionInfo)
 	defer sessionManager.EndWriteSession(sessionInfo)
 
-	repoReservation, err = datamodel.TryQueryIPReservation(repoNCConfig.NetworkID, reservationID)
+	repoReservation, err = datamodel.TryQueryIPReservation(nc.Config.NetworkID, reservationID)
 	if err != nil {
 		return false, err
 	}
@@ -613,27 +756,27 @@ func processNetworkContainerReserve(
 	if repoReservation.Configuration == nil {
 		markProcessingFailed = true
 		failureDetail = api.BadRequestf(api.ReservationNotFound, "Failed to find reservation %s associated with network container %s",
-			repoNCConfig.ReservationID, repoNCConfig.NetworkContainerID)
+			nc.Config.ReservationID, nc.Config.NetworkContainerID)
 		goto Cleanup
 	}
 
-	if len(repoNCConfig.RequestV2.ToBeDeletedIPIds) > 0 {
+	if len(nc.Config.RequestV2.ToBeDeletedIPIds) > 0 {
 		loggershim.LS.Debugf("processNetworkContainerReserve: Process deleting secondary Ips NetworkId %s, ReservationId %s",
-			repoNCConfig.NetworkID, repoNCConfig.ReservationID)
+			nc.Config.NetworkID, nc.Config.ReservationID)
 
 		// In case pubsub poxy is enabled, wait for publish job to finish before deleting the ips during scale down
 		// Thus set the ToBeDeletedOwner for the deleting ips
 		if config.PubSubProxySettings.EnablePubSubProxy {
 			// It is okay if the associated ips are empty, it will still get cleaned up by the background cleanup monitor
 			var ipsPendingCleanup = make(map[string]string)
-			for _, allocID := range repoNCConfig.RequestV2.ToBeDeletedIPIds {
+			for _, allocID := range nc.Config.RequestV2.ToBeDeletedIPIds {
 				if ipAddress, found := repoReservation.Configuration.SecondaryAllocations[allocID]; found {
 					ipsPendingCleanup[allocID] = ipAddress
 				}
 			}
 
-			reservationKey := datamodel.GetReservationKey(repoNCConfig.NetworkID, repoNCConfig.ReservationID)
-			ncKey := datamodel.GetNCKey(repoNCConfig.NetworkID, repoNCConfig.NetworkContainerID)
+			reservationKey := datamodel.GetReservationKey(nc.Config.NetworkID, nc.Config.ReservationID)
+			ncKey := datamodel.GetNCKey(nc.Config.NetworkID, nc.Config.NetworkContainerID)
 			err = ipAllocator.SetToBeDeleteOwnerToDeletingIps(
 				repoReservation.Configuration.NetworkID,
 				repoReservation.Configuration.AllocationRequest.SubnetName,
@@ -648,14 +791,14 @@ func processNetworkContainerReserve(
 				return false, err
 			}
 		} else {
-			err := ipAllocator.DeallocateIPs(*repoReservation.Configuration, repoNCConfig.RequestV2.ToBeDeletedIPIds)
+			err := ipAllocator.DeallocateIPs(*repoReservation.Configuration, nc.Config.RequestV2.ToBeDeletedIPIds)
 			if err != nil {
 				return false, err
 			}
 		}
 
 		// Now deleting
-		for _, allocID := range repoNCConfig.RequestV2.ToBeDeletedIPIds {
+		for _, allocID := range nc.Config.RequestV2.ToBeDeletedIPIds {
 			delete(repoReservation.Configuration.SecondaryAllocations, allocID)
 		}
 		if err := datamodel.IpReservationRepo.PersistIPReservation(repoReservation); err != nil {
@@ -676,7 +819,7 @@ func processNetworkContainerReserve(
 
 	if repoReservation.Configuration.Status == datamodel.Completed {
 		repoSubnetConfiguration, err := datamodel.TryQuerySubnetConfiguration(
-			repoNCConfig.NetworkID,
+			nc.Config.NetworkID,
 			repoReservation.Configuration.AllocationRequest.SubnetName)
 		if err != nil {
 			return true, err
@@ -685,18 +828,18 @@ func processNetworkContainerReserve(
 		if repoSubnetConfiguration == nil {
 			markProcessingFailed = true
 			failureDetail = api.BadRequestf(api.SubnetNotFound, "Configuration for Subnet %s in Network %v not found.",
-				repoReservation.Configuration.AllocationRequest.SubnetName, repoNCConfig.NetworkID)
+				repoReservation.Configuration.AllocationRequest.SubnetName, nc.Config.NetworkID)
 			goto Cleanup
 		}
 
-		repoNCConfig.ProgrammedTagsInfo = make(map[string]uint64)
+		nc.Config.ProgrammedTagsInfo = make(map[string]uint64)
 
 		for _, tag := range repoSubnetConfiguration.Tags {
 			tagsDefinitionKey := datamodel.GetTagDefintionKey(tag.Type, tag.Name)
-			repoNCConfig.ProgrammedTagsInfo[tagsDefinitionKey] = 0
+			nc.Config.ProgrammedTagsInfo[tagsDefinitionKey] = 0
 		}
 
-		return false, transitionNCStateAndLog(repoNCConfig, datamodel.Reserve, datamodel.AllocateLocalIP, datamodel.Pending)
+		return false, transitionNCStateAndLog(nc, datamodel.Reserve, datamodel.AllocateLocalIP, datamodel.Pending)
 	}
 
 	if repoReservation.Configuration.Status == datamodel.Failed {
@@ -706,33 +849,34 @@ func processNetworkContainerReserve(
 
 Cleanup:
 	if markProcessingFailed {
-		repoNCConfig.Status = datamodel.Failed
-		repoNCConfig.FailureDetail = *failureDetail
+		nc.Config.Status = datamodel.Failed
+		nc.Config.FailureDetail = *failureDetail
 	}
 
-	if err = datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ); err != nil {
+	if err = datamodel.NcRepo.PersistNetworkContainerData(nc); err != nil {
 		return false, err
 	}
 
 	return markProcessingFailed, nil
 }
 
-func processNetworkContainerBatchReserve(nc *datamodel.NCConfiguration) (bool, *api.JsonErr) {
-	sessionInfo := map[string]string{datamodel.ReservationRepositoryName: nc.ReservationID}
+func processNetworkContainerBatchReserve(nc *datamodel.NetworkContainerEntity) (bool, *api.JsonErr) {
+	sessionInfo := map[string]string{datamodel.ReservationRepositoryName: nc.Config.ReservationID}
 
 	sessionManager.BeginWriteSession(sessionInfo)
 	defer sessionManager.EndWriteSession(sessionInfo)
 
-	reservation, apiErr := datamodel.TryQueryIPReservation(nc.NetworkID, nc.ReservationID)
+	reservation, apiErr := datamodel.TryQueryIPReservation(nc.Config.NetworkID, nc.Config.ReservationID)
 	if apiErr != nil {
 		return false, apiErr
 	}
 
 	if reservation.Configuration == nil {
-		return markNCAsFailed(nc, *api.NotFoundf(api.ReservationNotFound, "could not find reservation %s for nc %s", nc.NetworkContainerID, nc.ReservationID))
+		return markNCAsFailed(nc, *api.NotFoundf(api.ReservationNotFound, "could not find reservation %s for nc %s",
+			nc.Config.NetworkContainerID, nc.Config.ReservationID))
 	}
 
-	res, err := resDispatcher.Reserve(reservation, nc.RequestV2.ToBeDeletedIPIds)
+	res, err := resDispatcher.Reserve(reservation, nc.Config.RequestV2.ToBeDeletedIPIds)
 	if err != nil {
 		return false, api.InternalServerError(api.StatusInternalServerError, err.Error())
 	}
@@ -747,38 +891,38 @@ func processNetworkContainerBatchReserve(nc *datamodel.NCConfiguration) (bool, *
 	}
 }
 
-func processNetworkContainerUnReserve(ncConfig *datamodel.NCConfiguration) *api.JsonErr {
-	if !ncConfig.ImplicitReservation {
+func processNetworkContainerUnReserve(nc *datamodel.NetworkContainerEntity) *api.JsonErr {
+	if !nc.Config.ImplicitReservation {
 		sessionInfo := map[string]string{
-			datamodel.ReservationRepositoryName: ncConfig.ReservationID,
+			datamodel.ReservationRepositoryName: nc.Config.ReservationID,
 		}
 		sessionManager.BeginWriteSession(sessionInfo)
 		defer sessionManager.EndWriteSession(sessionInfo)
 
-		if err := datamodel.UpdateNCToReservationAssociation(ncConfig, true); err != nil {
+		if err := datamodel.UpdateNCToReservationAssociation(nc, true); err != nil {
 			return err
 		}
 
-		return transitionNCStateAndLog(ncConfig, datamodel.UnReserve, datamodel.Purge, datamodel.Pending)
+		return transitionNCStateAndLog(nc, datamodel.UnReserve, datamodel.Purge, datamodel.Pending)
 	}
 
 	sessionInfo := map[string]string{
-		datamodel.ReservationRepositoryName: ncConfig.ReservationID,
+		datamodel.ReservationRepositoryName: nc.Config.ReservationID,
 	}
 
 	// Acquire the lock only if DisableReservationMapInSubnetConfig is set to false.
 	// Lock is required to update the SubnetConfiguration table which is required only if the flag is set to false
 	if !config.DNCSettings.DisableReservationMapInSubnetConfig {
-		sessionInfo[datamodel.NetworkRepositoryName] = ncConfig.NetworkID
+		sessionInfo[datamodel.NetworkRepositoryName] = nc.Config.NetworkID
 	}
 
 	// Acquire Node lock only if needed
-	reservation, err := datamodel.TryQueryIPReservation(ncConfig.NetworkID, ncConfig.ReservationID)
+	reservation, err := datamodel.TryQueryIPReservation(nc.Config.NetworkID, nc.Config.ReservationID)
 	if err != nil {
 		return err
 	}
 	if reservation.Configuration != nil && len(reservation.Configuration.AllocationRequest.NodeConstraint) != 0 {
-		sessionInfo[datamodel.NodeRepositoryName] = ncConfig.GetAssociationInfo().NodeID
+		sessionInfo[datamodel.NodeRepositoryName] = nc.Config.GetAssociationInfo().NodeID
 	}
 
 	sessionManager.BeginWriteSession(sessionInfo)
@@ -788,50 +932,50 @@ func processNetworkContainerUnReserve(ncConfig *datamodel.NCConfiguration) *api.
 		return err
 	}
 
-	return transitionNCStateAndLog(ncConfig, datamodel.UnReserve, datamodel.Purge, datamodel.Pending)
+	return transitionNCStateAndLog(nc, datamodel.UnReserve, datamodel.Purge, datamodel.Pending)
 }
 
 func processNetworkContainerPurge(
-	repoNCConfig *datamodel.NCConfiguration,
+	nc *datamodel.NetworkContainerEntity,
 	createdDateTime time.Time) (bool, *api.JsonErr) {
-	sessionInfo := map[string]string{datamodel.NodeRepositoryName: repoNCConfig.GetAssociationInfo().NodeID}
+	sessionInfo := map[string]string{datamodel.NodeRepositoryName: nc.Config.GetAssociationInfo().NodeID}
 	sessionManager.BeginWriteSession(sessionInfo)
 
 	var err *api.JsonErr
 	defer func() {
 		sessionManager.EndWriteSession(sessionInfo)
 		if err != nil {
-			logger.Errorf("processNetworkContainerPurge failed for NC: %s with error: %v", repoNCConfig.NetworkContainerID, err)
+			logger.Errorf("processNetworkContainerPurge failed for NC: %s with error: %v", nc.Config.NetworkContainerID, err)
 		}
 	}()
 
-	err = datamodel.PurgeNetworkContainerAssociations(repoNCConfig, networkcontainer.ShouldUpdateVlan(repoNCConfig.GetAssociationInfo().ContainerType))
+	err = datamodel.PurgeNetworkContainerAssociations(nc, networkcontainer.ShouldUpdateVlan(nc.Config.GetAssociationInfo().ContainerType))
 	if err != nil {
 		return false, err
 	}
 
-	err = datamodel.DeleteNetworkContainer(repoNCConfig.NetworkID, repoNCConfig.NetworkContainerID)
+	err = datamodel.NcRepo.DeleteNetworkContainer(nc.Config.NetworkID, nc.Config.NetworkContainerID)
 	if err != nil {
 		return false, err
 	}
 
 	deletionTimeMs := time.Since(createdDateTime).Milliseconds()
 	sendNCMetric(aiwrapper.NCProcessTimeMetric, float64(deletionTimeMs),
-		aiwrapper.Succeeded, "Container"+datamodel.Purge.String(), repoNCConfig, nil)
+		aiwrapper.Succeeded, "Container"+datamodel.Purge.String(), &nc.Config, nil)
 
 	return true, nil
 }
 
 func processNetworkContainerAssociate(
-	repoNCConfig *datamodel.NCConfiguration,
+	nc *datamodel.NetworkContainerEntity,
 	sessionInfo map[string]string) (bool, *api.JsonErr) {
 	sessionInfoRead := map[string]string{
-		datamodel.ReservationRepositoryName: repoNCConfig.ReservationID,
-		datamodel.NetworkRepositoryName:     repoNCConfig.NetworkID,
-		datamodel.NodeRepositoryName:        repoNCConfig.GetAssociationInfo().NodeID,
+		datamodel.ReservationRepositoryName: nc.Config.ReservationID,
+		datamodel.NetworkRepositoryName:     nc.Config.NetworkID,
+		datamodel.NodeRepositoryName:        nc.Config.GetAssociationInfo().NodeID,
 	}
 	sessionManager.BeginReadSession(sessionInfoRead)
-	ncGoalState, isRetriableError, ncGoalStateErr := datamodel.GetNCGoalState(repoNCConfig)
+	ncGoalState, isRetriableError, ncGoalStateErr := datamodel.GetNCGoalState(&nc.Config)
 	sessionManager.EndReadSession(sessionInfoRead)
 
 	if ncGoalStateErr != nil {
@@ -839,9 +983,9 @@ func processNetworkContainerAssociate(
 			return false, ncGoalStateErr
 		}
 
-		repoNCConfig.Status = datamodel.Failed
-		repoNCConfig.FailureDetail = *ncGoalStateErr
-		return true, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
+		nc.Config.Status = datamodel.Failed
+		nc.Config.FailureDetail = *ncGoalStateErr
+		return true, datamodel.NcRepo.PersistNetworkContainerData(nc)
 	}
 
 	containerTypes.Store(ncGoalState.ContainerType, true)
@@ -851,7 +995,7 @@ func processNetworkContainerAssociate(
 		body bytes.Buffer
 	)
 
-	info, removeRequestFromPendingQueue, err := datamodel.GetNetworkContainerRequest(ncGoalState, repoNCConfig)
+	info, removeRequestFromPendingQueue, err := datamodel.GetNetworkContainerRequest(ncGoalState, nc)
 	if info == nil {
 		return removeRequestFromPendingQueue, err
 	}
@@ -872,76 +1016,48 @@ func processNetworkContainerAssociate(
 	sessionManager.BeginWriteSession(sessionInfo)
 
 	if respErr != nil {
-		msg := fmt.Sprintf("Post to URL %s for NC %v failed with error %v",
-			createOrUpdateNCURL,
-			ncGoalState.NetworkContainerID,
-			respErr.Error())
-		return false, &api.JsonErr{
-			Code:       api.AssociationFailed,
-			Text:       msg,
-			HTTPStatus: http.StatusBadRequest}
+		return false, api.BadRequestf(api.AssociationFailed, "could not POST to URL: %s for NC: %s. error: %s",
+			createOrUpdateNCURL, ncGoalState.NetworkContainerID, respErr.Error())
 	}
 
 	defer w.Body.Close()
-	respErr = utils.DecodeResponse(w, &resp)
-	if respErr != nil {
-		msg := fmt.Sprintf("Associate NC %v to node %v failed with error %s",
-			ncGoalState.NetworkContainerID,
-			ncGoalState.NodeInterfaceID,
-			respErr.Error())
-		return false, &api.JsonErr{
-			Code:       api.AssociationFailed,
-			Text:       msg,
-			HTTPStatus: http.StatusBadRequest}
+	if respErr = utils.DecodeResponse(w, &resp); respErr != nil {
+		return false, api.BadRequestf(api.AssociationFailed, "could not associate NC: %s with Node: %s. error: %s",
+			ncGoalState.NetworkContainerID,	ncGoalState.NodeInterfaceID, respErr.Error())
 	}
 
 	logger.Debugf("[CNS][Response] create/update NC %s %+v", ncGoalState.NetworkContainerID, resp)
 
 	// Retrieve the latest NC configuration as the current copy of the configuration
 	// could have been updated while we were in the process of calling cns.
-	retrievedRepoNCConfig, ncRetrievalErr := datamodel.TryQueryNetworkContainer(
-		ncGoalState.NetworkID,
-		ncGoalState.NetworkContainerID)
+	retrievedRepoNCData, ncRetrievalErr := datamodel.NcRepo.TryQueryNetworkContainer(ncGoalState.NetworkID, ncGoalState.NetworkContainerID)
 	if ncRetrievalErr != nil {
-		msg := fmt.Sprintf(
-			"Associate NC %v to node %v failed with error %s",
-			ncGoalState.NetworkContainerID,
-			ncGoalState.NodeInterfaceID,
-			ncRetrievalErr.String())
-		return false, &api.JsonErr{
-			Code:       api.AssociationFailed,
-			Text:       msg,
-			HTTPStatus: http.StatusInternalServerError}
+		return false, api.InternalServerErrorf(api.AssociationFailed, "could not associate NC: %s with Node: %s. error: %s",
+			ncGoalState.NetworkContainerID,	ncGoalState.NodeInterfaceID, ncRetrievalErr.String())
 	}
 
-	if retrievedRepoNCConfig == nil {
-		msg := fmt.Sprintf(
-			"Associate NC %v to node %v failed as NC configuration was not found",
-			ncGoalState.NetworkContainerID,
-			ncGoalState.NodeInterfaceID)
-		return true, &api.JsonErr{
-			Code:       api.AssociationFailed,
-			Text:       msg,
-			HTTPStatus: http.StatusBadRequest}
+	if retrievedRepoNCData.RowKey == "" {
+		return true, api.BadRequestf(api.AssociationFailed, "could not associate NC: %s with Node: %s as data for NC is found",
+			ncGoalState.NetworkContainerID, ncGoalState.NodeInterfaceID)
 	}
 
 	// Copy over the delete flag as NC could have been deleted when we were invoking CNS to create NC.
-	repoNCConfig.MarkedForDelete = retrievedRepoNCConfig.MarkedForDelete
+	nc.Config.MarkedForDelete = retrievedRepoNCData.Config.MarkedForDelete
 
 	// If the NC is marked for deletion, copy the state as it could have been changed too
-	if repoNCConfig.MarkedForDelete {
-		repoNCConfig.State = retrievedRepoNCConfig.State
+	if nc.Config.MarkedForDelete {
+		nc.Config.State = retrievedRepoNCData.Config.State
 	}
 
 	// If the NC gets marked for delete while calling CNS, in case of error that request needs to be
 	// marked as retriable error to avoid losing it and delete NC getting stuck
-	if resp.Response.ReturnCode != 0 && !repoNCConfig.MarkedForDelete {
+	if resp.Response.ReturnCode != 0 && !nc.Config.MarkedForDelete {
 		// If the failure is due to Unsupported Orchestrator type, it indicates that the CNS state file is lost
 		// and doesn't have the orchestrator type. Try sending the orchestrator type to CNS.
 		if resp.Response.ReturnCode == restserver.UnsupportedOrchestratorType {
 			logger.Debugf("Calling SetOrchestratorType for node: %s as CNS returned UnsupportedOrchestratorType error",
-				repoNCConfig.GetAssociationInfo().NodeID)
-			err := cnsInterface.SetOrchestratorType(repoNCConfig.GetAssociationInfo().NodeID,
+				nc.Config.GetAssociationInfo().NodeID)
+			err := cnsInterface.SetOrchestratorType(nc.Config.GetAssociationInfo().NodeID,
 				ncGoalState.NodeInterfaceID, ncGoalState.OrchestratorType)
 			// If the operation succeeds or fails due to internal error, mark the request as retriable. This will
 			// result in associate / refresh associate to be retried. If SetOrchestratorType succeeded, associate
@@ -950,59 +1066,53 @@ func processNetworkContainerAssociate(
 			if err == nil || err.HTTPStatus == http.StatusInternalServerError {
 				if err == nil {
 					logger.Debugf("Successfully set the orchestrator type: %s for Node: %s",
-						ncGoalState.OrchestratorType, repoNCConfig.GetAssociationInfo().NodeID)
+						ncGoalState.OrchestratorType, nc.Config.GetAssociationInfo().NodeID)
 				} else {
 					logger.Errorf("Failed to set the orchestrator type: %s for Node: %s due to error: %v",
-						ncGoalState.OrchestratorType, repoNCConfig.GetAssociationInfo().NodeID, err)
+						ncGoalState.OrchestratorType, nc.Config.GetAssociationInfo().NodeID, err)
 				}
 				return false, api.InternalServerErrorf(api.AssociationFailed,
 					"Associate NC %v to node %v failed due to invalid orchestrator type set",
-					ncGoalState.NetworkContainerID, repoNCConfig.GetAssociationInfo().NodeID)
+					ncGoalState.NetworkContainerID, nc.Config.GetAssociationInfo().NodeID)
 			}
 		}
 
-		msg := fmt.Sprintf("Associate NC %v to node %v failed with response %+v",
-			ncGoalState.NetworkContainerID,
-			ncGoalState.NodeInterfaceID,
-			resp.Response)
-		failureDetail := api.JsonErr{
-			Code:       api.AssociationFailed,
-			Text:       msg,
-			HTTPStatus: http.StatusBadRequest}
-		repoNCConfig.Status = datamodel.Failed
-		repoNCConfig.FailureDetail = failureDetail
-		return true, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
+		failureDetail := api.BadRequestf(api.AssociationFailed, "could not associate NC: %s with Node: %s due to response: %+v",
+			ncGoalState.NetworkContainerID,	ncGoalState.NodeInterfaceID, resp.Response)
+		nc.Config.Status = datamodel.Failed
+		nc.Config.FailureDetail = *failureDetail
+		return true, datamodel.NcRepo.PersistNetworkContainerData(nc)
 	}
 
-	repoNCConfig.ProgrammedVnetVersion = ncGoalState.VnetVersion
+	nc.Config.ProgrammedVnetVersion = ncGoalState.VnetVersion
 
-	if repoNCConfig.State == datamodel.RefreshAssociation {
+	if nc.Config.State == datamodel.RefreshAssociation {
 		// processing time is not logged in NC when refreshed, since we want to only keep the initial processing time
-		return false, transitionNCState(repoNCConfig, datamodel.Program, datamodel.Pending)
+		return false, transitionNCState(nc, datamodel.Program, datamodel.Pending)
 	}
 
-	return false, transitionNCStateAndLog(repoNCConfig, datamodel.Associate, datamodel.Publish, datamodel.Pending)
+	return false, transitionNCStateAndLog(nc, datamodel.Associate, datamodel.Publish, datamodel.Pending)
 }
 
-func processNetworkContainerDisAssociate(nc *datamodel.NCConfiguration, ncLock map[string]string) (bool, *api.JsonErr) {
-	if err := cnsInterface.DeleteNC(nc, ncLock); err != nil {
+func processNetworkContainerDisAssociate(nc *datamodel.NetworkContainerEntity, ncLock map[string]string) (bool, *api.JsonErr) {
+	if err := cnsInterface.DeleteNC(&nc.Config, ncLock); err != nil {
 		// we should only retry internal errors. all else should be marked as failed
 		removeFromQueue := err.HTTPStatus != http.StatusInternalServerError
 		if removeFromQueue {
-			nc.Status = datamodel.Failed
+			nc.Config.Status = datamodel.Failed
 		}
 
-		nc.FailureDetail = *err
-		if persistErr := datamodel.PersistNCConfiguration(nc, datamodel.DontAddToPendingQ); persistErr != nil {
+		nc.Config.FailureDetail = *err
+		if persistErr := datamodel.NcRepo.PersistNetworkContainerData(nc); persistErr != nil {
 			return false, persistErr
 		}
 		return removeFromQueue, err
 	}
 
-	logger.Debugf("[CNS] DisAssociated NC %s from node %s", nc.NetworkContainerID, nc.GetAssociationInfo().NodeID)
+	logger.Debugf("[CNS] DisAssociated NC %s from node %s", nc.Config.NetworkContainerID, nc.Config.GetAssociationInfo().NodeID)
 
 	// In baremetal containers first deallocate MAC before freeing the IP.
-	containerType := nc.GetAssociationInfo().ContainerType
+	containerType := nc.Config.GetAssociationInfo().ContainerType
 	if api.IsBareMetalContainer(containerType) {
 		return false, transitionNCStateAndLog(nc, datamodel.DisAssociate, datamodel.DeallocateMAC, datamodel.Pending)
 	}
@@ -1058,7 +1168,7 @@ func sendNCMetric(
 
 func publishNetworkContainerWithPubSubProxy(
 	ncGoalState *datamodel.NCGoalState,
-	repoNCConfig *datamodel.NCConfiguration,
+	nc *datamodel.NetworkContainerEntity,
 	sessionInfo map[string]string,
 	stateTransitionDateTime time.Time) (bool, *api.JsonErr) {
 	// Release the session lock before making call to PubSubProxy
@@ -1087,8 +1197,8 @@ func publishNetworkContainerWithPubSubProxy(
 		GreKey:           int(ncGoalState.GreKey),
 	}
 
-	if api.IsBareMetalContainer(repoNCConfig.GetAssociationInfo().ContainerType) {
-		publishError = pubsubproxy.PublishBaremetalNetworkContainer(ncGoalState, repoNCConfig)
+	if api.IsBareMetalContainer(nc.Config.GetAssociationInfo().ContainerType) {
+		publishError = pubsubproxy.PublishBaremetalNetworkContainer(ncGoalState, &nc.Config)
 	} else {
 		publishError = pubsubproxy.PublishNetworkContainer(publishNcRequest)
 	}
@@ -1097,8 +1207,7 @@ func publishNetworkContainerWithPubSubProxy(
 	sessionManager.BeginWriteSession(sessionInfo)
 
 	if publishError != nil {
-		logger.Errorf("publishNetworkContainerWithPubSubProxy failed for NC: %d, Error: %v",
-			publishNcRequest.NcID, publishError)
+		logger.Errorf("publishNetworkContainerWithPubSubProxy failed for NC: %d, Error: %v", publishNcRequest.NcID, publishError)
 		if publishError.HTTPStatus == http.StatusInternalServerError {
 			return false, publishError
 		}
@@ -1106,36 +1215,22 @@ func publishNetworkContainerWithPubSubProxy(
 
 	// Retrieve the latest NC configuration as the current copy of the configuration
 	// could have been updated while pubsubproxy processed the NC publish.
-	retrievedRepoNCConfig, ncRetrievalErr := datamodel.TryQueryNetworkContainer(
-		ncGoalState.NetworkID,
-		ncGoalState.NetworkContainerID)
+	retrievedRepoNCData, ncRetrievalErr := datamodel.NcRepo.TryQueryNetworkContainer(ncGoalState.NetworkID, ncGoalState.NetworkContainerID)
 	if ncRetrievalErr != nil {
-		msg := fmt.Sprintf(
-			"Publish NC %v failed with error %s",
-			ncGoalState.NetworkContainerID,
-			ncRetrievalErr.String())
-		return false, &api.JsonErr{
-			Code:       api.PublishingFailed,
-			Text:       msg,
-			HTTPStatus: http.StatusInternalServerError}
+		return false, api.InternalServerErrorf(api.PublishingFailed, "could not publish NC: %s. error: %s",
+			ncGoalState.NetworkContainerID, ncRetrievalErr.String())
 	}
 
-	if retrievedRepoNCConfig == nil {
-		msg := fmt.Sprintf(
-			"Publish NC %v failed as NC configuration was not found",
-			ncGoalState.NetworkContainerID)
-		return true, &api.JsonErr{
-			Code:       api.PublishingFailed,
-			Text:       msg,
-			HTTPStatus: http.StatusBadRequest}
+	if retrievedRepoNCData.RowKey == "" {
+		return true, api.BadRequestf(api.PublishingFailed, "could not publish NC: %s as NC data is not found", ncGoalState.NetworkContainerID)
 	}
 
 	// Copy over the delete flag as NC could have been deleted while calling CNS / NMAgent for publish.
-	repoNCConfig.MarkedForDelete = retrievedRepoNCConfig.MarkedForDelete
+	nc.Config.MarkedForDelete = retrievedRepoNCData.Config.MarkedForDelete
 
 	// If the NC is marked for deletion, copy the state as it could have been changed too
-	if repoNCConfig.MarkedForDelete {
-		repoNCConfig.State = retrievedRepoNCConfig.State
+	if nc.Config.MarkedForDelete {
+		nc.Config.State = retrievedRepoNCData.Config.State
 	}
 
 	if publishError != nil && publishError.HTTPStatus == http.StatusUnauthorized {
@@ -1145,45 +1240,35 @@ func publishNetworkContainerWithPubSubProxy(
 		// to pubsub. This workaround hides that till the latency is addressed.
 		// If the NC gets marked for delete while calling CNS / NMAgent, in case of error that request needs to be
 		// marked as retriable error to avoid losing it and delete NC getting stuck
-		if (time.Since(stateTransitionDateTime).Seconds() < unauthorizedErrRetryDurationSec) ||
-			repoNCConfig.MarkedForDelete {
-			msg := fmt.Sprintf("Create NC %s pending. Response code: %d, time elapsed: %.0f sec",
-				repoNCConfig.NetworkContainerID,
-				publishError.HTTPStatus,
-				time.Since(stateTransitionDateTime).Seconds())
-			return false, &api.JsonErr{
-				Code:       api.ProcessingPending,
-				Text:       msg,
-				HTTPStatus: http.StatusUnauthorized}
+		if (time.Since(stateTransitionDateTime).Seconds() < unauthorizedErrRetryDurationSec) || nc.Config.MarkedForDelete {
+			return false, api.StatusUnauthorizedf(api.ProcessingPending, "Create NC %s pending. Response code: %d, time elapsed: %.0f sec",
+				nc.Config.NetworkContainerID, publishError.HTTPStatus, time.Since(stateTransitionDateTime).Seconds())
 		}
 
 		// Mark the request as non-retriable if it fails for retry duration
-		msg := fmt.Sprintf("Failed to publish NC: %s with status code: %v. Marking as non retriable.",
-			repoNCConfig.NetworkContainerID, publishError.HTTPStatus)
-		repoNCConfig.Status = datamodel.Failed
-		repoNCConfig.FailureDetail = api.JsonErr{
-			Code:       api.PublishingFailed,
-			Text:       msg,
-			HTTPStatus: http.StatusUnauthorized}
+		nc.Config.Status = datamodel.Failed
+		failureDetail := api.StatusUnauthorizedf(api.PublishingFailed,
+			"Failed to publish NC: %s with status code: %v. Marking as non-retryable", nc.Config.NetworkContainerID, publishError.HTTPStatus)
+		nc.Config.FailureDetail = *failureDetail
 
-		return true, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
+		return true, datamodel.NcRepo.PersistNetworkContainerData(nc)
 	}
 
-	return false, transitionNCStateAndLog(repoNCConfig, datamodel.Publish, datamodel.PrepareSecondaryIpCleanup, datamodel.Pending)
+	return false, transitionNCStateAndLog(nc, datamodel.Publish, datamodel.PrepareSecondaryIpCleanup, datamodel.Pending)
 }
 
 func processNetworkContainerPublish(
-	repoNCConfig *datamodel.NCConfiguration,
+	nc *datamodel.NetworkContainerEntity,
 	sessionInfo map[string]string,
 	stateTransitionDateTime time.Time,
 	createdDateTime time.Time) (bool, *api.JsonErr) {
 	sessionInfoRead := map[string]string{
-		datamodel.ReservationRepositoryName: repoNCConfig.ReservationID,
-		datamodel.NetworkRepositoryName:     repoNCConfig.NetworkID,
-		datamodel.NodeRepositoryName:        repoNCConfig.GetAssociationInfo().NodeID,
+		datamodel.ReservationRepositoryName: nc.Config.ReservationID,
+		datamodel.NetworkRepositoryName:     nc.Config.NetworkID,
+		datamodel.NodeRepositoryName:        nc.Config.GetAssociationInfo().NodeID,
 	}
 	sessionManager.BeginReadSession(sessionInfoRead)
-	ncGoalState, isRetriableError, ncGoalStateErr := datamodel.GetNCGoalState(repoNCConfig)
+	ncGoalState, isRetriableError, ncGoalStateErr := datamodel.GetNCGoalState(&nc.Config)
 	sessionManager.EndReadSession(sessionInfoRead)
 
 	if ncGoalStateErr != nil {
@@ -1191,13 +1276,13 @@ func processNetworkContainerPublish(
 			return false, ncGoalStateErr
 		}
 
-		repoNCConfig.Status = datamodel.Failed
-		repoNCConfig.FailureDetail = *ncGoalStateErr
-		return true, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
+		nc.Config.Status = datamodel.Failed
+		nc.Config.FailureDetail = *ncGoalStateErr
+		return true, datamodel.NcRepo.PersistNetworkContainerData(nc)
 	}
 
 	if config.PubSubProxySettings.EnablePubSubProxy {
-		return publishNetworkContainerWithPubSubProxy(ncGoalState, repoNCConfig, sessionInfo, stateTransitionDateTime)
+		return publishNetworkContainerWithPubSubProxy(ncGoalState, nc, sessionInfo, stateTransitionDateTime)
 	}
 
 	var (
@@ -1259,20 +1344,19 @@ func processNetworkContainerPublish(
 				ncGoalState.NetworkContainerID,
 				encodeErr.Error())
 			loggershim.LS.Errorf(msg)
-			repoNCConfig.Status = datamodel.Failed
-			repoNCConfig.FailureDetail = api.JsonErr{
+			nc.Config.Status = datamodel.Failed
+			nc.Config.FailureDetail = api.JsonErr{
 				Code:       api.PublishingFailed,
 				Text:       msg,
 				HTTPStatus: http.StatusBadRequest}
-			return true, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
+			return true, datamodel.NcRepo.PersistNetworkContainerData(nc)
 		}
 
 		publishNCURL := fmt.Sprintf(
 			config.CNSSettings.ConnectionStrings.PublishNetworkContainerURLFmt,
 			ncGoalState.NodeInterfaceID)
 
-		logger.Debugf("[CNS] Publish NC %s, body:%s ",
-			ncGoalState.NetworkContainerID, ncRequest.String())
+		logger.Debugf("[CNS] Publish NC %s, body:%s ", ncGoalState.NetworkContainerID, ncRequest.String())
 		// Release the session locks before making call to CNS
 		sessionManager.EndWriteSession(sessionInfo)
 
@@ -1317,7 +1401,7 @@ func processNetworkContainerPublish(
 			var publishNCResponse cns.PublishNetworkContainerResponse
 			if decodeRespErr := utils.DecodeResponse(respPublishCNS, &publishNCResponse); decodeRespErr != nil {
 				msg := fmt.Sprintf("Failed to decode publish NC %s response. Error: %s",
-					repoNCConfig.NetworkContainerID,
+					nc.Config.NetworkContainerID,
 					decodeRespErr.Error())
 				return false, &api.JsonErr{
 					Code:       api.DecodeResponseFailed,
@@ -1350,7 +1434,7 @@ func processNetworkContainerPublish(
 			// If the error is unexpected failure, mark this as retriable error
 			if publishNCResponse.Response.ReturnCode == restserver.UnexpectedError {
 				msg := fmt.Sprintf("Failed to publish NC %s via CNS. Error: %s",
-					repoNCConfig.NetworkContainerID,
+					nc.Config.NetworkContainerID,
 					publishNCResponse.Response.Message)
 				return false, &api.JsonErr{
 					Code:       api.PublishingFailed,
@@ -1387,7 +1471,7 @@ func processNetworkContainerPublish(
 		return false, &api.JsonErr{
 			Code: api.PublishingFailed,
 			Text: fmt.Sprintf("Failed to publish NC %s to with error code %d",
-				repoNCConfig.NetworkContainerID,
+				nc.Config.NetworkContainerID,
 				resp.StatusCode),
 			HTTPStatus: http.StatusInternalServerError}
 	}
@@ -1396,7 +1480,7 @@ func processNetworkContainerPublish(
 	decodeRespErr := utils.DecodeResponse(resp, &createNetworkContainerResponse)
 	if decodeRespErr != nil {
 		msg := fmt.Sprintf("Failed to decode create NC %s response due to error %s.",
-			repoNCConfig.NetworkContainerID,
+			nc.Config.NetworkContainerID,
 			decodeRespErr.Error())
 		return false, &api.JsonErr{
 			Code:       api.DecodeResponseFailed,
@@ -1412,7 +1496,7 @@ func processNetworkContainerPublish(
 		msg := fmt.Sprintf(
 			"Failed to convert response code %s to integer when parsing create NC %s response",
 			createNetworkContainerResponse.ResponseCode,
-			repoNCConfig.NetworkContainerID)
+			nc.Config.NetworkContainerID)
 		return false, &api.JsonErr{
 			Code:       api.ParseResponseCodeFailed,
 			Text:       msg,
@@ -1421,36 +1505,22 @@ func processNetworkContainerPublish(
 
 	// Retrieve the latest NC configuration as the current copy of the configuration
 	// could have been updated while we were in the process of calling cns.
-	retrievedRepoNCConfig, ncRetrievalErr := datamodel.TryQueryNetworkContainer(
-		ncGoalState.NetworkID,
-		ncGoalState.NetworkContainerID)
+	retrievedRepoNCData, ncRetrievalErr := datamodel.NcRepo.TryQueryNetworkContainer(ncGoalState.NetworkID, ncGoalState.NetworkContainerID)
 	if ncRetrievalErr != nil {
-		msg := fmt.Sprintf(
-			"Publish NC %v failed with error %s",
-			ncGoalState.NetworkContainerID,
-			ncRetrievalErr.String())
-		return false, &api.JsonErr{
-			Code:       api.PublishingFailed,
-			Text:       msg,
-			HTTPStatus: http.StatusInternalServerError}
+		return false, api.InternalServerErrorf(api.PublishingFailed, "could not publish NC: %s. error: %s",
+			ncGoalState.NetworkContainerID, ncRetrievalErr.String())
 	}
 
-	if retrievedRepoNCConfig == nil {
-		msg := fmt.Sprintf(
-			"Publish NC %v failed as NC configuration was not found",
-			ncGoalState.NetworkContainerID)
-		return true, &api.JsonErr{
-			Code:       api.PublishingFailed,
-			Text:       msg,
-			HTTPStatus: http.StatusBadRequest}
+	if retrievedRepoNCData.RowKey == "" {
+		return true, api.BadRequestf(api.PublishingFailed, "could not publish NC: %s as NC data is not found", ncGoalState.NetworkContainerID)
 	}
 
 	// Copy over the delete flag as NC could have been deleted while calling CNS / NMAgent for publish.
-	repoNCConfig.MarkedForDelete = retrievedRepoNCConfig.MarkedForDelete
+	nc.Config.MarkedForDelete = retrievedRepoNCData.Config.MarkedForDelete
 
 	// If the NC is marked for deletion, copy the state as it could have been changed too
-	if repoNCConfig.MarkedForDelete {
-		repoNCConfig.State = retrievedRepoNCConfig.State
+	if nc.Config.MarkedForDelete {
+		nc.Config.State = retrievedRepoNCData.Config.State
 	}
 
 	if putNCResponseCode != http.StatusOK {
@@ -1461,33 +1531,23 @@ func processNetworkContainerPublish(
 		// If the NC gets marked for delete while calling CNS / NMAgent, in case of error that request needs to be
 		// marked as retriable error to avoid losing it and delete NC getting stuck
 		if putNCResponseCode == http.StatusUnauthorized {
-			if (time.Since(stateTransitionDateTime).Seconds() < unauthorizedErrRetryDurationSec) ||
-				repoNCConfig.MarkedForDelete {
-				msg := fmt.Sprintf("Create NC %s pending. Response code: %d, time elapsed: %.0f sec",
-					repoNCConfig.NetworkContainerID,
-					putNCResponseCode,
-					time.Since(stateTransitionDateTime).Seconds())
-				return false, &api.JsonErr{
-					Code:       api.ProcessingPending,
-					Text:       msg,
-					HTTPStatus: http.StatusUnauthorized}
+			if (time.Since(stateTransitionDateTime).Seconds() < unauthorizedErrRetryDurationSec) || nc.Config.MarkedForDelete {
+				return false, api.StatusUnauthorizedf(api.ProcessingPending, "Create NC %s pending. Response code: %d, time elapsed: %.0f sec",
+					nc.Config.NetworkContainerID, putNCResponseCode,	time.Since(stateTransitionDateTime).Seconds())
 			}
 
-			// Mark the request as non-retriable if it fails for retry duration
-			msg := fmt.Sprintf("Failed to publish NC: %s with status code: %v. Marking as non retriable.",
-				repoNCConfig.NetworkContainerID, putNCResponseCode)
-			repoNCConfig.Status = datamodel.Failed
-			repoNCConfig.FailureDetail = api.JsonErr{
-				Code:       api.PublishingFailed,
-				Text:       msg,
-				HTTPStatus: http.StatusUnauthorized}
+			// Mark the request as non-retryable if it fails for retry duration
+			failureDetail := api.StatusUnauthorizedf(api.PublishingFailed,
+				"Failed to publish NC: %s with status code: %v. Marking as non-retryable", nc.Config.NetworkContainerID, putNCResponseCode)
+			nc.Config.Status = datamodel.Failed
+			nc.Config.FailureDetail = *failureDetail
 
-			return true, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
+			return true, datamodel.NcRepo.PersistNetworkContainerData(nc)
 		}
 
 		// Retry if NMAgent error response code is anything other than http.StatusUnauthorized
-		msg := fmt.Sprintf("Failed to publish NC: %s with status code: %v. Marking as retriable.",
-			repoNCConfig.NetworkContainerID, putNCResponseCode)
+		msg := fmt.Sprintf("Failed to publish NC: %s with status code: %v. Marking as retryable.",
+			nc.Config.NetworkContainerID, putNCResponseCode)
 
 		return false, &api.JsonErr{
 			Code:       api.PublishingFailed,
@@ -1497,11 +1557,11 @@ func processNetworkContainerPublish(
 
 	// todo: we have to log program completion before transitioning state, since program can be transitioned to
 	//   from refresh but we don't want to log completion in those cases
-	repoNCConfig.LogStateCompletion(datamodel.Program)
-	transitionErr := transitionNCStateAndLog(repoNCConfig, datamodel.Publish, datamodel.Program, datamodel.Pending)
+	nc.Config.LogStateCompletion(datamodel.Program)
+	transitionErr := transitionNCStateAndLog(nc, datamodel.Publish, datamodel.Program, datamodel.Pending)
 
 	creationTimeMs := time.Since(createdDateTime).Milliseconds()
-	sendNCMetric(aiwrapper.NCProcessTimeMetric, float64(creationTimeMs), aiwrapper.Succeeded, "Container"+datamodel.Program.String(), repoNCConfig, nil)
+	sendNCMetric(aiwrapper.NCProcessTimeMetric, float64(creationTimeMs), aiwrapper.Succeeded, "Container"+datamodel.Program.String(), &nc.Config, nil)
 	aiwrapper.LogNCSnapsnot(ncGoalState.NetworkContainerID, ncGoalState.NetworkID, ncGoalState.BaseSubnetName, ncGoalState.AssociatedNodeID)
 
 	return false, transitionErr
@@ -1509,7 +1569,7 @@ func processNetworkContainerPublish(
 
 func unpublishNetworkContainerWithPubSubProxy(
 	ncGoalState *datamodel.NCGoalState,
-	repoNCConfig *datamodel.NCConfiguration,
+	nc *datamodel.NetworkContainerEntity,
 	sessionInfo map[string]string,
 	stateTransitionDateTime time.Time) (bool, *api.JsonErr) {
 	var (
@@ -1528,8 +1588,8 @@ func unpublishNetworkContainerWithPubSubProxy(
 		SubnetAuthToken: ncGoalState.AccessToken,
 	}
 
-	if api.IsBareMetalContainer(repoNCConfig.GetAssociationInfo().ContainerType) {
-		unpublishErr = pubsubproxy.UnpublishBaremetalNetworkContainer(ncGoalState, repoNCConfig)
+	if api.IsBareMetalContainer(nc.Config.GetAssociationInfo().ContainerType) {
+		unpublishErr = pubsubproxy.UnpublishBaremetalNetworkContainer(ncGoalState, &nc.Config)
 	} else {
 		unpublishErr = pubsubproxy.UnpublishNetworkContainer(unpublishNcRequest)
 	}
@@ -1548,7 +1608,7 @@ func unpublishNetworkContainerWithPubSubProxy(
 			if unpublishErr.HTTPStatus == http.StatusUnauthorized {
 				if time.Since(stateTransitionDateTime).Seconds() < unauthorizedErrRetryDurationSec {
 					msg := fmt.Sprintf("Delete NC %s pending. Response code: %d, time elapsed: %.0f sec",
-						repoNCConfig.NetworkContainerID,
+						nc.Config.NetworkContainerID,
 						unpublishErr.HTTPStatus,
 						time.Since(stateTransitionDateTime).Seconds())
 					return false, &api.JsonErr{
@@ -1559,18 +1619,18 @@ func unpublishNetworkContainerWithPubSubProxy(
 
 				// Mark the request as non-retriable if it fails for retry duration
 				msg := fmt.Sprintf("Failed to unpublish NC: %s with status code: %v. Marking as non retriable.",
-					repoNCConfig.NetworkContainerID, unpublishErr.HTTPStatus)
-				repoNCConfig.Status = datamodel.Failed
-				repoNCConfig.FailureDetail = api.JsonErr{
+					nc.Config.NetworkContainerID, unpublishErr.HTTPStatus)
+				nc.Config.Status = datamodel.Failed
+				nc.Config.FailureDetail = api.JsonErr{
 					Code:       api.UnpublishingFailed,
 					Text:       msg,
 					HTTPStatus: http.StatusUnauthorized}
-				return true, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
+				return true, datamodel.NcRepo.PersistNetworkContainerData(nc)
 			}
 
 			// Retry if error response code is anything other than http.StatusUnauthorized
 			msg := fmt.Sprintf("Failed to unpublish NC: %s with status code: %v. Marking as retriable.",
-				repoNCConfig.NetworkContainerID, unpublishErr.HTTPStatus)
+				nc.Config.NetworkContainerID, unpublishErr.HTTPStatus)
 
 			return false, &api.JsonErr{
 				Code:       api.UnpublishingFailed,
@@ -1579,25 +1639,25 @@ func unpublishNetworkContainerWithPubSubProxy(
 		}
 	}
 
-	containerType := repoNCConfig.GetAssociationInfo().ContainerType
+	containerType := nc.Config.GetAssociationInfo().ContainerType
 	if api.IsBareMetalContainer(containerType) {
-		return false, transitionNCStateAndLog(repoNCConfig, datamodel.UnPublish, datamodel.DeallocateMAC, datamodel.Pending)
+		return false, transitionNCStateAndLog(nc, datamodel.UnPublish, datamodel.DeallocateMAC, datamodel.Pending)
 	}
 
-	return false, transitionNCStateAndLog(repoNCConfig, datamodel.UnPublish, datamodel.UnReserve, datamodel.Pending)
+	return false, transitionNCStateAndLog(nc, datamodel.UnPublish, datamodel.UnReserve, datamodel.Pending)
 }
 
 func processNetworkContainerUnPublish(
-	repoNCConfig *datamodel.NCConfiguration,
+	nc *datamodel.NetworkContainerEntity,
 	sessionInfo map[string]string,
 	stateTransitionDateTime time.Time) (bool, *api.JsonErr) {
 	sessionInfoRead := map[string]string{
-		datamodel.ReservationRepositoryName: repoNCConfig.ReservationID,
-		datamodel.NetworkRepositoryName:     repoNCConfig.NetworkID,
-		datamodel.NodeRepositoryName:        repoNCConfig.GetAssociationInfo().NodeID,
+		datamodel.ReservationRepositoryName: nc.Config.ReservationID,
+		datamodel.NetworkRepositoryName:     nc.Config.NetworkID,
+		datamodel.NodeRepositoryName:        nc.Config.GetAssociationInfo().NodeID,
 	}
 	sessionManager.BeginReadSession(sessionInfoRead)
-	ncGoalState, isRetriableError, ncGoalStateErr := datamodel.GetNCGoalState(repoNCConfig)
+	ncGoalState, isRetriableError, ncGoalStateErr := datamodel.GetNCGoalState(&nc.Config)
 	sessionManager.EndReadSession(sessionInfoRead)
 
 	if ncGoalStateErr != nil {
@@ -1605,13 +1665,13 @@ func processNetworkContainerUnPublish(
 			return false, ncGoalStateErr
 		}
 
-		repoNCConfig.Status = datamodel.Failed
-		repoNCConfig.FailureDetail = *ncGoalStateErr
-		return true, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
+		nc.Config.Status = datamodel.Failed
+		nc.Config.FailureDetail = *ncGoalStateErr
+		return true, datamodel.NcRepo.PersistNetworkContainerData(nc)
 	}
 
 	if config.PubSubProxySettings.EnablePubSubProxy {
-		return unpublishNetworkContainerWithPubSubProxy(ncGoalState, repoNCConfig, sessionInfo, stateTransitionDateTime)
+		return unpublishNetworkContainerWithPubSubProxy(ncGoalState, nc, sessionInfo, stateTransitionDateTime)
 	}
 
 	var (
@@ -1707,7 +1767,7 @@ func processNetworkContainerUnPublish(
 			var unpublishNCResponse cns.UnpublishNetworkContainerResponse
 			if decodeRespErr := utils.DecodeResponse(respUnpublishCNS, &unpublishNCResponse); decodeRespErr != nil {
 				msg := fmt.Sprintf("Failed to decode unpublish NC %s response. Error: %s",
-					repoNCConfig.NetworkContainerID,
+					nc.Config.NetworkContainerID,
 					decodeRespErr.Error())
 				return false, &api.JsonErr{
 					Code:       api.DecodeResponseFailed,
@@ -1740,7 +1800,7 @@ func processNetworkContainerUnPublish(
 			// If the error is unexpected failure, mark this as retriable error
 			if unpublishNCResponse.Response.ReturnCode == restserver.UnexpectedError {
 				msg := fmt.Sprintf("Failed to unpublish NC %s via CNS. Error: %s",
-					repoNCConfig.NetworkContainerID,
+					nc.Config.NetworkContainerID,
 					unpublishNCResponse.Response.Message)
 				return false, &api.JsonErr{
 					Code:       api.UnpublishingFailed,
@@ -1768,7 +1828,7 @@ func processNetworkContainerUnPublish(
 		return false, &api.JsonErr{
 			Code: api.UnpublishingFailed,
 			Text: fmt.Sprintf("Failed to unpublish NC %s with error %v",
-				repoNCConfig.NetworkContainerID,
+				nc.Config.NetworkContainerID,
 				respErr.Error()),
 			HTTPStatus: http.StatusInternalServerError}
 	}
@@ -1778,7 +1838,7 @@ func processNetworkContainerUnPublish(
 		return false, &api.JsonErr{
 			Code: api.UnpublishingFailed,
 			Text: fmt.Sprintf("Failed to unpublish NC %s with error code %d",
-				repoNCConfig.NetworkContainerID,
+				nc.Config.NetworkContainerID,
 				resp.StatusCode),
 			HTTPStatus: http.StatusInternalServerError}
 	}
@@ -1787,7 +1847,7 @@ func processNetworkContainerUnPublish(
 	decodeRespErr := utils.DecodeResponse(resp, &deleteNCResponse)
 	if decodeRespErr != nil {
 		msg := fmt.Sprintf("Failed to decode delete NC %s response due to error %s",
-			repoNCConfig.NetworkContainerID,
+			nc.Config.NetworkContainerID,
 			decodeRespErr.Error())
 		return false, &api.JsonErr{
 			Code:       api.DecodeResponseFailed,
@@ -1795,16 +1855,14 @@ func processNetworkContainerUnPublish(
 			HTTPStatus: http.StatusInternalServerError}
 	}
 
-	logger.Debugf("[NMAgent][Response] %s for NC: %s, unpublishViaCNS: %t",
-		deleteNCResponse.String(),
-		repoNCConfig.NetworkContainerID,
-		unpublishViaCNS)
+	logger.Debugf("[NMAgent][Response] %s for NC: %s, unpublishViaCNS: %t", deleteNCResponse.String(),
+		nc.Config.NetworkContainerID, unpublishViaCNS)
 
 	deleteNCResponseCode, parseErr := strconv.ParseInt(deleteNCResponse.ResponseCode, 10, 64)
 	if parseErr != nil {
 		msg := fmt.Sprintf(
 			"Failed to convert response code %s  to integer when parsing delete NC response for NC %s, Marking this error as retriable.",
-			deleteNCResponse.ResponseCode, repoNCConfig.NetworkContainerID)
+			deleteNCResponse.ResponseCode, nc.Config.NetworkContainerID)
 		return false, &api.JsonErr{
 			Code:       api.ParseResponseCodeFailed,
 			Text:       msg,
@@ -1819,9 +1877,7 @@ func processNetworkContainerUnPublish(
 		if deleteNCResponseCode == http.StatusUnauthorized {
 			if time.Since(stateTransitionDateTime).Seconds() < unauthorizedErrRetryDurationSec {
 				msg := fmt.Sprintf("Delete NC %s pending. Response code: %d, time elapsed: %.0f sec",
-					repoNCConfig.NetworkContainerID,
-					deleteNCResponseCode,
-					time.Since(stateTransitionDateTime).Seconds())
+					nc.Config.NetworkContainerID, deleteNCResponseCode, time.Since(stateTransitionDateTime).Seconds())
 				return false, &api.JsonErr{
 					Code:       api.ProcessingPending,
 					Text:       msg,
@@ -1830,18 +1886,18 @@ func processNetworkContainerUnPublish(
 
 			// Mark the request as non-retriable if it fails for retry duration
 			msg := fmt.Sprintf("Failed to unpublish NC: %s with status code: %v. Marking as non retriable.",
-				repoNCConfig.NetworkContainerID, deleteNCResponseCode)
-			repoNCConfig.Status = datamodel.Failed
-			repoNCConfig.FailureDetail = api.JsonErr{
+				nc.Config.NetworkContainerID, deleteNCResponseCode)
+			nc.Config.Status = datamodel.Failed
+			nc.Config.FailureDetail = api.JsonErr{
 				Code:       api.UnpublishingFailed,
 				Text:       msg,
 				HTTPStatus: http.StatusUnauthorized}
-			return true, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
+			return true, datamodel.NcRepo.PersistNetworkContainerData(nc)
 		}
 
 		// Retry if NMAgent error response code is anything other than http.StatusUnauthorized
 		msg := fmt.Sprintf("Failed to unpublish NC: %s with status code: %v. Marking as retriable.",
-			repoNCConfig.NetworkContainerID, deleteNCResponseCode)
+			nc.Config.NetworkContainerID, deleteNCResponseCode)
 
 		return false, &api.JsonErr{
 			Code:       api.UnpublishingFailed,
@@ -1849,13 +1905,13 @@ func processNetworkContainerUnPublish(
 			HTTPStatus: int(deleteNCResponseCode)}
 	}
 
-	return false, transitionNCStateAndLog(repoNCConfig, datamodel.UnPublish, datamodel.DisAssociate, datamodel.Pending)
+	return false, transitionNCStateAndLog(nc, datamodel.UnPublish, datamodel.DisAssociate, datamodel.Pending)
 }
 
 // todo: this could be removed, since all it does is add an extra db operation to change pending to completed.
 //   states that transition to program should just mark status as completed.
-func processNetworkContainerProgram(repoNCConfig *datamodel.NCConfiguration) (bool, *api.JsonErr) {
-	return true, transitionNCState(repoNCConfig, datamodel.Program, datamodel.Completed)
+func processNetworkContainerProgram(nc *datamodel.NetworkContainerEntity) (bool, *api.JsonErr) {
+	return true, transitionNCState(nc, datamodel.Program, datamodel.Completed)
 }
 
 func processReservationSetWithKey(
@@ -1965,25 +2021,22 @@ func processNetworkContainerRequest(
 		stateTransitionDateTime       = requestContext.StateTransitionDateTime
 		removeRequestFromPendingQueue = false
 		err                           *api.JsonErr
-		repoNCConfig                  *datamodel.NCConfiguration
+		repoNCData                    datamodel.NetworkContainerEntity
 	)
 
 	defer func() {
-		if repoNCConfig != nil {
-			if removeRequestFromPendingQueue && repoNCConfig.Status == datamodel.Failed {
+		if repoNCData.RowKey != "" {
+			if removeRequestFromPendingQueue && repoNCData.Config.Status == datamodel.Failed {
 				processingTime := time.Since(createdDateTime).Milliseconds()
 				var ncState string
-				if datamodel.IsDeleteInProgress(repoNCConfig.State) {
+				if datamodel.IsDeleteInProgress(repoNCData.Config.State) {
 					ncState = "Container" + datamodel.Purge.String()
-					logger.Errorf("NC deletion failed for NC: %s",
-						datamodel.GetNCIdFromKey(networkContainerKey))
+					logger.Errorf("NC deletion failed for NC: %s", datamodel.GetNCIdFromKey(networkContainerKey))
 				} else {
 					ncState = "Container" + datamodel.Program.String()
-					logger.Errorf("NC creation failed for NC: %s",
-						datamodel.GetNCIdFromKey(networkContainerKey))
+					logger.Errorf("NC creation failed for NC: %s", datamodel.GetNCIdFromKey(networkContainerKey))
 				}
-				sendNCMetric(aiwrapper.NCProcessTimeMetric, float64(processingTime),
-					aiwrapper.Failed, ncState, repoNCConfig, err)
+				sendNCMetric(aiwrapper.NCProcessTimeMetric, float64(processingTime), aiwrapper.Failed, ncState, &repoNCData.Config, err)
 			}
 		}
 	}()
@@ -1991,91 +2044,91 @@ func processNetworkContainerRequest(
 	// Continue advancing the NC state to completion while there is no error (err == nil) and
 	// indication to remove the request from the pending queue (!removeRequestFromPendingQueue)
 	for !removeRequestFromPendingQueue && err == nil {
-		repoNCConfig, err = datamodel.TryQueryNetworkContainerByKey(networkContainerKey)
+		repoNCData, err = datamodel.NcRepo.TryQueryNetworkContainerByKey(networkContainerKey)
 
 		if err != nil {
 			return false, err
 		}
 
-		if repoNCConfig == nil {
-			logger.Errorf("Failed to find network container configuration in repository for ID %s", networkContainerKey)
+		if repoNCData.RowKey == "" {
+			logger.Errorf("Failed to find network container in repository for key: %s", networkContainerKey)
 			return true, nil
 		}
 
 		// Check if NC has been marked for delete and if so ensure that we are in the correct deletion state.
-		if repoNCConfig.MarkedForDelete && !datamodel.IsDeleteInProgress(repoNCConfig.State) {
-			revertState, err := datamodel.GetRevertState(repoNCConfig.State)
+		if repoNCData.Config.MarkedForDelete && !datamodel.IsDeleteInProgress(repoNCData.Config.State) {
+			revertState, err := datamodel.GetRevertState(repoNCData.Config.State)
 			if err != nil {
 				logger.Errorf("Failed to get the deletion state for NC: %s, current state: %s",
-					repoNCConfig.NetworkContainerID, repoNCConfig.State)
+					repoNCData.Config.NetworkContainerID, repoNCData.Config.State)
 				return false, err
 			}
-			repoNCConfig.State = revertState
+			repoNCData.Config.State = revertState
 		}
 
-		if repoNCConfig.Status == datamodel.Failed {
+		if repoNCData.Config.Status == datamodel.Failed {
 			return true, nil
 		}
 
-		ncState := repoNCConfig.State
+		ncState := repoNCData.Config.State
 
-		switch repoNCConfig.State {
+		switch repoNCData.Config.State {
 		case datamodel.Prepare:
-			removeRequestFromPendingQueue, err = preparer.PrepareNetworkContainer(repoNCConfig)
+			removeRequestFromPendingQueue, err = preparer.PrepareNetworkContainer(&repoNCData)
 
 		case datamodel.Reserve:
 			if config.FeatureFlagSettings.EnableBatchAllocationProcessing {
-				removeRequestFromPendingQueue, err = processNetworkContainerBatchReserve(repoNCConfig)
+				removeRequestFromPendingQueue, err = processNetworkContainerBatchReserve(&repoNCData)
 			} else {
-				removeRequestFromPendingQueue, err = processNetworkContainerReserve(repoNCConfig)
+				removeRequestFromPendingQueue, err = processNetworkContainerReserve(&repoNCData)
 			}
 
 		case datamodel.AllocateLocalIP:
 
 			// Local IP allocation is not needed for bare-metal containers.
 			// In that case change the NC config state to AllocateMAC and return.
-			if api.IsBareMetalContainer(repoNCConfig.GetAssociationInfo().ContainerType) {
-				removeRequestFromPendingQueue, err = false, transitionNCStateAndLog(repoNCConfig, datamodel.AllocateLocalIP, datamodel.AllocateMAC, datamodel.Pending)
+			if api.IsBareMetalContainer(repoNCData.Config.GetAssociationInfo().ContainerType) {
+				removeRequestFromPendingQueue, err = false, transitionNCStateAndLog(&repoNCData, datamodel.AllocateLocalIP, datamodel.AllocateMAC, datamodel.Pending)
 			} else {
-				removeRequestFromPendingQueue, err = processAllocateLocalIP(repoNCConfig)
+				removeRequestFromPendingQueue, err = processAllocateLocalIP(&repoNCData)
 			}
 
 		case datamodel.AllocateMAC:
-			removeRequestFromPendingQueue, err = macAllocator.ProcessAllocateMAC(repoNCConfig)
+			removeRequestFromPendingQueue, err = macAllocator.ProcessAllocateMAC(&repoNCData)
 
 		case datamodel.Associate:
 			fallthrough
 
 		case datamodel.RefreshAssociation:
-			removeRequestFromPendingQueue, err = processNetworkContainerAssociate(repoNCConfig, sessionInfo)
+			removeRequestFromPendingQueue, err = processNetworkContainerAssociate(&repoNCData, sessionInfo)
 
 		case datamodel.Publish:
-			removeRequestFromPendingQueue, err = processNetworkContainerPublish(repoNCConfig, sessionInfo, stateTransitionDateTime, createdDateTime)
+			removeRequestFromPendingQueue, err = processNetworkContainerPublish(&repoNCData, sessionInfo, stateTransitionDateTime, createdDateTime)
 
 		case datamodel.PrepareSecondaryIpCleanup:
-			removeRequestFromPendingQueue, err = processPrepareSecondaryIpCleanup(repoNCConfig, createdDateTime)
+			removeRequestFromPendingQueue, err = processPrepareSecondaryIpCleanup(&repoNCData, createdDateTime)
 
 		case datamodel.Program:
-			removeRequestFromPendingQueue, err = processNetworkContainerProgram(repoNCConfig)
+			removeRequestFromPendingQueue, err = processNetworkContainerProgram(&repoNCData)
 
 		case datamodel.UnPublish:
-			removeRequestFromPendingQueue, err = processNetworkContainerUnPublish(repoNCConfig, sessionInfo, stateTransitionDateTime)
+			removeRequestFromPendingQueue, err = processNetworkContainerUnPublish(&repoNCData, sessionInfo, stateTransitionDateTime)
 
 		case datamodel.DisAssociate:
-			removeRequestFromPendingQueue, err = processNetworkContainerDisAssociate(repoNCConfig, sessionInfo)
+			removeRequestFromPendingQueue, err = processNetworkContainerDisAssociate(&repoNCData, sessionInfo)
 
 		case datamodel.DeallocateMAC:
-			removeRequestFromPendingQueue, err = macAllocator.ProcessDeallocateMAC(repoNCConfig)
+			removeRequestFromPendingQueue, err = macAllocator.ProcessDeallocateMAC(&repoNCData)
 
 		case datamodel.UnReserve:
-			removeRequestFromPendingQueue = false // there is no obvious case where unreserving requires removing the item from the pending queue
-			err = processNetworkContainerUnReserve(repoNCConfig)
+			removeRequestFromPendingQueue = false // there is no obvious case where un-reserving requires removing the item from the pending queue
+			err = processNetworkContainerUnReserve(&repoNCData)
 
 		case datamodel.Purge:
-			removeRequestFromPendingQueue, err = processNetworkContainerPurge(repoNCConfig, createdDateTime)
+			removeRequestFromPendingQueue, err = processNetworkContainerPurge(&repoNCData, createdDateTime)
 
 		default:
-			logger.Errorf("NC: %s processing failed due to invalid state %s", repoNCConfig.NetworkContainerID, repoNCConfig.State)
+			logger.Errorf("NC: %s processing failed due to invalid state %s", repoNCData.Config.NetworkContainerID, repoNCData.Config.State)
 			return true, nil
 		}
 
@@ -2087,8 +2140,7 @@ func processNetworkContainerRequest(
 		}
 
 		// Record the time taken for NC state processing and send the NC process time metric
-		recordNetworkContainerProcessingTime(repoNCConfig, ncState,
-			processStatus, createdDateTime, stateTransitionDateTime, err)
+		recordNetworkContainerProcessingTime(&repoNCData, ncState, processStatus, createdDateTime, stateTransitionDateTime, err)
 
 		if !removeRequestFromPendingQueue && err == nil {
 			requestContext.LastRetriedDateTime = time.Time{}
@@ -2110,7 +2162,7 @@ func processNetworkContainerRequest(
 
 // Record the time taken for NC state processing and send the NC process time metric
 func recordNetworkContainerProcessingTime(
-	repoNCConfig *datamodel.NCConfiguration,
+	nc *datamodel.NetworkContainerEntity,
 	ncState datamodel.NetworkContainerState,
 	processStatus string,
 	createdDateTime, stateTransitionDateTime time.Time,
@@ -2119,9 +2171,9 @@ func recordNetworkContainerProcessingTime(
 		ncState == datamodel.Purge {
 		// Program and purge times are calculated based on request create time. This provides
 		// the total time taken to program (create) and delete the NC.
-		utils.RecordTime(createdDateTime, "Container"+ncState.String(), repoNCConfig.NetworkContainerID)
+		utils.RecordTime(createdDateTime, "Container"+ncState.String(), nc.Config.NetworkContainerID)
 	} else {
-		utils.RecordTime(stateTransitionDateTime, "Container"+ncState.String(), repoNCConfig.NetworkContainerID)
+		utils.RecordTime(stateTransitionDateTime, "Container"+ncState.String(), nc.Config.NetworkContainerID)
 	}
 
 	// Upload state process time metric for all the states. Program and Purge times are calulcated
@@ -2132,7 +2184,7 @@ func recordNetworkContainerProcessingTime(
 		ncState != datamodel.RefreshAssociation {
 		processTimeMs := time.Since(stateTransitionDateTime).Milliseconds()
 		sendNCMetric(aiwrapper.NCProcessTimeMetric,
-			float64(processTimeMs), processStatus, "Container"+ncState.String(), repoNCConfig, err)
+			float64(processTimeMs), processStatus, "Container"+ncState.String(), &nc.Config, err)
 	}
 }
 
@@ -2261,20 +2313,7 @@ func processPendingRequests(
 		requestContext := requests[requestID]
 
 		go func(rid string, rc datamodel.RequestContext, requestsMap *sync.Map, goroutines chan struct{}) {
-			switch rc.Type {
-			case datamodel.NetworkContainerRequest:
-				logger.Debugf("Processing %s [%s] on Node [%s]",
-					rc.Type.String(),
-					rid,
-					rc.NodeID)
-			case datamodel.VirtualNetworkRequest:
-				fallthrough
-			case datamodel.ReservationRequest:
-				logger.Debugf("Processing %s [%s]",
-					rc.Type.String(),
-					rid)
-			}
-
+			logger.Debugf("Processing request: %+v", rc)
 			processRequest(rid, &rc)
 			// Remove the request from the in-process map
 			requestsMap.Delete(rid)

@@ -22,13 +22,13 @@ func initNetworkContainerStateMachine() {
 		Locks:                sessionManager,
 		Reservations:         datamodel.IpReservationRepo,
 		UpdateNodeContainers: datamodel.NodeConfigRepo.UpdateNodeConfigurationNetworkContainerSet,
-		PersistNC:            datamodel.PersistNCConfiguration,
+		PersistNC:            datamodel.NcRepo.PersistNetworkContainerData,
 		Logger:               logger,
 	}
 
 	ipAllocator = networkcontainer.IPAllocator{
 		Nodes:                       datamodel.NodeConfigRepo,
-		NCs:                         new(ncRepo),
+		NCs:                         datamodel.NcRepo,
 		Subnets:                     new(subnetRepo),
 		Reservations:                datamodel.IpReservationRepo,
 		Allocations:                 datamodel.AllocRepo,
@@ -46,7 +46,7 @@ func initNetworkContainerStateMachine() {
 	}
 
 	macAllocator = networkcontainer.MacAllocator{
-		PersistNC:        datamodel.PersistNCConfiguration,
+		PersistNC:        datamodel.NcRepo.PersistNetworkContainerData,
 		Logger:           logger,
 		MacManagerClient: macManagerClient,
 	}

@@ -237,12 +237,12 @@ func (n *NodeConfigurationRepo) GetNodeInfo(nodeID string) (*api.NodeInfoRespons
 
 	for networkID, ncMap := range repoNodeConfiguration.DeployedNetworkContainerMap {
 		for ncID := range ncMap {
-			ncConfig, err := GetNetworkContainerConfiguration(networkID, ncID)
+			nc, err := NcRepo.GetNetworkContainerData(networkID, ncID)
 			if err != nil {
 				return nil, err
 			}
 
-			networkContainerResponse, err := GetNetworkContainerResponse(ncConfig)
+			networkContainerResponse, err := GetNetworkContainerResponse(&nc.Config)
 			if err != nil {
 				return nil, err
 			}

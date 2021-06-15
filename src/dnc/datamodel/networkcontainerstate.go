@@ -80,13 +80,13 @@ func IsDeleteInProgress(ncState NetworkContainerState) bool {
 }
 
 // PromoteContainerState - Promotes container to the next state
-func PromoteContainerState(ncConfig *NCConfiguration) *api.JsonErr {
-	if ncConfig.FailureDetail.Code != 0 {
-		switch ncConfig.State {
+func PromoteContainerState(nc NetworkContainerEntity) *api.JsonErr {
+	if nc.Config.FailureDetail.Code != 0 {
+		switch nc.Config.State {
 		case Reserve:
 			fallthrough
 		case UnReserve:
-			ncConfig.State = Purge
+			nc.Config.State = Purge
 		case AllocateLocalIP:
 			fallthrough
 		case AllocateMAC:
@@ -94,20 +94,32 @@ func PromoteContainerState(ncConfig *NCConfiguration) *api.JsonErr {
 		case Associate:
 			fallthrough
 		case DisAssociate:
-			ncConfig.State = UnReserve
+			nc.Config.State = UnReserve
 		case Publish:
 			fallthrough
 		case Program:
-			ncConfig.State = UnPublish
+			nc.Config.State = UnPublish
 		case UnPublish:
-			ncConfig.State = DisAssociate
+			nc.Config.State = DisAssociate
 		case DeallocateMAC:
-			ncConfig.State = UnReserve
+			nc.Config.State = UnReserve
 		}
 
-		ncConfig.FailureDetail = api.JsonErr{}
-		ncConfig.Status = Pending
-		return PersistNCConfiguration(ncConfig, AddToPendingQ)
+		nc.Config.FailureDetail = api.JsonErr{}
+		nc.Config.Status = Pending
+
+		if err := NcRepo.PersistNetworkContainerData(&nc); err != nil {
+			return err
+		}
+
+		// Add request to the pending queue
+		requestContext := RequestContext{
+			Type:      NetworkContainerRequest,
+			NetworkID: nc.Config.NetworkID,
+			NodeID:    nc.Config.GetAssociationInfo().NodeID,
+		}
+		ncKey := GetNCKey(nc.Config.NetworkID, nc.Config.NetworkContainerID)
+		return AddRequestToPendingQueue(ncKey, &requestContext)
 	}
 
 	return nil

@@ -96,7 +96,7 @@ func Init(
 	NcPendingPublishRepo = NewNcPendingPublishRequestRepo(ds)
 	NodeConfigRepo = &NodeConfigurationRepo{Datastore: ds}
 	IpReservationSetRepo = NewReservationSetRepo(ds, dncPartitionKey, loggershim.LS)
-	NcRepo = NewNetworkContainerRepo(ds)
+	NcRepo = NewNetworkContainerRepo(ds, dncPartitionKey, loggershim.LS)
 	NodeConfigRepo = &NodeConfigurationRepo{Datastore: ds}
 	NodeSetsRepo = &NodeSetRepo{Datastore: ds, PartitionKey: dncPartitionKey}
 
@@ -437,21 +437,24 @@ func deleteGreKeyAllocation(
 		return nil
 	}
 
-	ncConfig, ncErr := TryQueryNetworkContainer(networkID, ncID)
+	nc, ncErr := NcRepo.TryQueryNetworkContainer(networkID, ncID)
 	if ncErr != nil {
 		return ncErr
 	}
 
+	if nc.RowKey == "" {
+		return api.NotFoundf(api.NetworkContainerNotFound, "could not find data for NC: %s", GetNCKey(networkID, ncID))
+	}
+
 	interfaceID := ""
-	if !ncConfig.ImplicitReservation {
-		interfaceID = ncConfig.RequestV1.AssociationInfo.InterfaceID
+	if !nc.Config.ImplicitReservation {
+		interfaceID = nc.Config.RequestV1.AssociationInfo.InterfaceID
 	} else {
-		interfaceID = ncConfig.RequestV2.AssociationInfo.InterfaceID
+		interfaceID = nc.Config.RequestV2.AssociationInfo.InterfaceID
 	}
 
 	if interfaceID == "" {
-		loggershim.LS.Debugf("No associated InterfaceID found for NC: %s on node %s ",
-			ncID, nodeConfig.NodeID)
+		loggershim.LS.Debugf("No associated InterfaceID found for NC: %s on node %s ", ncID, nodeConfig.NodeID)
 		return nil
 	}
 
@@ -462,7 +465,7 @@ func deleteGreKeyAllocation(
 	// GreKey allocation will be deleted from InterfaceGreMap in the node
 	// since this will be called just before deleting NC container, GreKey need not be deleted from NCConfig
 	// DNC will delete GreKey for implicit reservations too as DNC cannot guarantee where this reservation be used.
-	delete(nodeConfig.InterfaceGreKeyMap[interfaceID], ncConfig.ReservationID)
+	delete(nodeConfig.InterfaceGreKeyMap[interfaceID], nc.Config.ReservationID)
 
 	if len(nodeConfig.InterfaceGreKeyMap[interfaceID]) == 0 {
 		delete(nodeConfig.InterfaceGreKeyMap, interfaceID)
@@ -473,13 +476,13 @@ func deleteGreKeyAllocation(
 
 // UpdateNCToReservationAssociation :-
 func UpdateNCToReservationAssociation(
-	ncConfiguration *NCConfiguration,
+	nc *NetworkContainerEntity,
 	disassociate bool) *api.JsonErr {
-	reservation, err := TryQueryIPReservation(ncConfiguration.NetworkID, ncConfiguration.ReservationID)
+	reservation, err := TryQueryIPReservation(nc.Config.NetworkID, nc.Config.ReservationID)
 	if err != nil {
 		return api.InternalServerErrorf(api.StatusInternalServerError,
 			"could not retrieve configuration for reservation: %s in vnet: %s. error: %s",
-			ncConfiguration.ReservationID, ncConfiguration.NetworkID, err)
+			nc.Config.ReservationID, nc.Config.NetworkID, err)
 	}
 
 	// If the reservation is found, there is no need to throw an error as there is nothing to update
@@ -490,18 +493,18 @@ func UpdateNCToReservationAssociation(
 	if disassociate {
 		if strings.Compare(
 			reservation.Configuration.AssociatedNCID,
-			ncConfiguration.NetworkContainerID) != 0 {
+			nc.Config.NetworkContainerID) != 0 {
 			return nil
 		}
 		reservation.Configuration.AssociatedNCID = ""
 	} else {
 		if len(reservation.Configuration.AssociatedNCID) != 0 &&
-			strings.Compare(reservation.Configuration.AssociatedNCID, ncConfiguration.NetworkContainerID) != 0 {
+			strings.Compare(reservation.Configuration.AssociatedNCID, nc.Config.NetworkContainerID) != 0 {
 			return api.BadRequestf(api.ReservationInUse,
 				"Reservation: %s is in use with different network container: %s. Request network container: %s",
-				reservation.Configuration.ReservationID, reservation.Configuration.AssociatedNCID, ncConfiguration.NetworkContainerID)
+				reservation.Configuration.ReservationID, reservation.Configuration.AssociatedNCID, nc.Config.NetworkContainerID)
 		}
-		reservation.Configuration.AssociatedNCID = ncConfiguration.NetworkContainerID
+		reservation.Configuration.AssociatedNCID = nc.Config.NetworkContainerID
 	}
 
 	return IpReservationRepo.PersistIPReservation(reservation)
@@ -773,47 +776,6 @@ func TryQueryRequestContext(requestID string) (*RequestContext, *api.JsonErr) {
 	return &repoRequestContext, nil
 }
 
-// TryQueryNetworkContainerByKey - Query a network container by key.
-func TryQueryNetworkContainerByKey(ncKey string) (*NCConfiguration, *api.JsonErr) {
-	entity, status, err := dataStoreShim.Query(networkContainerTableName, ncKey)
-	if err != nil && status != http.StatusNotFound {
-		msg := fmt.Sprintf(
-			"Failed to retrieve configuration for network container key:[%s] due to error:[%s]",
-			ncKey,
-			err.Error())
-		return nil, &api.JsonErr{
-			Code:       api.StatusInternalServerError,
-			Text:       msg,
-			HTTPStatus: http.StatusInternalServerError}
-	}
-
-	if entity == nil {
-		return nil, nil
-	}
-
-	serializedNCConfiguration := entity.Properties[networkContainerConfigurationTag].(string)
-	var repoNCConfiguration NCConfiguration
-	err = json.Unmarshal([]byte(serializedNCConfiguration), &repoNCConfiguration)
-	if err != nil {
-		msg := fmt.Sprintf(
-			"Failed to unmarshal configuration for network container with key:[%s] due to error:[%s]",
-			ncKey,
-			err)
-		return nil, &api.JsonErr{
-			Code:       api.JsonBodyUnMarshalFailed,
-			Text:       msg,
-			HTTPStatus: http.StatusInternalServerError}
-	}
-
-	return &repoNCConfiguration, nil
-}
-
-// TryQueryNetworkContainer - Query a network container by key.
-func TryQueryNetworkContainer(networkID, networkContainerID string) (*NCConfiguration, *api.JsonErr) {
-	ncKey := GetNCKey(networkID, networkContainerID)
-	return TryQueryNetworkContainerByKey(ncKey)
-}
-
 // AddRequestToPendingQueue - Add request to pending work item queue.
 func AddRequestToPendingQueue(
 	requestKey string,
@@ -838,11 +800,8 @@ func AddRequestToPendingQueue(
 
 	jsonSerializedBytes, err := json.Marshal(requestContext)
 	if err != nil {
-		msg := fmt.Sprintf(
-			"Failed to serialize request context. Key:%s RequestContext:%s , Error: %s",
-			requestKey,
-			requestContext.String(),
-			err.Error())
+		msg := fmt.Sprintf("Failed to serialize request context. Key:%s RequestContext:%+v, Error: %s",
+			requestKey, requestContext,	err.Error())
 		loggershim.LS.Errorf("%s: %s", utils.TracePrefix(2), msg)
 
 		return &api.JsonErr{
@@ -853,11 +812,8 @@ func AddRequestToPendingQueue(
 
 	err = dataStoreShim.InsertOrUpdate(pendingWorkItemsTableName, requestKey, TableToColumnMap[pendingWorkItemsTableName], string(jsonSerializedBytes[:]))
 	if err != nil {
-		msg := fmt.Sprintf(
-			"Failed to add request %s associated with key %s to pending queue due to error:{%s}",
-			requestContext.String(),
-			requestKey,
-			err.Error())
+		msg := fmt.Sprintf("Failed to add request %+v associated with key %s to pending queue due to error:{%s}",
+			requestContext,	requestKey,	err.Error())
 		loggershim.LS.Errorf("%s: %s", utils.TracePrefix(2), msg)
 		return &api.JsonErr{
 			Code:       api.StatusInternalServerError,
@@ -958,97 +914,6 @@ func RemovePendingRequest(requestID string) {
 	dataStoreShim.Delete(pendingWorkItemsTableName, requestID)
 }
 
-// PersistNCConfiguration - Persist network container configuration.
-func PersistNCConfiguration(ncConfiguration *NCConfiguration, addToPendingQueue bool) *api.JsonErr {
-	var jsonSerializedBytes []byte
-	var err error
-
-	if ncConfiguration.FailureDetail != (api.JsonErr{}) {
-		loggershim.LS.Errorf("[%s] Error: %s", utils.TracePrefix(3), ncConfiguration.FailureDetail.String())
-	}
-
-	jsonSerializedBytes, err = json.Marshal(ncConfiguration)
-	if err != nil {
-		msg := fmt.Sprintf("Failed to serialize node configuration for NC ID:%s , Error: %s",
-			ncConfiguration.NetworkContainerID,
-			err.Error())
-		loggershim.LS.Errorf("%s: %s", utils.TracePrefix(2), msg)
-
-		return &api.JsonErr{
-			Code:       api.JsonMarshallingFailed,
-			HTTPStatus: http.StatusInternalServerError,
-			Text:       msg}
-	}
-
-	ncKey := GetNCKey(ncConfiguration.NetworkID, ncConfiguration.NetworkContainerID)
-	err = dataStoreShim.InsertOrUpdate(networkContainerTableName,
-		ncKey,
-		TableToColumnMap[networkContainerTableName],
-		string(jsonSerializedBytes[:]))
-	if err != nil {
-		msg := fmt.Sprintf(
-			"Failed to persist updated configuration for network container key%s. Error:%s",
-			ncKey,
-			err.Error())
-		loggershim.LS.Errorf("%s: %s", utils.TracePrefix(2), msg)
-
-		return &api.JsonErr{
-			Code:       api.StatusInternalServerError,
-			Text:       msg,
-			HTTPStatus: http.StatusInternalServerError}
-	}
-
-	if addToPendingQueue {
-		requestContext := RequestContext{
-			Type:      NetworkContainerRequest,
-			NetworkID: ncConfiguration.NetworkID,
-			NodeID:    ncConfiguration.GetAssociationInfo().NodeID}
-
-		return AddRequestToPendingQueue(ncKey, &requestContext)
-	}
-
-	return nil
-}
-
-// DeleteNetworkContainer - Delete network container configuration.
-func DeleteNetworkContainer(networkID, networkContainerID string) *api.JsonErr {
-	ncKey := GetNCKey(networkID, networkContainerID)
-	err := dataStoreShim.Delete(networkContainerTableName, ncKey)
-	if err != nil {
-		msg := fmt.Sprintf(
-			"Failed to delete network container %s in data store. Error: %s",
-			networkContainerID,
-			err.Error())
-		loggershim.LS.Errorf("%s: %s", utils.TracePrefix(2), msg)
-		return &api.JsonErr{
-			Code:       api.StatusInternalServerError,
-			HTTPStatus: http.StatusInternalServerError,
-			Text:       msg}
-	}
-
-	return nil
-}
-
-// GetNetworkContainerConfiguration - Get network container configuration
-func GetNetworkContainerConfiguration(networkID,
-	networkContainerID string) (*NCConfiguration, *api.JsonErr) {
-	networkContainerConfig, err := TryQueryNetworkContainer(
-		networkID, networkContainerID)
-	if err != nil {
-		return nil, err
-	}
-
-	if networkContainerConfig == nil {
-		msg := fmt.Sprintf("Network container %s not found", networkContainerID)
-		return nil, &api.JsonErr{
-			Code:       api.NetworkContainerNotFound,
-			HTTPStatus: http.StatusNotFound,
-			Text:       msg}
-	}
-
-	return networkContainerConfig, nil
-}
-
 // GetRevertState - Get revert state for a given network container state.
 func GetRevertState(ncState NetworkContainerState) (NetworkContainerState, *api.JsonErr) {
 	switch ncState {
@@ -1087,50 +952,62 @@ func GetRevertState(ncState NetworkContainerState) (NetworkContainerState, *api.
 // ProcessNetworkContainerForRelease - Process network container configuration pending release.
 func ProcessNetworkContainerForRelease(networkID, networkContainerID string) *api.JsonErr {
 	loggershim.LS.Debugf("ProcessNetworkContainerForRelease: vnet id %s nc id %s", networkID, networkContainerID)
-	networkContainerConfig, err := TryQueryNetworkContainer(networkID, networkContainerID)
+	nc, err := NcRepo.TryQueryNetworkContainer(networkID, networkContainerID)
 	if err != nil {
 		return err
 	}
 
-	if networkContainerConfig == nil {
+	if nc.RowKey == "" {
 		loggershim.LS.Debugf("ProcessNetworkContainerForRelease: vnet id %s nc id %s not found, nothing to process", networkID, networkContainerID)
 		return nil
 	}
 
-	if !networkContainerConfig.MarkedForDelete || networkContainerConfig.Status == Failed {
-		networkContainerConfig.MarkedForDelete = true
-		networkContainerConfig.Status = Pending
-		networkContainerConfig.FailureDetail = api.JsonErr{}
+	if !nc.Config.MarkedForDelete || nc.Config.Status == Failed {
+		nc.Config.MarkedForDelete = true
+		nc.Config.Status = Pending
+		nc.Config.FailureDetail = api.JsonErr{}
 		// only retrieve the revert state if NC is not in any of the delete states
-		if !IsDeleteInProgress(networkContainerConfig.State) {
-			revertState, err := GetRevertState(networkContainerConfig.State)
+		if !IsDeleteInProgress(nc.Config.State) {
+			revertState, err := GetRevertState(nc.Config.State)
 			if err != nil {
 				return err
 			}
 
 			loggershim.LS.Debugf("NC %s transitioning from state %s to %s",
-				networkContainerConfig.NetworkContainerID,
-				networkContainerConfig.State, revertState)
-			networkContainerConfig.State = revertState
+				nc.Config.NetworkContainerID, nc.Config.State, revertState)
+			nc.Config.State = revertState
 
 			// This is intended to be a new request for deletion, any existing RequestContext for this NC in
 			// the pending queue needs to be deleted.
 			// It's possible to have a RequestContext in pending queue belonging to refreshAssociation when
 			// deleteNC is triggered. This results in using the incorrect timestamps causing the unpublish
 			// and in turn the complete deletion time calculation to be erroneous.
-			requestID := GetNCKey(networkContainerConfig.NetworkID, networkContainerConfig.NetworkContainerID)
+			requestID := GetNCKey(nc.Config.NetworkID, nc.Config.NetworkContainerID)
 			RemovePendingRequest(requestID)
 		}
 
 		loggershim.LS.Debugf("ProcessNetworkContainerForRelease: vnet %s nc id %s", networkID, networkContainerID)
-		return PersistNCConfiguration(networkContainerConfig, AddToPendingQ)
+		if err = NcRepo.PersistNetworkContainerData(&nc); err != nil {
+			// todo: make sure the error is being logged in the caller.
+			return err
+		}
+
+		// Add request to the pending queue
+		requestContext := RequestContext{
+			Type:      NetworkContainerRequest,
+			NetworkID: nc.Config.NetworkID,
+			NodeID:    nc.Config.GetAssociationInfo().NodeID,
+		}
+
+		ncKey := GetNCKey(nc.Config.NetworkID, nc.Config.NetworkContainerID)
+		return AddRequestToPendingQueue(ncKey, &requestContext)
 	}
 
-	if networkContainerConfig.MarkedForDelete {
+	if nc.Config.MarkedForDelete {
 		// There is a valid race where NC MarkedForDelete is set however adding the request to PendingQ is missing
 		// This is possible if call to DeleteNetworkContainer failed in interim. As a result caller will receive failure and
 		// retry the operation. So ensure NC entries exists in both NetworkContainer and PendingQ tables.
-		requestID := GetNCKey(networkContainerConfig.NetworkID, networkContainerConfig.NetworkContainerID)
+		requestID := GetNCKey(nc.Config.NetworkID, nc.Config.NetworkContainerID)
 		pendingQItem, err := TryQueryRequestContext(requestID)
 		if err != nil {
 			return err
@@ -1140,11 +1017,11 @@ func ProcessNetworkContainerForRelease(networkID, networkContainerID string) *ap
 			return nil
 		}
 
-		loggershim.LS.Debugf("NC %s is MarkedForDelete, requeue request to PendinqQueueTable", networkContainerID)
+		loggershim.LS.Debugf("NC %s is MarkedForDelete, re-queue request to PendinqQueueTable", networkContainerID)
 		requestContext := RequestContext{
 			Type:      NetworkContainerRequest,
-			NetworkID: networkContainerConfig.NetworkID,
-			NodeID:    networkContainerConfig.GetAssociationInfo().NodeID}
+			NetworkID: nc.Config.NetworkID,
+			NodeID:    nc.Config.GetAssociationInfo().NodeID}
 
 		return AddRequestToPendingQueue(requestID, &requestContext)
 	}
@@ -1236,13 +1113,13 @@ func createNetworkWithStateAndStatus(
 }
 
 // PurgeNetworkContainerAssociations - Process release of reservation associated with network container
-func PurgeNetworkContainerAssociations(ncConfiguration *NCConfiguration, updateVlan bool) *api.JsonErr {
-	associationInfo := ncConfiguration.GetAssociationInfo()
+func PurgeNetworkContainerAssociations(nc *NetworkContainerEntity, updateVlan bool) *api.JsonErr {
+	associationInfo := nc.Config.GetAssociationInfo()
 	err := NodeConfigRepo.UpdateNodeConfigurationNetworkContainerSet(
 		associationInfo.NodeID,
-		ncConfiguration.NetworkID,
-		ncConfiguration.NetworkContainerID,
-		ncConfiguration.ReservationID,
+		nc.Config.NetworkID,
+		nc.Config.NetworkContainerID,
+		nc.Config.ReservationID,
 		associationInfo.ContainerType,
 		updateVlan,
 		true,
@@ -1550,9 +1427,9 @@ func getOrchestratorContextListFromNodeConfig(nodeConfig *NodeConfiguration) (ma
 
 	for networkID, ncMap := range nodeConfig.DeployedNetworkContainerMap {
 		for ncID := range ncMap {
-			ncConfig, err := GetNetworkContainerConfiguration(networkID, ncID)
-			if err == nil && ncConfig != nil {
-				orchestratorContextList[ncConfig.NetworkContainerID] = ncConfig.GetAssociationInfo().OrchestratorContext
+			nc, err := NcRepo.GetNetworkContainerData(networkID, ncID)
+			if err == nil && nc.RowKey != "" {
+				orchestratorContextList[nc.Config.NetworkContainerID] = nc.Config.GetAssociationInfo().OrchestratorContext
 			}
 		}
 	}
@@ -1641,19 +1518,14 @@ func CreateOrUpdateNCRequestV1(
 	networkID, ncID string,
 	ncRequestV1 *api.NetworkContainerRequestV1,
 	apiVersion string) *api.JsonErr {
-	ncConfig, err := TryQueryNetworkContainer(networkID, ncID)
+	nc, err := NcRepo.TryQueryNetworkContainer(networkID, ncID)
 	if err != nil {
-		msg := fmt.Sprintf(
-			"Failed when trying to retrieve configuration for network container:%s due to error:%s",
-			ncID,
-			err)
-		return &api.JsonErr{
-			Code:       api.StatusInternalServerError,
-			Text:       msg,
-			HTTPStatus: http.StatusInternalServerError}
+		return api.InternalServerErrorf(api.StatusInternalServerError,
+			"could not retrieve configuration for network container: %s. error: %v", ncID, err)
 	}
 
-	if ncConfig != nil {
+	// Return if the NC record is already present ( there is no update supported for V1 request )
+	if nc.RowKey != "" {
 		return nil
 	}
 
@@ -1669,22 +1541,19 @@ func CreateOrUpdateNCRequestV1(
 		sendNCCreationReqMetric(networkID, ncID, status, ncRequestV1.AssociationInfo)
 	}()
 
+	var repoNodeConfiguration *NodeConfiguration
 	nodeID := ncRequestV1.AssociationInfo.NodeID
-	repoNodeConfiguration, err := NodeConfigRepo.TryQueryNodeConfiguration(nodeID)
+	repoNodeConfiguration, err = NodeConfigRepo.TryQueryNodeConfiguration(nodeID)
 	if err != nil {
 		return err
 	}
 
 	if repoNodeConfiguration == nil {
-		return &api.JsonErr{
-			Code:       api.NodeNotFound,
-			Text:       fmt.Sprintf("Node %s not found", nodeID),
-			HTTPStatus: http.StatusNotFound}
+		err = api.NotFoundf(api.NodeNotFound, "Node: %s not found", nodeID)
+		return err
 	}
 
-	err = validateNodeTypePlacement(
-		ncRequestV1.AssociationInfo.ContainerType,
-		repoNodeConfiguration.NodeInfo.NodeType)
+	err = validateNodeTypePlacement(ncRequestV1.AssociationInfo.ContainerType, repoNodeConfiguration.NodeInfo.NodeType)
 	if err != nil {
 		return err
 	}
@@ -1702,28 +1571,93 @@ func CreateOrUpdateNCRequestV1(
 
 	for ncid, orchestratorContext := range orchestratorContextList {
 		if bytes.Compare(orchestratorContext, marshaledOrchestratorContext) == 0 {
-			err = &api.JsonErr{
-				Code:       api.StatusBadRequest,
-				Text:       fmt.Sprintf("Illegal create nc operation due to duplicate orchestrator context with nc: %s", ncid),
-				HTTPStatus: http.StatusBadRequest}
+			err = api.BadRequestf(api.StatusBadRequest,
+				"Illegal create nc operation due to duplicate orchestrator context with nc: %s", ncid)
 			return err
 		}
 	}
 
-	ncConfiguration := NCConfiguration{
-		NetworkID:           networkID,
-		NetworkContainerID:  ncID,
-		ReservationID:       ncRequestV1.ReservationID,
-		RequestV1:           *ncRequestV1,
-		ImplicitReservation: false,
-		State:               Prepare,
-		Status:              Pending,
-		APIVersion:          apiVersion,
-		CreatedDateTime:     time.Now().UTC(),
-		CNSVersion:          0}
+	nc = NetworkContainerEntity{
+		RowKey: GetNCKey(networkID, ncID),
+		Config: NCConfiguration{
+			NetworkID:           networkID,
+			NetworkContainerID:  ncID,
+			ReservationID:       ncRequestV1.ReservationID,
+			RequestV1:           *ncRequestV1,
+			ImplicitReservation: false,
+			State:               Prepare,
+			Status:              Pending,
+			APIVersion:          apiVersion,
+			CreatedDateTime:     time.Now().UTC(),
+			CNSVersion:          0,
+		},
+	}
 
-	err = PersistNCConfiguration(&ncConfiguration, AddToPendingQ)
+	if err = NcRepo.PersistNetworkContainerData(&nc); err != nil {
+		return err
+	}
+
+	// Add request to the pending queue
+	requestContext := RequestContext{
+		Type:      NetworkContainerRequest,
+		NetworkID: nc.Config.NetworkID,
+		NodeID:    nc.Config.GetAssociationInfo().NodeID}
+
+	err = AddRequestToPendingQueue(GetNCKey(networkID, ncID), &requestContext)
 	return err
+}
+
+func CreateSubnetCleanupRequest(networkID, subnetName string) *api.JsonErr {
+	networkConfiguration, err := TryQueryNetworkConfiguration(networkID)
+	if err != nil {
+		loggershim.LS.Errorf("Failed to retrieve network configuration for network: %s. Error: %v", networkID, err)
+		return err
+	}
+
+	if networkConfiguration == nil {
+		loggershim.LS.Debugf("No network configuration for network: %s", networkID)
+		return nil
+	}
+
+	requestedSubnetConfig, err := TryQuerySubnetConfiguration(networkID, subnetName)
+	if err != nil {
+		loggershim.LS.Errorf("Failed to retrieve subnet configuration for subnet: %s in network: %s. Error: %v", subnetName, networkID, err)
+		return err
+	}
+
+	if requestedSubnetConfig == nil {
+		loggershim.LS.Debugf("No subnet configuration for subnet: %s in network: %s", subnetName, networkID)
+		return nil
+	}
+
+	// Return if the subnet cleanup is already in process
+	if requestedSubnetConfig.MarkedForDelete && requestedSubnetConfig.UpdateStatus == SubnetCleanupPending {
+		loggershim.LS.Debugf("Subnet cleanup is already in process for subnet: %s in network: %s", subnetName, networkID)
+		return nil
+	}
+
+	// Update the subnet configuration for pending cleanup
+	// Do not mark the Joined to false because that will cause the GET status on this subnet to return 404. Subnet cleanup
+	// is async operation and GET status needs to return either cleanup pending / cleanup failed. No NCs will be allowed to be created
+	// in this subnet as it's marked for deletion.
+	requestedSubnetConfig.UpdateStatus = SubnetCleanupPending
+	requestedSubnetConfig.MarkedForDelete = true
+	requestedSubnetConfig.FailureDetail = api.JsonErr{}
+	loggershim.LS.Debugf("Marking subnet: %s in network: %s for deletion and pending cleanup", subnetName, networkID)
+	if err := PutSubnetConfiguration(requestedSubnetConfig); err != nil {
+		loggershim.LS.Errorf("Failed to persist subnet configuration for subnet: %s in network: %s. Error: %v", subnetName, networkID, err)
+		return err
+	}
+
+	// Add subnet cleanup request to pending queue
+	requestContext := RequestContext{
+		Type:       SubnetCleanupRequest,
+		NetworkID:  networkID,
+		SubnetName: subnetName,
+	}
+
+	subnetKey := GetSubnetKey(networkID, subnetName)
+	return AddRequestToPendingQueue(subnetKey, &requestContext)
 }
 
 // CreateOrUpdateNCRequestV2 - Persists NetworkContainerRequestV2
@@ -1731,22 +1665,18 @@ func CreateOrUpdateNCRequestV2(
 	networkID, ncID string,
 	ncRequestV2 *api.NetworkContainerRequestV2,
 	apiVersion string) *api.JsonErr {
-	ncConfig, err := TryQueryNetworkContainer(networkID, ncID)
+	nc, err := NcRepo.TryQueryNetworkContainer(networkID, ncID)
 	if err != nil {
-		msg := fmt.Sprintf(
-			"Failed when trying to retrieve configuration for network container:%s due to error:%s",
-			ncID,
-			err)
-		return &api.JsonErr{
-			Code:       api.StatusInternalServerError,
-			Text:       msg,
-			HTTPStatus: http.StatusInternalServerError}
+		return api.InternalServerErrorf(api.StatusInternalServerError,
+			"could not retrieve configuration for network container: %s. error: %v", ncID, err)
 	}
 
-	if ncConfig != nil {
-		return UpdateNCRequestV2(*ncConfig, *ncRequestV2)
+	// Update if the NC record is already present
+	if nc.RowKey != "" {
+		return UpdateNCRequestV2(&nc, *ncRequestV2)
 	}
 
+	//todo: move defer contents to the caller
 	defer func() {
 		var status string
 		if err != nil {
@@ -1759,22 +1689,19 @@ func CreateOrUpdateNCRequestV2(
 		sendNCCreationReqMetric(networkID, ncID, status, ncRequestV2.AssociationInfo)
 	}()
 
+	var repoNodeConfiguration *NodeConfiguration
 	nodeID := ncRequestV2.AssociationInfo.NodeID
-	repoNodeConfiguration, err := NodeConfigRepo.TryQueryNodeConfiguration(nodeID)
+	repoNodeConfiguration, err = NodeConfigRepo.TryQueryNodeConfiguration(nodeID)
 	if err != nil {
 		return err
 	}
 
 	if repoNodeConfiguration == nil {
-		return &api.JsonErr{
-			Code:       api.NodeNotFound,
-			Text:       fmt.Sprintf("Node %s not found", nodeID),
-			HTTPStatus: http.StatusNotFound}
+		err = api.NotFoundf(api.NodeNotFound, "Node: %s not found", nodeID)
+		return err
 	}
 
-	err = validateNodeTypePlacement(
-		ncRequestV2.AssociationInfo.ContainerType,
-		repoNodeConfiguration.NodeInfo.NodeType)
+	err = validateNodeTypePlacement(ncRequestV2.AssociationInfo.ContainerType, repoNodeConfiguration.NodeInfo.NodeType)
 	if err != nil {
 		return err
 	}
@@ -1792,104 +1719,117 @@ func CreateOrUpdateNCRequestV2(
 
 	for ncid, orchestratorContext := range orchestratorContextList {
 		if bytes.Compare(orchestratorContext, marshaledOrchestratorContext) == 0 {
-			err = &api.JsonErr{
-				Code:       api.StatusBadRequest,
-				Text:       fmt.Sprintf("Illegal create nc operation due to duplicate orchestrator context with nc: %s", ncid),
-				HTTPStatus: http.StatusBadRequest}
+			err = api.BadRequestf(api.StatusBadRequest,
+				"Illegal create nc operation due to duplicate orchestrator context with nc: %s", ncid)
 			return err
 		}
 	}
 
-	networkConfig, err := QueryNetworkConfiguration(networkID)
+	var networkConfig *NetworkConfiguration
+	networkConfig, err = QueryNetworkConfiguration(networkID)
 	if err != nil {
 		return err
 	}
 
 	if networkConfig.NetworkState != Join {
-		msg := fmt.Sprintf(
-			"Cannot create network container in network %v as it is not in join state. Current State:%v",
-			ncID,
-			networkConfig.NetworkState.String())
-		err = &api.JsonErr{
-			Code:       api.NetworkStateInvalid,
-			Text:       msg,
-			HTTPStatus: http.StatusBadRequest}
+		err = api.BadRequestf(api.NetworkStateInvalid, "Cannot create network container: %s in network: %s " +
+				"as network is not in join state. Current network state: %s", ncID, networkID, networkConfig.NetworkState.String())
 		return err
 	}
 
 	if networkConfig.Status != Completed {
-		msg := fmt.Sprintf(
-			"Cannot create network container in network %v as the status of the join operation is not completed. Current State:%v",
-			ncID,
-			networkConfig.Status.String())
-		err = &api.JsonErr{
-			Code:       api.NetworkStateInvalid,
-			Text:       msg,
-			HTTPStatus: http.StatusBadRequest}
+		return api.BadRequestf(api.NetworkStateInvalid, "Cannot create network container: %s in network: %s " +
+				"as the status of the join operation is not completed. Current network state: %s", ncID, networkID, networkConfig.NetworkState.String())
 		return err
 	}
 
-	subnetConfig, err := QuerySubnetConfiguration(networkID, ncRequestV2.AllocationRequest.SubnetName)
+	var subnetConfig *SubnetConfiguration
+	subnetConfig, err = QuerySubnetConfiguration(networkID, ncRequestV2.AllocationRequest.SubnetName)
 	if err != nil {
 		return err
 	}
 
 	if !subnetConfig.Joined {
-		msg := fmt.Sprintf(
-			"Cannot create network container in network %v subnet %v as it has not completed the join operation.",
-			ncID,
-			ncRequestV2.AllocationRequest.SubnetName)
-		err = &api.JsonErr{
-			Code:       api.SubnetIsNotJoined,
-			Text:       msg,
-			HTTPStatus: http.StatusBadRequest}
+		err = api.BadRequestf(api.SubnetIsNotJoined, "Cannot create network container: %s in network: %s, subnet: %s" +
+			" as subnet has not completed the join operation", ncID, networkID, ncRequestV2.AllocationRequest.SubnetName)
 		return err
 	}
 
-	ncConfiguration := NCConfiguration{
-		NetworkID:           networkID,
-		NetworkContainerID:  ncID,
-		RequestV2:           *ncRequestV2,
-		ImplicitReservation: true,
-		State:               Prepare,
-		Status:              Pending,
-		APIVersion:          apiVersion,
-		CreatedDateTime:     time.Now().UTC(),
-		CNSVersion:          0}
+	if subnetConfig.MarkedForDelete {
+		err = api.BadRequestf(api.SubnetMarkedForDeletion, "Cannot create network container: %s in network: %s, subnet: %s" +
+			" as subnet is marked for deletion", ncID, networkID, ncRequestV2.AllocationRequest.SubnetName)
+		return err
+	}
 
-	err = PersistNCConfiguration(&ncConfiguration, AddToPendingQ)
+	nc = NetworkContainerEntity{
+		RowKey: GetNCKey(networkID, ncID),
+		Config: NCConfiguration{
+			NetworkID:           networkID,
+			NetworkContainerID:  ncID,
+			RequestV2:           *ncRequestV2,
+			ImplicitReservation: true,
+			State:               Prepare,
+			Status:              Pending,
+			APIVersion:          apiVersion,
+			CreatedDateTime:     time.Now().UTC(),
+			CNSVersion:          0,
+		},
+		SubnetKey: GetSubnetKey(networkID, ncRequestV2.AllocationRequest.SubnetName),
+	}
+
+	if err = NcRepo.PersistNetworkContainerData(&nc); err != nil {
+		return err
+	}
+
+	// Add request to the pending queue
+	requestContext := RequestContext{
+		Type:      NetworkContainerRequest,
+		NetworkID: nc.Config.NetworkID,
+		NodeID:    nc.Config.GetAssociationInfo().NodeID}
+
+	err = AddRequestToPendingQueue(GetNCKey(networkID, ncID), &requestContext)
 	return err
 }
 
-func UpdateNCRequestV2(nc NCConfiguration, request api.NetworkContainerRequestV2) *api.JsonErr {
+func UpdateNCRequestV2(nc *NetworkContainerEntity, request api.NetworkContainerRequestV2) *api.JsonErr {
 	// It is possible that a previous NC request is already going through processing as an update is received
 	// We must wait for the processing to be complete (or failed) before we queue up another item, otherwise, we risk a
 	// race condition in which the updated records are persisted before current processing ends, and then
 	// at the end of the initial processing, the pending queue item is delete, without having processed the update.
-	if !(nc.Status == Completed || nc.Status == Failed) {
+	if !(nc.Config.Status == Completed || nc.Config.Status == Failed) {
 		msg := fmt.Sprintf("Network container id %s currently being processed in state %v with status %v. Cannot update while processing",
-			nc.NetworkContainerID, nc.State.String(), nc.Status.String())
+			nc.Config.NetworkContainerID, nc.Config.State.String(), nc.Config.Status.String())
 		// 409 Conflict may not be the most accurate error for this condition, but should signal the client to retry the request later
 		return api.Conflict(api.ProcessingPending, msg)
 	}
 
-	handling := getHandleLevel(nc.RequestV2, request, nc.Status)
+	handling := getHandleLevel(nc.Config.RequestV2, request, nc.Config.Status)
 	switch handling {
 	case noOp:
-		loggershim.LS.Debugf("update request for nc id %s received, nothing to update", nc.NetworkContainerID)
+		loggershim.LS.Debugf("update request for nc id %s received, nothing to update", nc.Config.NetworkContainerID)
 		return nil
 	case persistWithoutQueueing:
-		nc.RequestV2 = request
-		return PersistNCConfiguration(&nc, DontAddToPendingQ)
+		nc.Config.RequestV2 = request
+		return NcRepo.PersistNetworkContainerData(nc)
 	case process:
-		nc.State = Prepare
-		nc.Status = Pending
-		nc.CNSVersion++
-		nc.RequestV2 = request
-		nc.MarkedForDelete = false // todo: handle this scenario when implementing deletes
+		nc.Config.State = Prepare
+		nc.Config.Status = Pending
+		nc.Config.CNSVersion++
+		nc.Config.RequestV2 = request
+		nc.Config.MarkedForDelete = false // todo: handle this scenario when implementing deletes
 		// both nc and pending item operations are forced upserts
 		// nc lock should have been taken upstream, so this is safe.
-		return PersistNCConfiguration(&nc, AddToPendingQ)
+		if err := NcRepo.PersistNetworkContainerData(nc); err != nil {
+			return err
+		}
+
+		// Add request to pending queue table
+		requestContext := RequestContext{
+			Type:      NetworkContainerRequest,
+			NetworkID: nc.Config.NetworkID,
+			NodeID:    nc.Config.GetAssociationInfo().NodeID,
+		}
+		return AddRequestToPendingQueue(GetNCKey(nc.Config.NetworkID, nc.Config.NetworkContainerID), &requestContext)
 	default:
 		return api.InternalServerError(api.StatusInternalServerError, fmt.Sprintf("unknown handling level %d", handling))
 	}
@@ -2293,7 +2233,7 @@ func GetNCLimitForNode(nodeIP string) (int, *api.JsonErr) {
 }
 
 // GetNetworkContainerRequest :- compile and retrieve cns.CreateNetworkContainerRequest to update CNS state
-func GetNetworkContainerRequest(ncGoalState *NCGoalState, ncConfig *NCConfiguration) (*cns.CreateNetworkContainerRequest, bool, *api.JsonErr) {
+func GetNetworkContainerRequest(ncGoalState *NCGoalState, nc *NetworkContainerEntity) (*cns.CreateNetworkContainerRequest, bool, *api.JsonErr) {
 	_, baseSubnetPrefix, err := utils.GetIPAddressStringAndPrefix(ncGoalState.BaseSubnet)
 	if err != nil {
 		msg := fmt.Sprintf("Failed to parse base subnet string %v due to error %v",
@@ -2303,13 +2243,14 @@ func GetNetworkContainerRequest(ncGoalState *NCGoalState, ncConfig *NCConfigurat
 			Code:       api.InvalidIPSubnet,
 			Text:       msg,
 			HTTPStatus: http.StatusBadRequest}
-		ncConfig.Status = Failed
-		ncConfig.FailureDetail = failureDetail
-		return nil, true, PersistNCConfiguration(ncConfig, DontAddToPendingQ)
+		nc.Config.Status = Failed
+		nc.Config.FailureDetail = failureDetail
+		//todo: persist the failure in the caller rather than doing it here.
+		return nil, true, NcRepo.PersistNetworkContainerData(nc)
 	}
 
-	if ncConfig.ProgrammedTagsInfo == nil {
-		ncConfig.ProgrammedTagsInfo = make(map[string]uint64)
+	if nc.Config.ProgrammedTagsInfo == nil {
+		nc.Config.ProgrammedTagsInfo = make(map[string]uint64)
 	}
 
 	var (
@@ -2350,7 +2291,7 @@ func GetNetworkContainerRequest(ncGoalState *NCGoalState, ncConfig *NCConfigurat
 	}
 
 	return &cns.CreateNetworkContainerRequest{
-		Version:                    strconv.FormatUint(ncConfig.CNSVersion, 10),
+		Version:                    strconv.FormatUint(nc.Config.CNSVersion, 10),
 		NetworkContainerType:       ncGoalState.ContainerType,
 		NetworkContainerid:         prefix + ncGoalState.NetworkContainerID,
 		PrimaryInterfaceIdentifier: ncGoalState.AssociatedInterfaceID,
@@ -2360,9 +2301,9 @@ func GetNetworkContainerRequest(ncGoalState *NCGoalState, ncConfig *NCConfigurat
 		OrchestratorContext:        ncGoalState.OrchestratorContext,
 		MultiTenancyInfo:           cns.MultiTenancyInfo{EncapType: cns.Vlan, ID: ncGoalState.VlanID},
 		LocalIPConfiguration:       localIPConfiguaration,
-		AllowHostToNCCommunication: ncConfig.GetAllowHostToNCCommunicationStatus(),
-		AllowNCToHostCommunication: ncConfig.GetAllowNCToHostCommunicationStatus(),
-		EndpointPolicies:           ncConfig.GetEndpointPolicies()}, false, nil
+		AllowHostToNCCommunication: nc.Config.GetAllowHostToNCCommunicationStatus(),
+		AllowNCToHostCommunication: nc.Config.GetAllowNCToHostCommunicationStatus(),
+		EndpointPolicies:           nc.Config.GetEndpointPolicies()}, false, nil
 }
 
 func getLocalIPGateway(ipsubnet string) (string, error) {

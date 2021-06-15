@@ -58,24 +58,29 @@ func getNodeRepo(nodeId string, nodeType string) *fakes.NodeRepo {
 	return &nodeRepo
 }
 
-func getNCConfig(nodeId string, containerType string) *datamodel.NCConfiguration {
+func getNC(nodeId string, containerType string) *datamodel.NetworkContainerEntity {
 	ncID := "nc1"
 	vnetID := "network1"
+	subnetName := "subnet1"
 	secondaryIPCount := 10
 
-	currentNCState := datamodel.NCConfiguration{
-		NetworkContainerID: ncID,
-		NetworkID:          vnetID,
-		RequestV2: api.NetworkContainerRequestV2{
-			AllocationRequest: api.AllocationRequest{
-				SecondaryIPCount: secondaryIPCount,
+	currentNCState := datamodel.NetworkContainerEntity{
+		RowKey: datamodel.GetNCKey(vnetID, ncID),
+		Config:              datamodel.NCConfiguration{
+			NetworkContainerID: ncID,
+			NetworkID:          vnetID,
+			RequestV2: api.NetworkContainerRequestV2{
+				AllocationRequest: api.AllocationRequest{
+					SecondaryIPCount: secondaryIPCount,
+				},
+				AssociationInfo: api.AssociationInfo{
+					NodeID:        nodeId,
+					ContainerType: containerType,
+				},
+				ToBeDeletedIPIds: nil,
 			},
-			AssociationInfo: api.AssociationInfo{
-				NodeID:        nodeId,
-				ContainerType: containerType,
-			},
-			ToBeDeletedIPIds: nil,
 		},
+		SubnetKey: datamodel.GetSubnetKey(vnetID, subnetName),
 	}
 
 	return &currentNCState
@@ -109,14 +114,14 @@ func assertMacDeallocatedFromNC(t *testing.T, nc datamodel.NCConfiguration) {
 }
 
 func TestAllocateMAC_HappyPath(t *testing.T) {
-	var nextNCState datamodel.NCConfiguration
+	var nextNCState datamodel.NetworkContainerEntity
 
 	nodeId := "testNodeId"
 
 	fakeMacMgrClient := FakeMacManagerConnection{}
 
 	macAllocator := MacAllocator{
-		PersistNC: func(nc *datamodel.NCConfiguration, _ bool) *api.JsonErr {
+		PersistNC: func(nc *datamodel.NetworkContainerEntity) *api.JsonErr {
 			if nc != nil {
 				nextNCState = *nc
 			}
@@ -126,7 +131,7 @@ func TestAllocateMAC_HappyPath(t *testing.T) {
 		MacManagerClient: &fakeMacMgrClient,
 	}
 
-	removeFromQueue, err := macAllocator.ProcessAllocateMAC(getNCConfig(nodeId, api.BareMetalContainerType))
+	removeFromQueue, err := macAllocator.ProcessAllocateMAC(getNC(nodeId, api.BareMetalContainerType))
 	if err != nil {
 		t.Errorf("Did not expect error from ProcessAllocateMAC, got: %+v", err)
 	}
@@ -135,18 +140,18 @@ func TestAllocateMAC_HappyPath(t *testing.T) {
 	}
 
 	// Assert that MAC is properly allocated to network container.
-	assertMacAllocatedToNC(t, nextNCState)
+	assertMacAllocatedToNC(t, nextNCState.Config)
 }
 
 func TestDeallocateMAC_HappyPath(t *testing.T) {
-	var nextNCState datamodel.NCConfiguration
+	var nextNCState datamodel.NetworkContainerEntity
 
 	nodeId := "testNodeId"
 
 	fakeMacMgrClient := FakeMacManagerConnection{}
 
 	macAllocator := MacAllocator{
-		PersistNC: func(nc *datamodel.NCConfiguration, _ bool) *api.JsonErr {
+		PersistNC: func(nc *datamodel.NetworkContainerEntity) *api.JsonErr {
 			if nc != nil {
 				nextNCState = *nc
 			}
@@ -156,7 +161,7 @@ func TestDeallocateMAC_HappyPath(t *testing.T) {
 		MacManagerClient: &fakeMacMgrClient,
 	}
 
-	removeFromQueue, err := macAllocator.ProcessAllocateMAC(getNCConfig(nodeId, api.BareMetalContainerType))
+	removeFromQueue, err := macAllocator.ProcessAllocateMAC(getNC(nodeId, api.BareMetalContainerType))
 	if err != nil {
 		t.Errorf("Did not expect error from ProcessAllocateMAC, got: %+v", err)
 	}
@@ -165,9 +170,9 @@ func TestDeallocateMAC_HappyPath(t *testing.T) {
 	}
 
 	// Assert that MAC is properly allocated to network container.
-	assertMacAllocatedToNC(t, nextNCState)
+	assertMacAllocatedToNC(t, nextNCState.Config)
 
-	removeFromQueue, err = macAllocator.ProcessDeallocateMAC(getNCConfig(nodeId, api.BareMetalContainerType))
+	removeFromQueue, err = macAllocator.ProcessDeallocateMAC(getNC(nodeId, api.BareMetalContainerType))
 	if err != nil {
 		t.Errorf("Did not expect error from ProcessDeallocateMAC, got: %+v", err)
 	}
@@ -176,7 +181,7 @@ func TestDeallocateMAC_HappyPath(t *testing.T) {
 	}
 
 	// Assert that MAC is properly deallocated from network container.
-	assertMacDeallocatedFromNC(t, nextNCState)
+	assertMacDeallocatedFromNC(t, nextNCState.Config)
 }
 
 func TestAllocateMAC_NonManagedDNC(t *testing.T) {
@@ -185,14 +190,14 @@ func TestAllocateMAC_NonManagedDNC(t *testing.T) {
 	fakeMacMgrClient := FakeMacManagerConnection{}
 
 	macAllocator := MacAllocator{
-		PersistNC: func(nc *datamodel.NCConfiguration, _ bool) *api.JsonErr {
+		PersistNC: func(nc *datamodel.NetworkContainerEntity) *api.JsonErr {
 			return nil
 		},
 		Logger:           loggermock.NewDummyLogger(),
 		MacManagerClient: &fakeMacMgrClient,
 	}
 
-	removeFromQueue, err := macAllocator.ProcessAllocateMAC(getNCConfig(nodeId, api.BareMetalContainerType))
+	removeFromQueue, err := macAllocator.ProcessAllocateMAC(getNC(nodeId, api.BareMetalContainerType))
 	if err != nil {
 		t.Errorf("Did not expect error, got: %+v", err)
 	}

@@ -6,7 +6,11 @@ import (
 	"testing"
 )
 
-const apiVersion = "?api-version=2018-03-01"
+const (
+	apiVersion = "?api-version=2018-03-01"
+	apiVersion_2021_02_24 = "?api-version=2021-02-24"
+	forceDeleteQueryParam = "force-delete=true"
+)
 
 // todo: not threadsafe. same with config
 var dncEP string

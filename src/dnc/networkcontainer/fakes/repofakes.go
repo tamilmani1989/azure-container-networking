@@ -10,26 +10,54 @@ import (
 )
 
 type NCRepo struct {
-	Data     map[string]datamodel.NCConfiguration
+	Data     map[string]datamodel.NetworkContainerEntity
 	QueryErr *api.JsonErr
 	PutErr   *api.JsonErr
 }
 
-func (n *NCRepo) TryQueryNetworkContainer(networkID, ncID string) (*datamodel.NCConfiguration, *api.JsonErr) {
+func (n *NCRepo) TryQueryNetworkContainer(networkID, ncID string) (datamodel.NetworkContainerEntity, *api.JsonErr) {
 	if n.QueryErr != nil {
-		return nil, n.QueryErr
+		return datamodel.NetworkContainerEntity{}, n.QueryErr
 	}
 
 	ncKey := datamodel.GetNCKey(networkID, ncID)
 	nc, ok := n.Data[ncKey]
 	if !ok {
-		return nil, nil
+		return datamodel.NetworkContainerEntity{}, nil
 	}
 
-	return &nc, nil
+	return nc, nil
 }
 
-func (n *NCRepo) PersistNCConfiguration(ncConfiguration *datamodel.NCConfiguration, addToPendingQueue bool) *api.JsonErr {
+func (n *NCRepo) QueryNetworkContainersInSubnet(networkID, subnetName string) ([]datamodel.NetworkContainerEntity, *api.JsonErr) {
+	panic("implement me")
+}
+
+func (n *NCRepo) PersistNetworkContainerData(nc *datamodel.NetworkContainerEntity) *api.JsonErr {
+	panic("implement me")
+}
+
+func (n *NCRepo) TryQueryNetworkContainerByKey(ncKey string) (datamodel.NetworkContainerEntity, *api.JsonErr) {
+	panic("implement me")
+}
+
+func (n *NCRepo) GetNetworkContainerData(networkID, networkContainerID string) (datamodel.NetworkContainerEntity, *api.JsonErr) {
+	panic("implement me")
+}
+
+func (n *NCRepo) DeleteNetworkContainer(networkID, networkContainerID string) *api.JsonErr {
+	panic("implement me")
+}
+
+func (n *NCRepo) DeleteAllRows() *api.JsonErr {
+	panic("implement me")
+}
+
+func (n *NCRepo) AnyNetworkContainerExists() (bool, *api.JsonErr) {
+	panic("implement me")
+}
+
+func (n *NCRepo) GetAllNetworkContainers() (map[string]datamodel.NetworkContainerEntity, *api.JsonErr) {
 	panic("implement me")
 }
 

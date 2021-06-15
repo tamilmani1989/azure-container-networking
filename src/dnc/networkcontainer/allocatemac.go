@@ -15,11 +15,11 @@ type MacAllocator struct {
 }
 
 // This function allocate a MAC address
-func (m *MacAllocator) ProcessAllocateMAC(ncConfig *datamodel.NCConfiguration) (bool, *api.JsonErr) {
-	containerType := ncConfig.GetAssociationInfo().ContainerType
+func (m *MacAllocator) ProcessAllocateMAC(nc *datamodel.NetworkContainerEntity) (bool, *api.JsonErr) {
+	containerType := nc.Config.GetAssociationInfo().ContainerType
 	m.Logger.Debugf("[MacAllocator] Starting MAC allocation. The container type is : %s", containerType)
 
-	allocationId := ncConfig.NetworkContainerID + ncConfig.NetworkID
+	allocationId := nc.Config.NetworkContainerID + nc.Config.NetworkID
 	allocatMacResponse, err := m.MacManagerClient.AllocateMac(allocationId)
 
 	if err != nil {
@@ -33,24 +33,24 @@ func (m *MacAllocator) ProcessAllocateMAC(ncConfig *datamodel.NCConfiguration) (
 	}
 
 	allocatedMac := allocatMacResponse.MacAddress
-	m.Logger.Debugf("[MacAllocator][Response] Allocate MAC Successful. NC = %s : Mac Address = %+v", ncConfig.NetworkContainerID, allocatedMac)
+	m.Logger.Debugf("[MacAllocator][Response] Allocate MAC Successful. NC = %s : Mac Address = %+v", nc.Config.NetworkContainerID, allocatedMac)
 
-	ncConfig.State = datamodel.Publish
-	ncConfig.MACAddress = allocatedMac
-	m.Logger.Debugf("[MacAllocator] Setting MAC address: %s for NC %s", ncConfig.MACAddress, ncConfig.NetworkContainerID)
+	nc.Config.State = datamodel.Publish
+	nc.Config.MACAddress = allocatedMac
+	m.Logger.Debugf("[MacAllocator] Setting MAC address: %s for NC %s", nc.Config.MACAddress, nc.Config.NetworkContainerID)
 
-	err = m.markNCToPublish(ncConfig)
+	err = m.markNCToPublish(nc)
 	return false, err
 }
 
 // This function deallocates a MAC address.
-func (m *MacAllocator) ProcessDeallocateMAC(ncConfig *datamodel.NCConfiguration) (bool, *api.JsonErr) {
-	if ncConfig.MACAddress == "" {
+func (m *MacAllocator) ProcessDeallocateMAC(nc *datamodel.NetworkContainerEntity) (bool, *api.JsonErr) {
+	if nc.Config.MACAddress == "" {
 		m.Logger.Debugf("[MacAllocator] MAC address is already empty. No need to deallocate.")
 	} else {
-		m.Logger.Debugf("[MacAllocator] Resetting MAC address to empty for NC %s.", ncConfig.NetworkContainerID)
+		m.Logger.Debugf("[MacAllocator] Resetting MAC address to empty for NC %s.", nc.Config.NetworkContainerID)
 
-		allocationId := ncConfig.NetworkContainerID + ncConfig.NetworkID
+		allocationId := nc.Config.NetworkContainerID + nc.Config.NetworkID
 		_, err := m.MacManagerClient.DeallocateMac(allocationId)
 
 		if err != nil {
@@ -63,26 +63,26 @@ func (m *MacAllocator) ProcessDeallocateMAC(ncConfig *datamodel.NCConfiguration)
 			}
 		}
 
-		m.Logger.Debugf("[MacAllocator][Response] Deallocate MAC Successful. NC = %s.", ncConfig.NetworkContainerID)
-		ncConfig.MACAddress = ""
+		m.Logger.Debugf("[MacAllocator][Response] Deallocate MAC Successful. NC = %s.", nc.Config.NetworkContainerID)
+		nc.Config.MACAddress = ""
 	}
 
-	err := m.markNCToUnreserve(ncConfig)
+	err := m.markNCToUnreserve(nc)
 	return false, err
 }
 
 // This utility function sets the NC state as published.
-func (m *MacAllocator) markNCToPublish(ncConfig *datamodel.NCConfiguration) *api.JsonErr {
-	ncConfig.State = datamodel.Publish
-	ncConfig.Status = datamodel.Pending
-	ncConfig.FailureDetail = api.JsonErr{}
-	return m.PersistNC(ncConfig, datamodel.DontAddToPendingQ)
+func (m *MacAllocator) markNCToPublish(nc *datamodel.NetworkContainerEntity) *api.JsonErr {
+	nc.Config.State = datamodel.Publish
+	nc.Config.Status = datamodel.Pending
+	nc.Config.FailureDetail = api.JsonErr{}
+	return m.PersistNC(nc)
 }
 
 // This utility function sets the NC state as published.
-func (m *MacAllocator) markNCToUnreserve(ncConfig *datamodel.NCConfiguration) *api.JsonErr {
-	ncConfig.State = datamodel.UnReserve
-	ncConfig.Status = datamodel.Pending
-	ncConfig.FailureDetail = api.JsonErr{}
-	return m.PersistNC(ncConfig, datamodel.DontAddToPendingQ)
+func (m *MacAllocator) markNCToUnreserve(nc *datamodel.NetworkContainerEntity) *api.JsonErr {
+	nc.Config.State = datamodel.UnReserve
+	nc.Config.Status = datamodel.Pending
+	nc.Config.FailureDetail = api.JsonErr{}
+	return m.PersistNC(nc)
 }

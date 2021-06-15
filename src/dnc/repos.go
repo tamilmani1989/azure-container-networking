@@ -11,16 +11,6 @@ import (
   This is still a temporary solution, as we continue to work towards having more explicit dependency injection.
 */
 
-type ncRepo struct{}
-
-func (*ncRepo) TryQueryNetworkContainer(networkID, ncID string) (*datamodel.NCConfiguration, *api.JsonErr) {
-	return datamodel.TryQueryNetworkContainer(networkID, ncID)
-}
-
-func (*ncRepo) PersistNCConfiguration(ncConfiguration *datamodel.NCConfiguration, addToPendingQueue bool) *api.JsonErr {
-	return datamodel.PersistNCConfiguration(ncConfiguration, addToPendingQueue)
-}
-
 type subnetRepo struct{}
 
 func (*subnetRepo) TryQuerySubnetConfiguration(networkID, subnetName string) (*datamodel.SubnetConfiguration, *api.JsonErr) {

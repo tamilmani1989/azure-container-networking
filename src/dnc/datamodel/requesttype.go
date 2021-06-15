@@ -18,6 +18,10 @@ const (
 
 	// ReservationSetRequest - Reservation set request
 	ReservationSetRequest
+
+	// SubnetCleanupRequest - Request to cleanup subnet. It attempts to delete all allocations in the subnet
+	// and then deletes the subnet
+	SubnetCleanupRequest
 )
 
 func (requestType RequestType) String() string {
@@ -33,6 +37,9 @@ func (requestType RequestType) String() string {
 
 	case ReservationSetRequest:
 		return "ReservationSetRequest"
+
+	case SubnetCleanupRequest:
+		return "SubnetCleanupRequest"
 
 	case InvalidRequest:
 		return "InvalidRequest"
