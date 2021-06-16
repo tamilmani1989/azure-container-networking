@@ -1,0 +1,160 @@
+{
+  "DataStoreSettings": {
+    "AzureStorageInfo": {
+      "AccountName": "acntestcosmosdb",
+      "Key": "",
+      "PartitionKey": "",
+      "Environment": "",
+      "IsUsingCosmosDb": true,
+      "CosmosDBResourceID": ""
+    },
+    "MaxBatchSize": 100
+  },
+  "ServerSettings": {
+    "IPAddress": "",
+    "Port": "9000",
+    "TlsCertificateSubjectName": "",
+    "TlsCertificateFilePath": "",
+    "UseHttps": false,
+    "TlsPort": ""
+  },
+  "MasterElectionSettings": {
+    "UseDataStore": true,
+    "BlobStorageSettings": {
+      "AccountName": "",
+      "Key": "",
+      "PartitionKey": "",
+      "Environment": "",
+      "BlobName":"vikbmblob",
+      "ContainerName":"vikbmcontainer",
+      "LeaseIntervalInSecs": 60,
+      "LeaseRenewIntervalInSecs": 30,
+      "AcquireRetryIntervalInSecs": 30
+    },
+    "DataStoreLeaseSettings": {
+      "LeaseIntervalInSecs": 60,
+      "LeaseRenewIntervalInSecs": 30,
+      "AcquireRetryIntervalInSecs": 30
+    }
+  },
+  "HostAgentSettings": {
+    "WireServerIP": "168.63.129.16",
+    "ConnectionStrings": {
+      "JoinNetworkURLFmt": "http://%s/machine/plugins/?comp=nmagent&type=NetworkManagement/joinedVirtualNetworks/%s/api-version/1",
+      "GetNetworkConfigurationURLFmt": "http://%s/machine/plugins/?comp=nmagent&type=NetworkManagement/joinedVirtualNetworks/%s/api-version/1",
+      "PutNetworkContainerURLFmt": "http://%s/machine/plugins/?comp=nmagent&type=NetworkManagement/interfaces/%s/networkContainers/%s/authenticationToken/%s/api-version/1",
+      "DeleteNetworkContainerURLFmt": "http://%s/machine/plugins/?comp=nmagent&type=NetworkManagement/interfaces/%s/networkContainers/%s/authenticationToken/%s/api-version/1/method/DELETE",
+      "GetNmAgentSupportedApiURLFmt": "http://%s/machine/plugins/?comp=nmagent&type=GetSupportedApis"
+    }
+  },
+  "CustomLoggerSettings": {
+    "FnName": "",
+    "Dll": ""
+  },
+  "CNSSettings": {
+    "ChannelMode": "Direct",
+    "CnsTlsCertificateSubjectName": "",
+    "ConnectionStrings": {
+      "CreateOrUpdateNetworkContainerURLFmt": "http://%s:10090/network/createorupdatenetworkcontainer",
+      "DeleteNetworkContainerURLFmt": "http://%s:10090/network/deletenetworkcontainer",
+      "SetOrchestratorTypeURLFmt": "http://%s:10090/network/setorchestratortype",
+      "GetNetworkcontainerstatusURLFmt": "http://%s:10090/network/getnetworkcontainerstatus",
+      "GetNumOfCPUCoresURLFmt": "http://%s:10090/hostcpucores",
+      "PublishNetworkContainerURLFmt": "http://%s:10090/network/publishnetworkcontainer",
+      "UnpublishNetworkContainerURLFmt": "http://%s:10090/network/unpublishnetworkcontainer",
+      "NmAgentSupportedApisURLFmt": "http://%s:10090/network/nmagentsupportedapis"
+    }
+  },
+  "MacManagerSettings": {
+    "AllocateMacURL": "https://macallocator-service:5012/macallocator/allocate",
+    "DeallocateMacURL": "https://macallocator-service:5012/macallocator/deallocate"
+  },
+  "VlanSettings": {
+    "Min": 1,
+    "Max": 2048
+  },
+  "GreSettings": {
+    "Min": 257,
+    "Max": 511
+  },
+  "DNCSettings": {
+    "RequestRetryBaseInterval": 1000,
+    "MaxRequestBackoffInterval": 16000,
+    "NetworkRefreshInterval": 60000,
+    "NetworkRefreshBatchSize": 60,
+    "SleepIntervalBetweenNetworkBatches": 60000,
+    "SleepIntervalBetweenNetworkRefresh": 300,
+    "TagRefreshInterval": 60000,
+    "NetworkContainerRefreshInterval": 60000,
+    "ReportToHostInterval": 60000,
+    "ConcurrentRequestsToProcess": 1000,
+    "EnforceNICLimit": false,
+    "NICsAllowedPerVirtualCore": 3,
+    "ReverseProxyEnabled": false,
+    "ThresholdForLoggingDataStoreOpLatencyMs": 1000,
+    "Managed": true,
+    "BMMode": false,
+    "DisableReservationMapInSubnetConfig": false
+  },
+  "FeatureFlagSettings": {
+    "EnableBatchAllocationProcessing": false,
+    "MaxIPReservationBatchSize": 100,
+    "UsePrepopulatedIPAllocations": false
+  },
+  "HttpClientSettings": {
+    "ConnectionTimeout": 5,
+    "ResponseHeaderTimeout": 120,
+    "MaxIdleConnsPerHost": 100,
+    "IdleConnTimeout": 90
+  },
+  "TelemetrySettings": {
+    "TelemetryBatchSizeBytes": 16384,
+    "TelemetryBatchIntervalInSecs": 7,
+    "RefreshIntervalInSecs": 15,
+    "DisableMetadataRefreshThread": false,
+    "DisableTelemetry": false,
+    "DebugMode": false,
+    "DisableAiLogging": false
+  },
+  "AznmSettings": {
+    "Port": 444
+  },
+  "PubSubProxySettings": {
+    "EnablePubSubProxy": true,
+    "EnableRNC": true,
+    "EnableVerboseLogging": false,
+    "MaxConcurrentRequests": 1000,
+    "RequestRetryBaseInterval": 1000,
+    "MaxRequestBackoffInterval": 16000,
+    "PublisherPort": "18605",
+    "SubscriberPort": "18600",
+    "PubsubCertName": "acnkv-CertDncPubsub-20201001.pem",
+    "PubsubCertKeyvaultName": "",
+    "PubsubCertFilePath": "/usr/local/bin/acnkv-CertDncPubsub-20201001.pem",
+    "PubsubConnectionEndpoint": "useast2euap-prod.sdnpubsub.core.windows.net",
+    "PubsubVips": [
+      {
+        "AzId": "AZ01",
+        "VIPs": "52.232.150.61,52.232.150.60"
+      },
+      {
+        "AzId": "AZ02",
+        "VIPs": "52.225.160.60,52.225.160.62,52.225.160.61"
+      },
+      {
+        "AzId": "AZ03",
+        "VIPs": "52.225.185.199,52.138.65.29,52.225.190.130"
+      },
+      {
+        "AzId": "AZ03-02",
+        "VIPs": "40.89.67.127,52.138.72.224"
+      }
+    ]
+  },
+  "IdentitySettings": {
+    "MSIResourceID": ""
+  },
+  "AzureEnvironment": {
+    "EnvironmentName": ""
+  }
+}

@@ -63,6 +63,7 @@ import (
 	repo "dnc/networkcontainer"
 	"dnc/replica"
 	"dnc/utils"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -451,7 +452,7 @@ func RegisterSubnet(
 				createdDateTime: time.Now().UTC(),
 				retryInterval:   baseRetryInterval,
 			},
-			vnetId: vnetId,
+			vnetId:   vnetId,
 			subnetId: subnetId,
 		}
 		workerPool().scheduleJob(subnetRegister)
@@ -468,17 +469,21 @@ func UnregisterSubnet(
 
 	// Unsubscribe from vnet notifications
 	logDebugf("UnregisterSubnet. Vnet: %s, subnet:%s", vnetId, subnetId)
-	subnetUnregister := &subnetJob {
+	subnetUnregister := &subnetJob{
 		context: jobContext{
 			id:              createSubnetJobId(vnetId, subnetId),
 			jobType:         SubnetUnregister,
 			createdDateTime: time.Now().UTC(),
 			retryInterval:   baseRetryInterval,
 		},
-		vnetId: vnetId,
+		vnetId:   vnetId,
 		subnetId: subnetId,
 	}
 	workerPool().scheduleJob(subnetUnregister)
+}
+
+func GetSubnetIdFromName(vnetId, subnetName string) (string, error) {
+	return "", errors.New("subnet name to id mapping is not supported yet")
 }
 
 //just make a seperate class? A little dangerous to have unitialized package variables that could be used
@@ -546,7 +551,7 @@ func Init(
 	var dataContracts madariDataContracts
 	if configSettings.EnableRNC {
 		dataContracts = &rncDataContracts{}
-	} else  {
+	} else {
 		dataContracts = &rnmDataContracts{}
 	}
 

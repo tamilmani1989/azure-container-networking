@@ -869,10 +869,11 @@ func (c *Controller) PersistSubnetDelegationRequest(
 	networkID,
 	subnet string,
 	subnetInfo api.SubnetRequest,
-	isDelete bool) *api.JsonErr {
+	isDelete bool,
+	apiVersion string) *api.JsonErr {
 	loggershim.LS.Debugf("[Request] Put Subnet: %s for network: %s isDelete: %t", subnet, networkID, isDelete)
 
-	if err := ValidateSubnetRequest(subnet, ""); err != nil {
+	if err := validateSubnetRequestApiVersion(apiVersion); err != nil {
 		return err
 	}
 
@@ -1000,9 +1001,29 @@ func (c *Controller) DeleteSubnetV2(networkID, subnetName string, apiversion str
 		return api.BadRequestf(api.RequestNotsupported, "Request not supported")
 	}
 
-	if err := ValidateSubnetRequest(subnetName, apiversion); err != nil {
+	if err := validateSubnetRequestApiVersion(apiversion); err != nil {
 		return err
 	}
+
+	return c.deleteSubnetCommon(networkID, subnetName)
+}
+
+func (c *Controller) DeleteSubnetV3(networkID, subnetName string, apiversion string) *api.JsonErr {
+	loggershim.LS.Debugf("[Request] DeleteSubnetV3: Network: %s, Subnet: %s", networkID, subnetName)
+	if !config.PubSubProxySettings.EnablePubSubProxy {
+		// SubnetV2 API is supported with PubSubProxy only when DNC is running in managed mode
+		return api.BadRequestf(api.RequestNotsupported, "Request not supported")
+	}
+
+	subnetId, err := convertSubnetNametoIDIfNeeded(networkID, subnetName)
+	if err != nil {
+		return err
+	}
+
+	return c.deleteSubnetCommon(networkID, subnetId)
+}
+
+func (c *Controller) deleteSubnetCommon(networkID, subnetName string) *api.JsonErr {
 
 	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: networkID}
 	c.SessionManager.BeginWriteSession(sessionInfo)
@@ -1081,10 +1102,31 @@ func (c *Controller) PersistSubnetDelegationRequestV2(networkID, subnet string, 
 		return api.BadRequestf(api.RequestNotsupported, "Request not supported")
 	}
 
-	if err := ValidateSubnetRequest(subnet, apiVersion); err != nil {
+	if err := validateSubnetRequestApiVersion(apiVersion); err != nil {
 		return err
 	}
 
+	return c.PersistSubnetDelegationRequestCommon(networkID, subnet, subnetRequest, apiVersion)
+}
+
+// PersistSubnetDelegationRequest - Persist subnet delegation info for V3 API.
+func (c *Controller) PersistSubnetDelegationRequestV3(networkID, subnet string, subnetRequest api.SubnetRequest, apiVersion string) *api.JsonErr {
+	loggershim.LS.Debugf("[Request] PutSubnetV3: Network: %s, Subnet: %s", networkID, subnet)
+	if !config.PubSubProxySettings.EnablePubSubProxy {
+		// SubnetV3 API is supported with PubSubProxy only when DNC is running in managed mode
+		return api.BadRequestf(api.RequestNotsupported, "Request not supported")
+	}
+
+	subnetId, err := convertSubnetNametoIDIfNeeded(networkID, subnet)
+	if err != nil {
+		return err
+	}
+
+	return c.PersistSubnetDelegationRequestCommon(networkID, subnetId, subnetRequest, apiVersion)
+}
+
+// PersistSubnetDelegationRequest - Persist subnet delegation info common logic for multiple version of api
+func (c *Controller) PersistSubnetDelegationRequestCommon(networkID, subnet string, subnetRequest api.SubnetRequest, apiVersion string) *api.JsonErr {
 	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: networkID}
 	c.SessionManager.BeginWriteSession(sessionInfo)
 	defer c.SessionManager.EndWriteSession(sessionInfo)
@@ -1722,19 +1764,32 @@ func deleteSubnetViaRNC(networkID, subnetId string, networkConfiguration *datamo
 	return nil
 }
 
-func ValidateSubnetRequest(subnetNameOrId string, apiVersion string) *api.JsonErr {
-	if config.PubSubProxySettings.EnableRNC {
-
-		if apiVersion != "2021-02-24" {
-			return api.BadRequestf(api.RequestNotsupported, "Subnet request via RNC is only supported with API version 2021-02-24")
-		}
-
-		if !utils.IsValidUUID(subnetNameOrId) {
-			return api.BadRequestf(api.InvalidSubnetName, "SubnetId %s must be guid if RNC path is enabled", subnetNameOrId)
-		}
+func validateSubnetRequestApiVersion(apiVersion string) *api.JsonErr {
+	if config.PubSubProxySettings.EnableRNC && apiVersion != "2021-06-11" {
+		return api.BadRequestf(api.RequestNotsupported, "Subnet request via fastpath is not supported for API version %s", apiVersion)
 	}
 
 	return nil
+}
+
+func convertSubnetNametoIDIfNeeded(networkID, subnet string) (string, *api.JsonErr) {
+	// if RNC path (or fastpath) isn't enabled, then use subnet exactly as customer provided
+	if !config.PubSubProxySettings.EnableRNC {
+		return subnet, nil
+	}
+
+	// if RNC path (or fastpath) is enabled and subnet is valid uuid, no conversion needed
+	if utils.IsValidUUID(subnet) {
+		return subnet, nil
+	}
+
+	// if RNC path (or fastpath) is enabled and subnet is NOT valid uuid, convert to ID using pubsubproxy
+	subId, err := pubsubproxy.GetSubnetIdFromName(networkID, subnet)
+	if err != nil {
+		return "", api.BadRequestf(api.InvalidSubnetRequest, "subnet id for subnet %s could not be retrieved. %s", subnet, err)
+	}
+
+	return subId, nil
 }
 
 func getNetworkStatusViaRNM() datamodel.Status {

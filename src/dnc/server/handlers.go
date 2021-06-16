@@ -1342,7 +1342,7 @@ func PutSubnet(w http.ResponseWriter, r *http.Request) {
 			subnetRequest.AuthenticationToken = ""
 		}
 
-		if err := ctrler.PersistSubnetDelegationRequest(networkID, strings.ToLower(subnet), subnetRequest, isDelete); err != nil {
+		if err := ctrler.PersistSubnetDelegationRequest(networkID, strings.ToLower(subnet), subnetRequest, isDelete, apiVersion); err != nil {
 			setRequestFailed(w, err)
 			return
 		}
@@ -1364,6 +1364,21 @@ func PutSubnet(w http.ResponseWriter, r *http.Request) {
 			}
 		} else {
 			if err := ctrler.PersistSubnetDelegationRequestV2(networkID, strings.ToLower(subnet), subnetRequest, apiVersion); err != nil {
+				setRequestFailed(w, err)
+				return
+			}
+		}
+
+		w.WriteHeader(http.StatusAccepted)
+
+	case "2021-06-11":
+		if isDelete {
+			if err := ctrler.DeleteSubnetV3(networkID, strings.ToLower(subnet), apiVersion); err != nil {
+				setRequestFailed(w, err)
+				return
+			}
+		} else {
+			if err := ctrler.PersistSubnetDelegationRequestV3(networkID, strings.ToLower(subnet), subnetRequest, apiVersion); err != nil {
 				setRequestFailed(w, err)
 				return
 			}

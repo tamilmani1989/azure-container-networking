@@ -79,7 +79,9 @@ type DncClient struct {
 func NewDncClient(dncEP string) *DncClient {
 	apiVersionMap = make(map[string]string)
 	apiVersionMap["default"] = "?api-version=2018-03-01"
+	apiVersionMap["2018-03-01"] = "?api-version=2018-03-01"
 	apiVersionMap["2021-02-24"] = "?api-version=2021-02-24"
+	apiVersionMap["2021-06-11"] = "?api-version=2021-06-11"
 
 	return &DncClient{
 		DncEP: dncEP}

@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-var supportedAPIVersions = map[string]bool{"2018-03-01": true, "2021-02-24": true}
+var supportedAPIVersions = map[string]bool{"2018-03-01": true, "2021-02-24": true, "2021-06-11": true}
 
 func Logger(inner http.Handler, reverseProxyEnabled, useHttps bool) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
