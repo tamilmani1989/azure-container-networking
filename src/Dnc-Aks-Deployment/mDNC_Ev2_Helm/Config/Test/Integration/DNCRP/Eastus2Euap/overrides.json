@@ -1,8 +1,8 @@
 {
     "Application": {
         "SkipAMECertValidation": "true",
-        "DncResourceGroup": "MC_acncluster-rp-test-eastus2euap_acncluster-rp-test-eastus2euap_eastus2euap",
-        "DncVnetName": "aks-vnet-09837548",
+        "DncResourceGroup": "MC_acncluster-dnc-test-eastus2euap_acncluster-dnc-test-eastus2euap_eastus2euap",
+        "DncVnetName": "aks-vnet-35624141",
         "DncPrivateEndpointSubnetName": "privateendpointsubnet"
     },
     "Cluster": {
