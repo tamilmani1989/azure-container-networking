@@ -170,9 +170,9 @@ func (p *publisher) getData(
 
 	publishPath := partitionKey + relativePath
 	if p.isHealthy {
-		p.setupPublishStatusErrorChan(publishPath)
+		p.setupPublishResultsChan(publishPath)
 		if retCode := p.madariPublisher.GetData(partitionKey, relativePath); retCode != 0 {
-			p.deletePublishStatusErrorChan(publishPath)
+			p.deletePublishResultsChan(publishPath)
 			return fmt.Errorf("Publishing to pubsub: %s failed for path: %s due to error code: %d",
 				p.pubsubAzId, publishPath, retCode)
 		}
