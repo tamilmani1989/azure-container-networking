@@ -67,9 +67,9 @@
     "RefreshIntervalInSeconds": 3600
   },
   "DncSettings": {
-    "RetryCount": 10,
-    "RetryIntervalInSeconds": 4,
-    "RetryTimeoutInSeconds": 90,
+    "RetryCount": 100,
+    "RetryIntervalInSeconds": 5,
+    "RetryTimeoutInSeconds": 600,
     "SubscriptionId": "__SubscriptionId__",
     "TenantId": "__TenantId__",
     "ResourceGroupName": "__DNCResourceGroup__",

@@ -19,9 +19,9 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
     /// </summary>
     public static class ContextInitializer
     {
-        private const int defaultDncRetryCount = 10;
-        private const int defaultDncRetryTimeoutInSeconds = 90;
-        private const int defaultDncRetryIntervalInSeconds = 4;
+        private const int defaultDncRetryCount = 100;
+        private const int defaultDncRetryTimeoutInSeconds = 600;
+        private const int defaultDncRetryIntervalInSeconds = 5;
         /// <summary>
         /// Initialize context
         /// </summary>
