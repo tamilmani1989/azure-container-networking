@@ -1667,10 +1667,9 @@ func CreateSubnetCleanupRequest(networkID, subnetName string) *api.JsonErr {
 		return nil
 	}
 
-	// Return if the subnet cleanup is already in process
+	// If subnet cleanup is already in process, ensure that the pending work item exists. Add pending item if it doesn't exist.
 	if requestedSubnetConfig.MarkedForDelete && requestedSubnetConfig.UpdateStatus == SubnetCleanupPending {
-		loggershim.LS.Debugf("Subnet cleanup is already in process for subnet: %s in network: %s", subnetName, networkID)
-		return nil
+		return ensureSubnetCleanupPendingItem(networkID, subnetName)
 	}
 
 	// Update the subnet configuration for pending cleanup
@@ -1685,6 +1684,32 @@ func CreateSubnetCleanupRequest(networkID, subnetName string) *api.JsonErr {
 		loggershim.LS.Errorf("Failed to persist subnet configuration for subnet: %s in network: %s. Error: %v", subnetName, networkID, err)
 		return err
 	}
+
+	// Add subnet cleanup request to pending queue
+	requestContext := RequestContext{
+		Type:       SubnetCleanupRequest,
+		NetworkID:  networkID,
+		SubnetName: subnetName,
+	}
+
+	subnetKey := GetSubnetKey(networkID, subnetName)
+	return AddRequestToPendingQueue(subnetKey, &requestContext)
+}
+
+// Ensure that the pending work item exists for the subnet which is in pending cleanup state
+func ensureSubnetCleanupPendingItem(networkID, subnetName string) *api.JsonErr {
+	key := GetSubnetKey(networkID, subnetName)
+	pendingItem, err := TryQueryRequestContext(key)
+	if err != nil {
+		return err
+	}
+
+	if pendingItem != nil {
+		loggershim.LS.Debugf("Subnet cleanup is already in process for subnet: %s in network: %s", subnetName, networkID)
+		return nil
+	}
+
+	loggershim.LS.Debugf("subnet %s has pending cleanup status, but no pending item found", key)
 
 	// Add subnet cleanup request to pending queue
 	requestContext := RequestContext{
