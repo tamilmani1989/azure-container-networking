@@ -33,11 +33,6 @@ type TestPersistenceStore struct {
 	QueryFilterTopNFunc queryFilterPredicate
 }
 
-const (
-	IPAllocationsTableName   = "IPAllocationsTable"
-	ToBeDeletedOwnerProperty = "ToBeDeletedOwner"
-)
-
 // Init :- Initialize a TestPersistenceStore struct for testing purposes.
 func (s *TestPersistenceStore) Init(tableToColumnMap map[string]string, logger loggershim.LoggerInterface) {
 	s.datastore = make(map[string]map[string]rowProperties)
@@ -125,6 +120,33 @@ func (s *TestPersistenceStore) InsertOrUpdate(tableName, rowKey, propertyName st
 	return nil
 }
 
+func (s *TestPersistenceStore) UpdateEntity(tableName string, entity storage.Entity) error {
+	table, ok1 := s.datastore[tableName]
+	tableLock, ok2 := s.locks[tableName]
+	if !ok1 || !ok2 {
+		return fmt.Errorf("table %s not initialized", tableName)
+	}
+
+	tableLock.Lock()
+	defer tableLock.Unlock()
+
+	old, exists := table[entity.RowKey]
+	if !exists {
+		return storage.AzureStorageServiceError{StatusCode: http.StatusNotFound}
+	}
+
+	if entity.OdataEtag != old.etag {
+		return storage.AzureStorageServiceError{StatusCode: http.StatusPreconditionFailed}
+	}
+
+	table[entity.RowKey] = rowProperties{
+		etag:       s.getEtag(),
+		properties: entity.Properties,
+	}
+
+	return nil
+}
+
 // UpdateInPartition - Update a row in the given table, if row already exists
 func (s *TestPersistenceStore) UpdateInPartition(tableName, partitionKey, rowKey string, properties map[string]interface{}) error {
 	return s.UpdateInPartitionWithEtag(tableName, partitionKey, rowKey, "", properties)
@@ -193,6 +215,25 @@ func (s *TestPersistenceStore) InsertEntity(tableName string, entity storage.Ent
 	if _, exists := table[entity.RowKey]; exists {
 		return storage.AzureStorageServiceError{StatusCode: http.StatusConflict}
 	}
+
+	table[entity.RowKey] = rowProperties{
+		etag:       s.getEtag(),
+		properties: entity.Properties,
+	}
+
+	return nil
+}
+
+// InsertOrUpdateEntity - Inserts or updates a row in the configured partition of the client
+func (s *TestPersistenceStore) InsertOrUpdateEntity(tableName string, entity storage.Entity) error {
+	table, ok1 := s.datastore[tableName]
+	tableLock, ok2 := s.locks[tableName]
+	if !ok1 || !ok2 {
+		return fmt.Errorf("table %s not initialized", tableName)
+	}
+
+	tableLock.Lock()
+	defer tableLock.Unlock()
 
 	table[entity.RowKey] = rowProperties{
 		etag:       s.getEtag(),

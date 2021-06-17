@@ -6,8 +6,9 @@ import (
 	"dnc/datastoreshim"
 	"dnc/logger/loggershim"
 	"encoding/json"
-	"github.com/Azure/azure-sdk-for-go/storage"
 	"net/http"
+
+	"github.com/Azure/azure-sdk-for-go/storage"
 )
 
 const (
@@ -28,9 +29,10 @@ type NetworkContainerRepo struct {
 
 type NetworkContainerEntity struct {
 	// RowKey is the NetworkContainer key: Network_{NetworkID}_ID_{NCID}
-	RowKey    string
-	Config    NCConfiguration
-	SubnetKey string
+	RowKey     string
+	Config     NCConfiguration
+	SubnetKey  string
+	NodeSetKey string
 }
 
 func NewNetworkContainerRepo(
@@ -44,14 +46,14 @@ func NewNetworkContainerRepo(
 	}
 }
 
-func (nc *NetworkContainerEntity) ToStorageEntity(
-	dncPartitionKey string) (storage.Entity, *api.JsonErr) {
+func (nc *NetworkContainerEntity) ToStorageEntity(dncPartitionKey string) (storage.Entity, *api.JsonErr) {
 	e := storage.Entity{
 		Table:        &storage.Table{Name: networkContainerTableName},
 		PartitionKey: dncPartitionKey,
 		RowKey:       nc.RowKey,
 		Properties: map[string]interface{}{
-			subnetKeyProperty: nc.SubnetKey,
+			subnetKeyProperty:  nc.SubnetKey,
+			NodeSetKeyProperty: nc.NodeSetKey,
 		},
 	}
 
@@ -177,9 +179,7 @@ func (n *NetworkContainerRepo) PersistNetworkContainerData(nc *NetworkContainerE
 		return err
 	}
 
-	// todo: add InsertEntity func
-	storageEntities := []storage.Entity{entity}
-	if err := n.dataStore.UpsertEntityBatch(networkContainerTableName, storageEntities); err != nil {
+	if err := n.dataStore.InsertOrUpdateEntity(networkContainerTableName, entity); err != nil {
 		storageErr, ok := err.(storage.AzureStorageServiceError)
 		if ok {
 			return &api.JsonErr{
@@ -194,11 +194,11 @@ func (n *NetworkContainerRepo) PersistNetworkContainerData(nc *NetworkContainerE
 	return nil
 }
 
-func storageEntityToNetworkContainerData(
-	e *storage.Entity) (NetworkContainerEntity, *api.JsonErr) {
+func storageEntityToNetworkContainerData(e *storage.Entity) (NetworkContainerEntity, *api.JsonErr) {
 	nc := NetworkContainerEntity{
-		RowKey:    e.RowKey,
-		SubnetKey: ExtractStringProperty(e, subnetKeyProperty),
+		RowKey:     e.RowKey,
+		SubnetKey:  ExtractStringProperty(e, subnetKeyProperty),
+		NodeSetKey: ExtractStringProperty(e, NodeSetKeyProperty),
 	}
 
 	var ncConfig NCConfiguration
@@ -212,8 +212,17 @@ func storageEntityToNetworkContainerData(
 }
 
 func (n *NetworkContainerRepo) QueryNetworkContainersInSubnet(networkID, subnetName string) ([]NetworkContainerEntity, *api.JsonErr) {
-	subnetKey := []string{GetSubnetKey(networkID, subnetName)}
-	filter := azurestorage.BuildFilterOnProperty(n.dncPartitionKey, subnetKeyProperty, subnetKey)
+	subnetKey := GetSubnetKey(networkID, subnetName)
+	return n.QueryNetworkContainers(subnetKeyProperty, subnetKey)
+}
+
+func (n *NetworkContainerRepo) QueryNetworkContainersInNodeSet(nodeSet string) ([]NetworkContainerEntity, *api.JsonErr) {
+	nodeSetKey := EncodeNodeSetRowKey(nodeSet)
+	return n.QueryNetworkContainers(NodeSetKeyProperty, nodeSetKey)
+}
+
+func (n *NetworkContainerRepo) QueryNetworkContainers(property string, values ...string) ([]NetworkContainerEntity, *api.JsonErr) {
+	filter := azurestorage.BuildFilterOnProperty(n.dncPartitionKey, property, values)
 
 	entities, err := n.dataStore.QueryFilter(networkContainerTableName, filter)
 	if err != nil {
@@ -224,7 +233,6 @@ func (n *NetworkContainerRepo) QueryNetworkContainersInSubnet(networkID, subnetN
 	for i, entity := range entities {
 		nc, errJson := storageEntityToNetworkContainerData(entity)
 		if errJson != nil {
-			n.logger.Errorf("could not convert the storage entity to NC data. storage entity: %+v error: %v", entity, errJson)
 			return nil, errJson
 		}
 

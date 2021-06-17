@@ -96,6 +96,7 @@ func (c *Controller) GetConfig() *configuration.Configuration {
 
 // PersistNodeInfo - Persist node configuration.
 func (c *Controller) PersistNodeInfo(nodeID string, nodeInfo *api.NodeInfoRequest, apiVersion string) *api.JsonErr {
+	loggershim.LS.Debugf("[Request] Create Node %q NodeSet %q", nodeID, nodeInfo.NodeSet)
 	// todo: can nodes for a DNC partition have different orchestrator types? if not, this should just be cached
 	aiwrapper.SetOrchestratorType(nodeInfo.OrchestratorType)
 
@@ -200,6 +201,7 @@ func (c *Controller) GetNodeConfiguration(nodeID string) (*datamodel.NodeConfigu
 
 // CreateNodeSet - Creates node set
 func (c *Controller) CreateNodeSet(nodeSetName, apiVersion string) (datamodel.NodeSetEntity, *api.JsonErr) {
+	loggershim.LS.Debugf("[Request] Create NodeSet %q", nodeSetName)
 	nse := datamodel.NodeSetEntity{
 		PartitionKey: c.GetConfig().DataStoreSettings.AzureStorageInfo.PartitionKey,
 		RowKey:       datamodel.EncodeNodeSetRowKey(nodeSetName),
@@ -217,20 +219,87 @@ func (c *Controller) CreateNodeSet(nodeSetName, apiVersion string) (datamodel.No
 }
 
 // GetNodeSet - Gets a node set by its name
-func (c *Controller) GetNodeSet(nodeSetName string) (*datamodel.NodeSetEntity, *api.JsonErr) {
+func (c *Controller) GetNodeSet(nodeSetName string) (datamodel.NodeSetEntity, *api.JsonErr) {
 	return datamodel.NodeSetsRepo.TryQueryNodeSet(nodeSetName)
 }
 
 // ForceDeleteNodeSet - Force delete a node set by its name
 func (c *Controller) ForceDeleteNodeSet(nodeSetName string) *api.JsonErr {
-	// todo: this is temporary, clean up of a node set should create a pending item to process nodes/ncs deletion
-	//  and mark the node set as being in the process of deletion
-	return datamodel.NodeSetsRepo.DeleteNodeSet(nodeSetName)
+	loggershim.LS.Debugf("[Request] Force Delete NodeSet %q", nodeSetName)
+	sessionInfo := map[string]string{datamodel.NodeSetsTableName: nodeSetName}
+	c.SessionManager.BeginWriteSession(sessionInfo)
+	defer c.SessionManager.EndWriteSession(sessionInfo)
+
+	ns, err := datamodel.NodeSetsRepo.TryQueryNodeSet(nodeSetName)
+	if err != nil {
+		return err
+	}
+
+	if ns.RowKey == "" {
+		return api.NotFoundf(api.EntityNotFound, "node set %s not found", nodeSetName)
+	}
+
+	// adding a pending item along with updating the node set to pending are not an atomic transaction.
+	// if adding a pending item fails, error is returned and client must retry.
+	// if the node set status is pending, we try to ensure there is in fact a pending item to go along with it.
+	if ns.Status == datamodel.Pending {
+		return ensureNodeSetDeletePendingItem(nodeSetName)
+	}
+
+	ns.State = datamodel.NodeSetDelete
+	ns.Status = datamodel.Pending
+	ns.MarkedForDelete = true
+
+	if err := datamodel.NodeSetsRepo.UpdateNodeSet(ns); err != nil {
+		return err
+	}
+
+	key := datamodel.EncodeNodeSetRowKey(nodeSetName)
+	reqContext := datamodel.RequestContext{
+		NodeSetName: nodeSetName,
+		Type:        datamodel.NodeSetCleanupRequest,
+	}
+
+	return datamodel.AddRequestToPendingQueue(key, &reqContext)
+}
+
+func ensureNodeSetDeletePendingItem(nodeSetName string) *api.JsonErr {
+	key := datamodel.EncodeNodeSetRowKey(nodeSetName)
+	pendingItem, err := datamodel.TryQueryRequestContext(key)
+	if err != nil {
+		return err
+	}
+
+	if pendingItem != nil {
+		return nil
+	}
+
+	loggershim.LS.Debugf("nodeset %s in pending status, but no pending item found", key)
+	reqContext := datamodel.RequestContext{
+		NodeSetName: nodeSetName,
+		Type:        datamodel.NodeSetCleanupRequest,
+	}
+
+	return datamodel.AddRequestToPendingQueue(key, &reqContext)
 }
 
 // DeleteNodeSet - Delete a node set by its name
 func (c *Controller) DeleteNodeSet(nodeSetName string) *api.JsonErr {
-	// todo: add validation to check for any associated nodes, in which case this call should fail.
+	loggershim.LS.Debugf("[Request] Delete NodeSet %q", nodeSetName)
+	// todo: this requires locking on node set during node creation to work correctly, will add in subsequent PR
+	sessionInfo := map[string]string{datamodel.NodeSetsTableName: nodeSetName}
+	c.SessionManager.BeginWriteSession(sessionInfo)
+	defer c.SessionManager.EndWriteSession(sessionInfo)
+
+	resp, err := datamodel.NodeConfigRepo.GetNodes(nodeSetName)
+	if err != nil {
+		return err
+	}
+
+	if len(resp.Nodes) != 0 {
+		return api.BadRequestf(api.NodeInUse, "%d nodes associated, cannot delete node set", len(resp.Nodes))
+	}
+
 	return datamodel.NodeSetsRepo.DeleteNodeSet(nodeSetName)
 }
 
@@ -416,7 +485,7 @@ func (c *Controller) CreateOrUpdateReservationSetRequest(
 	}
 
 	if subnetConfig.MarkedForDelete {
-		err = api.BadRequestf(api.SubnetMarkedForDeletion, "cannot create reservation set: %s as the subnet: %s " +
+		err = api.BadRequestf(api.SubnetMarkedForDeletion, "cannot create reservation set: %s as the subnet: %s "+
 			"in vnet: %s is marked for deletion", reservationSetID, request.SubnetName, networkID)
 		return
 	}

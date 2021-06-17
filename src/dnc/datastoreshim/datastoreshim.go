@@ -42,7 +42,10 @@ type DataStoreShim interface {
 	// Deprecated: Use InsertEntity
 	Insert(tableName, rowKey, propertyName string, value interface{}) (int, error)
 	InsertEntity(tableName string, entity storage.Entity) error
+	InsertOrUpdateEntity(tableName string, entity storage.Entity) error
+	// Deprecated: Use InsertOrUpdateEntity
 	InsertOrUpdate(tableName, rowKey, propertyName string, value interface{}) error
+	// Deprecated: Use InsertOrUpdateEntity
 	InsertOrUpdateProperties(tableName, partitionKey, rowKey string, properties map[string]interface{}) error
 	// Deprecated: Use InsertEntityBatch
 	InsertBatch(tableName, partitionKey string, batchItems map[string]map[string]interface{}) error
@@ -53,7 +56,10 @@ type DataStoreShim interface {
 	UpsertEntityBatch(tableName string, entities []storage.Entity) error
 	MergeEntityBatch(tableName string, entities []storage.Entity) error
 	UpdateWithEtag(tableName, rowKey, etag string, propertyName string, value interface{}) error
+	UpdateEntity(tableName string, entity storage.Entity) error
+	// Deprecated: Use UpdateEntity
 	UpdateInPartition(tableName, partitionKey, rowKey string, properties map[string]interface{}) error
+	// Deprecated: Use UpdateEntity
 	UpdateInPartitionWithEtag(tableName, partitionKey, rowKey, etag string, properties map[string]interface{}) error
 	Delete(tableName, rowKey string) error
 	DeleteWithEtag(tableName, rowKey string, etag string) error

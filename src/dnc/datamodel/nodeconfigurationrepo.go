@@ -18,7 +18,7 @@ type NodeConfigurationRepo struct {
 }
 
 const (
-	NodeSetColumnName = "NodeSet"
+	NodeSetKeyProperty = "NodeSetKey"
 )
 
 // CreateOrUpdateNodeConfiguration - Creates Or Updates a node configuration. Register should be true if called from RegisterNode.
@@ -80,7 +80,7 @@ func (n *NodeConfigurationRepo) PersistNodeConfiguration(nodeconfiguration *Node
 		nodeKey,
 		map[string]interface{}{
 			TableToColumnMap[nodeTableName]: string(jsonSerializedBytes),
-			NodeSetColumnName:               nodeconfiguration.NodeInfo.NodeSet,
+			NodeSetKeyProperty:              EncodeNodeSetRowKey(nodeconfiguration.NodeInfo.NodeSet),
 		},
 	); err != nil {
 		return &api.JsonErr{
@@ -147,6 +147,43 @@ func (n *NodeConfigurationRepo) DeleteNode(nodeID string) *api.JsonErr {
 	return nil
 }
 
+// todo: rest of repo should use entity instead of config
+type NodeEntity struct {
+	RowKey     string
+	ETag       string
+	Config     NodeConfiguration
+	NodeSetKey string
+}
+
+func (n *NodeConfigurationRepo) TryQueryNodeEntity(nodeKey string) (NodeEntity, *api.JsonErr) {
+	entity, status, err := n.Datastore.Query(nodeTableName, nodeKey)
+	if err != nil && status != http.StatusNotFound {
+		msg := fmt.Sprintf("Failed to retrieve configuration for node key %s: %v", nodeKey, err)
+		return NodeEntity{}, api.InternalServerError(api.StatusInternalServerError, msg)
+	}
+
+	if entity == nil {
+		return NodeEntity{}, nil
+	}
+
+	nodeConfigJSON := ExtractStringProperty(entity, nodeConfigurationTag)
+	var nodeConfig NodeConfiguration
+
+	if err := json.Unmarshal([]byte(nodeConfigJSON), &nodeConfig); err != nil {
+		msg := fmt.Sprintf("Failed to unmarshal configuration for node key %s: %v", nodeKey, err)
+		return NodeEntity{}, api.InternalServerError(api.JsonUnMarshallingFailed, msg)
+	}
+
+	ne := NodeEntity{
+		RowKey:     entity.RowKey,
+		ETag:       entity.OdataEtag,
+		Config:     nodeConfig,
+		NodeSetKey: ExtractStringProperty(entity, NodeSetKeyProperty),
+	}
+
+	return ne, nil
+}
+
 func (n *NodeConfigurationRepo) TryQueryNodeConfiguration(nodeID string) (*NodeConfiguration, *api.JsonErr) {
 	nodeKey := GetNodeKey(nodeID)
 	return n.TryQueryNodeConfigurationByKey(nodeKey)
@@ -191,7 +228,8 @@ func (n *NodeConfigurationRepo) TryQueryNodeConfigurationByKey(nodeKey string) (
 func (n *NodeConfigurationRepo) TryQueryAllNodeConfigurations(nodeSet string) ([]NodeConfiguration, *api.JsonErr) {
 	var filter string
 	if nodeSet != "" {
-		filter = azurestorage.BuildFilterOnProperty(dncPartitionKey, NodeSetColumnName, []string{nodeSet})
+		nodeSetKey := EncodeNodeSetRowKey(nodeSet)
+		filter = azurestorage.BuildFilterOnProperty(dncPartitionKey, NodeSetKeyProperty, []string{nodeSetKey})
 	} else {
 		filter = azurestorage.BuildFilterOnPartition(dncPartitionKey)
 	}

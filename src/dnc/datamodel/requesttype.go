@@ -22,6 +22,9 @@ const (
 	// SubnetCleanupRequest - Request to cleanup subnet. It attempts to delete all allocations in the subnet
 	// and then deletes the subnet
 	SubnetCleanupRequest
+
+	// NodeSetCleanupRequest - Request to cleanup nodeset.
+	NodeSetCleanupRequest
 )
 
 func (requestType RequestType) String() string {
@@ -40,6 +43,9 @@ func (requestType RequestType) String() string {
 
 	case SubnetCleanupRequest:
 		return "SubnetCleanupRequest"
+
+	case NodeSetCleanupRequest:
+		return "NodeSetCleanupRequest"
 
 	case InvalidRequest:
 		return "InvalidRequest"

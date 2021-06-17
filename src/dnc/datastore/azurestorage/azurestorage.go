@@ -231,7 +231,33 @@ func (a *AzureStorage) DeleteInPartitionWithEtag(tableName, partitionKey, rowKey
 	return entity.Delete(false, nil)
 }
 
+// InsertEntity inserts the entity into the specified table.
+// If the entity contains no partition key, the partition configured in the storage client will be used.
+// If an entity with the same row key exists in the partition, errors with conflict.
 func (a *AzureStorage) InsertEntity(tableName string, entity storage.Entity) error {
+	defer a.recordProcessingTime(time.Now(), "InsertEntity", tableName, entity.PartitionKey, entity.RowKey)
+	return a.entityOp(tableName, entity, storage.InsertOp, false)
+}
+
+// InsertOrUpdateEntity inserts or updates the entity into the specified table.
+// If the entity contains no partition key, the partition configured in the storage client will be used.
+// If an entity with the same row key exists in the partition, it will be overwritten by this entity.
+// Any Etags in the entity will not be used.
+func (a *AzureStorage) InsertOrUpdateEntity(tableName string, entity storage.Entity) error {
+	defer a.recordProcessingTime(time.Now(), "InsertOrUpdateEntity", tableName, entity.PartitionKey, entity.RowKey)
+	return a.entityOp(tableName, entity, storage.InsertOp, true)
+}
+
+// UpdateEntity updates the entity into the specified table.
+// If the entity contains no partition key, the partition configured in the storage client will be used.
+// If an entity with the row key does not already exist in the partition, errors with not found.
+// If the Etag does not match the existing entity's Etag, errors with precondition failed.
+func (a *AzureStorage) UpdateEntity(tableName string, entity storage.Entity) error {
+	defer a.recordProcessingTime(time.Now(), "UpdateEntity", tableName, entity.PartitionKey, entity.RowKey)
+	return a.entityOp(tableName, entity, storage.ReplaceOp, false)
+}
+
+func (a *AzureStorage) entityOp(tableName string, entity storage.Entity, op storage.Operation, force bool) error {
 	tableClient, ok := a.tableNameToTableClientMap[tableName]
 	if !ok {
 		return fmt.Errorf("cannot find valid table client for table %s", tableName)
@@ -243,8 +269,21 @@ func (a *AzureStorage) InsertEntity(tableName string, entity storage.Entity) err
 		entity.PartitionKey = a.partitionKey
 	}
 
-	defer a.recordProcessingTime(time.Now(), "InsertEntity", tableName, entity.PartitionKey, entity.RowKey)
-	return entity.Insert(storage.FullMetadata, nil)
+	// todo: add other operations like merge as needed
+	switch op {
+	case storage.InsertOp:
+		if force {
+			return entity.InsertOrReplace(nil)
+		}
+		// note: storage.FullMetadata is only useful in mutation operations if the etag is to be returned right away.
+		return entity.Insert(storage.NoMetadata, nil)
+	case storage.ReplaceOp:
+		return entity.Update(force, nil)
+	case storage.DeleteOp:
+		return entity.Delete(force, nil)
+	}
+
+	return fmt.Errorf("unsupported operation %v", op)
 }
 
 // Insert only - Inserts a row in a given table.

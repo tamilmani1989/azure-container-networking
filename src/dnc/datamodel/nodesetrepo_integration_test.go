@@ -63,7 +63,7 @@ func TestNodeSetRepo(t *testing.T) {
 		t.Run("exists", func(t *testing.T) {
 			nse, apiErr := repo.TryQueryNodeSet(nodeSetName)
 			require.Nil(t, apiErr)
-			require.NotNil(t, nse)
+			require.NotZero(t, nse)
 
 			assert.Equal(t, entity.PartitionKey, nse.PartitionKey)
 			assert.Equal(t, entity.RowKey, nse.RowKey)
@@ -77,7 +77,7 @@ func TestNodeSetRepo(t *testing.T) {
 		t.Run("does not exist", func(t *testing.T) {
 			nse, apiErr := repo.TryQueryNodeSet(nodeSetName + "foo")
 			require.Nil(t, apiErr)
-			require.Nil(t, nse)
+			require.Zero(t, nse)
 		})
 	})
 

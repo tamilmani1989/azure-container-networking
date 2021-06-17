@@ -310,6 +310,9 @@ const (
 
 	// EntityNotFound - Entity not found
 	EntityNotFound
+
+	// EntityMarkedForDeletion - Entity marked for deletion
+	EntityMarkedForDeletion
 )
 
 func (e ErrorCode) String() string {
@@ -607,6 +610,9 @@ func (e ErrorCode) String() string {
 
 	case EntityNotFound:
 		return "EntityNotFound"
+
+	case EntityMarkedForDeletion:
+		return "EntityMarkedForDeletion"
 	}
 
 	return "Unknown Status"

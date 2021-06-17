@@ -81,14 +81,16 @@ func processRequest(requestID string, requestContext *datamodel.RequestContext) 
 			logger.Errorf("could not get reservationSetID from request key: %s. error: %v. Removing request from pending queue",
 				requestID, parseErr)
 			// Remove the request from pending queue as it will never succeed
-			datamodel.RemovePendingRequest(requestID)
 			//todo: add alerting on this error
+			if err := datamodel.RemovePendingRequest(requestID); err != nil {
+				logger.Errorf("Could not remove %s id %s from pending queue: %v", requestContext.Type.String(), requestID, err)
+			}
 		}
 
 		// Keep the NW and reservationset lock while the current request completes the pending queue processing
 		sessionInfo := map[string]string{
 			datamodel.ReservationSetRepositoryName: reservationSetID,
-			datamodel.NetworkRepositoryName:     requestContext.NetworkID,
+			datamodel.NetworkRepositoryName:        requestContext.NetworkID,
 		}
 		sessionManager.BeginWriteSession(sessionInfo)
 		defer sessionManager.EndWriteSession(sessionInfo)
@@ -110,11 +112,17 @@ func processRequest(requestID string, requestContext *datamodel.RequestContext) 
 
 	case datamodel.SubnetCleanupRequest:
 		removeWorkItem, err = processSubnetCleanupRequest(requestContext)
+
+	case datamodel.NodeSetCleanupRequest:
+		// node set lock is not required as it should already be marked for deletion.
+		// any node requests associated to that node set will check that node set is active.
+		removeWorkItem, err = processNodeSetCleanupRequest(requestContext.NodeSetName)
 	}
 
 	if err == nil && removeWorkItem {
-		// todo: bubble error up and handle
-		datamodel.RemovePendingRequest(requestID)
+		if err := datamodel.RemovePendingRequest(requestID); err != nil {
+			logger.Errorf("Could not remove %s id %s from pending queue: %v", requestContext.Type.String(), requestID, err)
+		}
 	} else {
 		if err != nil {
 			requestContext.LastRetriedDateTime = time.Now().UTC()
@@ -217,7 +225,7 @@ func processSubnetCleanupRequest(requestContext *datamodel.RequestContext) (bool
 
 		loggershim.LS.Errorf("subnet cleanup failed for subnet: %s as NC: %s could not be deleted. NC failure details: %+v",
 			datamodel.GetSubnetKey(networkID, subnetName), failedNC.RowKey, failedNC.Config.FailureDetail)
-		return removeFromPendingQ, nil//todo: should the error be nil?
+		return removeFromPendingQ, nil //todo: should the error be nil?
 	}
 
 	networkConfiguration, err := datamodel.TryQueryNetworkConfiguration(networkID)
@@ -558,12 +566,12 @@ func processPrepareSecondaryIpCleanup(nc *datamodel.NetworkContainerEntity, crea
 func validateAndGetExplicitReservationID(
 	repoNCConfig *datamodel.NCConfiguration) (string, bool, *api.JsonErr) {
 	var (
-		reservation datamodel.ReservationRow
-		reservationSetID string
-		networkID = repoNCConfig.NetworkID
-		ncRequest = repoNCConfig.RequestV1
+		reservation            datamodel.ReservationRow
+		reservationSetID       string
+		networkID              = repoNCConfig.NetworkID
+		ncRequest              = repoNCConfig.RequestV1
 		requestedReservationID = ncRequest.ReservationID
-		err *api.JsonErr
+		err                    *api.JsonErr
 	)
 
 	// Check if the provided reservation belongs to a reservation set
@@ -621,10 +629,10 @@ func validateAndGetExplicitReservationIDFromSet(
 	reservationSetID string) (string, bool, *api.JsonErr) {
 	var (
 		sessionInfo = make(map[string]string)
-		ncID = repoNCConfig.NetworkContainerID
-		networkID = repoNCConfig.NetworkID
-		ncRequest = repoNCConfig.RequestV1
-		err *api.JsonErr
+		ncID        = repoNCConfig.NetworkContainerID
+		networkID   = repoNCConfig.NetworkID
+		ncRequest   = repoNCConfig.RequestV1
+		err         *api.JsonErr
 	)
 
 	loggershim.LS.Debugf("NC request for ID: %s is using reservation set: %s", ncID, reservationSetID)
@@ -691,7 +699,7 @@ func validateAndGetExplicitReservationIDFromSet(
 	//  Not a priority for the initial change to enable this feature.
 	// Associate NC with unassigned reservation
 	var reservationID string
-	reservationID, err = datamodel.IpReservationRepo.AssociateNCWithReservationInSet(networkID, ncID,  ncRequest.ReservationSetID)
+	reservationID, err = datamodel.IpReservationRepo.AssociateNCWithReservationInSet(networkID, ncID, ncRequest.ReservationSetID)
 	if err != nil {
 		loggershim.LS.Errorf("NC: %s request failed. error: %v", ncID, err)
 		// Non-retryable error if the returned error indicates that there is no available reservation
@@ -714,7 +722,7 @@ func processNetworkContainerReserve(
 		failureDetail        *api.JsonErr
 		markProcessingFailed bool
 		repoReservation      datamodel.ReservationRow
-		reservationID = nc.Config.ReservationID
+		reservationID        = nc.Config.ReservationID
 	)
 
 	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: nc.Config.NetworkID}
@@ -1023,7 +1031,7 @@ func processNetworkContainerAssociate(
 	defer w.Body.Close()
 	if respErr = utils.DecodeResponse(w, &resp); respErr != nil {
 		return false, api.BadRequestf(api.AssociationFailed, "could not associate NC: %s with Node: %s. error: %s",
-			ncGoalState.NetworkContainerID,	ncGoalState.NodeInterfaceID, respErr.Error())
+			ncGoalState.NetworkContainerID, ncGoalState.NodeInterfaceID, respErr.Error())
 	}
 
 	logger.Debugf("[CNS][Response] create/update NC %s %+v", ncGoalState.NetworkContainerID, resp)
@@ -1033,7 +1041,7 @@ func processNetworkContainerAssociate(
 	retrievedRepoNCData, ncRetrievalErr := datamodel.NcRepo.TryQueryNetworkContainer(ncGoalState.NetworkID, ncGoalState.NetworkContainerID)
 	if ncRetrievalErr != nil {
 		return false, api.InternalServerErrorf(api.AssociationFailed, "could not associate NC: %s with Node: %s. error: %s",
-			ncGoalState.NetworkContainerID,	ncGoalState.NodeInterfaceID, ncRetrievalErr.String())
+			ncGoalState.NetworkContainerID, ncGoalState.NodeInterfaceID, ncRetrievalErr.String())
 	}
 
 	if retrievedRepoNCData.RowKey == "" {
@@ -1078,7 +1086,7 @@ func processNetworkContainerAssociate(
 		}
 
 		failureDetail := api.BadRequestf(api.AssociationFailed, "could not associate NC: %s with Node: %s due to response: %+v",
-			ncGoalState.NetworkContainerID,	ncGoalState.NodeInterfaceID, resp.Response)
+			ncGoalState.NetworkContainerID, ncGoalState.NodeInterfaceID, resp.Response)
 		nc.Config.Status = datamodel.Failed
 		nc.Config.FailureDetail = *failureDetail
 		return true, datamodel.NcRepo.PersistNetworkContainerData(nc)
@@ -1149,7 +1157,7 @@ func sendNCMetric(
 	metric.CustomDimensions[aiwrapper.NCStateStr] = ncState
 
 	var (
-		errCode = "NoError"
+		errCode     = "NoError"
 		errHttpCode = "NoError"
 	)
 
@@ -1533,7 +1541,7 @@ func processNetworkContainerPublish(
 		if putNCResponseCode == http.StatusUnauthorized {
 			if (time.Since(stateTransitionDateTime).Seconds() < unauthorizedErrRetryDurationSec) || nc.Config.MarkedForDelete {
 				return false, api.StatusUnauthorizedf(api.ProcessingPending, "Create NC %s pending. Response code: %d, time elapsed: %.0f sec",
-					nc.Config.NetworkContainerID, putNCResponseCode,	time.Since(stateTransitionDateTime).Seconds())
+					nc.Config.NetworkContainerID, putNCResponseCode, time.Since(stateTransitionDateTime).Seconds())
 			}
 
 			// Mark the request as non-retryable if it fails for retry duration
@@ -1917,9 +1925,9 @@ func processNetworkContainerProgram(nc *datamodel.NetworkContainerEntity) (bool,
 func processReservationSetWithKey(
 	reservationSetKey string) (bool, *api.JsonErr) {
 	var (
-		networkID string
+		networkID        string
 		reservationSetID string
-		parseErr error
+		parseErr         error
 	)
 
 	if networkID, parseErr = datamodel.GetNetworkIDFromReservationSetKey(reservationSetKey); parseErr != nil {

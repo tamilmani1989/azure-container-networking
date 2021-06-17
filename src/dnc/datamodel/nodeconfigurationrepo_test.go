@@ -59,7 +59,7 @@ func TestQueryNodesInNodeSet(t *testing.T) {
 		GetNodeKey(node2.NodeID),
 		map[string]interface{}{
 			TableToColumnMap[nodeTableName]: string(node2Serialized),
-			NodeSetColumnName:               nodeSet,
+			NodeSetKeyProperty:              nodeSet,
 		},
 	); err != nil {
 		t.Fatal(err)
@@ -81,7 +81,7 @@ func TestQueryNodesInNodeSet(t *testing.T) {
 
 	// datastore will use this predicate when performing QueryFilter.
 	store.QueryFilterFunc = func(rowKey string, properties map[string]interface{}) bool {
-		val := properties[NodeSetColumnName]
+		val := properties[NodeSetKeyProperty]
 		return val == nodeSet
 	}
 
@@ -101,7 +101,7 @@ func TestQueryNodesInNodeSet(t *testing.T) {
 	// Query all nodes in non-existent set
 	// need to change query filter
 	store.QueryFilterFunc = func(rowKey string, properties map[string]interface{}) bool {
-		val := properties[NodeSetColumnName]
+		val := properties[NodeSetKeyProperty]
 		return val == "this-set-does-not-exist"
 	}
 

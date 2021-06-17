@@ -9,6 +9,7 @@ type RequestContext struct {
 	NetworkID               string
 	NodeID                  string
 	SubnetName              string
+	NodeSetName             string
 	Type                    RequestType
 	CreatedDateTime         time.Time
 	StateTransitionDateTime time.Time

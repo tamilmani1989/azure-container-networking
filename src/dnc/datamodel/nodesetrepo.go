@@ -16,24 +16,24 @@ type NodeSetRepo struct {
 }
 
 // TryQueryNodeSet retrieves a node set or returns nil if not found.
-func (n *NodeSetRepo) TryQueryNodeSet(nodeSetName string) (*NodeSetEntity, *api.JsonErr) {
+func (n *NodeSetRepo) TryQueryNodeSet(nodeSetName string) (NodeSetEntity, *api.JsonErr) {
 	rowKey := EncodeNodeSetRowKey(nodeSetName)
 	entity, status, err := n.Datastore.QueryInPartition(NodeSetsTableName, n.PartitionKey, rowKey)
 	if err != nil {
 		if status == http.StatusNotFound {
-			return nil, nil
+			return NodeSetEntity{}, nil
 		}
 
-		return nil, api.InternalServerErrorf(api.StatusInternalServerError, "could not retrieve node set %s: %v", nodeSetName, err)
+		return NodeSetEntity{}, api.InternalServerErrorf(api.StatusInternalServerError, "could not retrieve node set %s: %v", nodeSetName, err)
 	}
 
 	nse, err := storageEntityToNodeSetEntity(entity)
 	if err != nil {
 		msg := fmt.Sprintf("could not convert entity on partition key %s row key %s to node set entity: %v", entity.PartitionKey, entity.RowKey, err)
-		return nil, api.InternalServerError(api.StatusInternalServerError, msg)
+		return NodeSetEntity{}, api.InternalServerError(api.StatusInternalServerError, msg)
 	}
 
-	return &nse, nil
+	return nse, nil
 }
 
 // InsertNodeSet inserts a node set into the repo.
@@ -41,6 +41,22 @@ func (n *NodeSetRepo) InsertNodeSet(nse NodeSetEntity) *api.JsonErr {
 	e := nse.ToStorageEntity()
 
 	if err := n.Datastore.InsertEntity(NodeSetsTableName, e); err != nil {
+		switch e := err.(type) {
+		case storage.AzureStorageServiceError:
+			return &api.JsonErr{Code: api.AzureStorageError, Text: e.Message, HTTPStatus: e.StatusCode}
+		default:
+			return api.InternalServerErrorf(api.StatusInternalServerError, "could not insert node set %s in partition %s: %v", nse.NodeSetName, nse.PartitionKey, e)
+		}
+	}
+
+	return nil
+}
+
+// UpdateNodeSet updates a node set in the repo
+func (n *NodeSetRepo) UpdateNodeSet(nse NodeSetEntity) *api.JsonErr {
+	e := nse.ToStorageEntity()
+
+	if err := n.Datastore.UpdateEntity(NodeSetsTableName, e); err != nil {
 		switch e := err.(type) {
 		case storage.AzureStorageServiceError:
 			return &api.JsonErr{Code: api.AzureStorageError, Text: e.Message, HTTPStatus: e.StatusCode}

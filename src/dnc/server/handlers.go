@@ -462,7 +462,7 @@ func GetNodeSetStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if nse == nil {
+	if nse.RowKey == "" {
 		out := api.NotFoundf(api.EntityNotFound, "node set %s not found", nodeSetName)
 		setRequestFailed(w, out)
 		return
