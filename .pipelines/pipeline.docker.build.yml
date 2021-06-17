@@ -2,22 +2,18 @@ pr:
   branches:
     include:
       - master
-
 trigger:
   branches:
     include:
       - master
-
 stages:
   - stage: build_docker_images
     jobs:
       - job: build_docker_images
         pool:
           name: "$(BUILD_POOL_NAME_DEFAULT)"
-
         steps:
           - checkout: self
-
           - script: |
               set -e
               make dnc-image
@@ -25,7 +21,6 @@ stages:
             name: "BuildDNC"
             displayName: "Build DNC Image"
             condition: succeeded()
-
           - script: |
               set -e
               make requestcontroller-image
@@ -33,7 +28,6 @@ stages:
             name: "BuildDNCRC"
             displayName: "Build DNC-RC Image"
             condition: succeeded()
-
           - script: |
               set -e
               make mdnc-image
@@ -41,7 +35,6 @@ stages:
             name: "BuildMDNC"
             displayName: "Build MDNC Image"
             condition: succeeded()
-
           - script: |
               set -e
               make mdnc-requestcontroller-image
@@ -49,13 +42,29 @@ stages:
             name: "BuildMDNCRC"
             displayName: "Build MDNC-RC Image"
             condition: succeeded()
-
+          - script: |
+              set -ex
+              tag="$(git describe --tags --always --dirty)"
+              docker build -t acndev.azurecr.io/dncrp:$tag -f DncRP/Dockerfile --no-cache --build-arg FEED_ACCESSTOKEN=$(System.AccessToken) .
+              docker save acndev.azurecr.io/dncrp:$tag | gzip -c > dnc/output/images/dncrp-linux-amd64-$tag.tgz
+            workingDirectory: "src"
+            name: "BuildDNCRP"
+            displayName: "Build DNC-RP Image"
+            condition: succeeded()
+          - script: |
+              set -ex
+              tag="$(git describe --tags --always --dirty)"
+              docker build -t acndev.azurecr.io/dnc-gateway:$tag -f Gateway/Dockerfile --no-cache .
+              docker save acndev.azurecr.io/dnc-gateway:$tag | gzip -c > dnc/output/images/dnc-gateway-linux-amd64-$tag.tgz
+            workingDirectory: "src"
+            name: "BuildDNCGateway"
+            displayName: "Build DNC Gateway Image"
+            condition: succeeded()
           - task: CopyFiles@2
             inputs:
               sourceFolder: "src/dnc/output"
               targetFolder: $(Build.ArtifactStagingDirectory)
             condition: always()
-
           - task: PublishBuildArtifacts@1
             inputs:
               artifactName: "output"
