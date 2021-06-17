@@ -73,7 +73,7 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
                 }
                 catch (Exception exception)
                 {
-                    if (attempt == retryCount || (retryTimeout.HasValue && stopwatch.ElapsedTicks > retryTimeout.Value.Ticks))
+                    if (attempt == retryCount || (retryTimeout.HasValue && stopwatch.ElapsedMilliseconds > retryTimeout.Value.TotalMilliseconds))
                     {
                         throw;
                     }

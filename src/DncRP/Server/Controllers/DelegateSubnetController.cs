@@ -357,6 +357,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 
             // do dnc get subnet to check if join completed
             DncSettings dncSettings = CurrentContext.DncSettings;
+            logger.CLogInformation("Dncsettings timeout: RC:{0} RI:{1} RT:{2}", dncSettings.RetryCount, dncSettings.RetryIntervalInSeconds, dncSettings.RetryTimeoutInSeconds);
             await AsyncRetry.Retry(() => CheckIfSubnetJoined(dncClient, vnetId, subnetName), dncSettings.RetryCount, 
                 TimeSpan.FromSeconds(dncSettings.RetryIntervalInSeconds), TimeSpan.FromSeconds(dncSettings.RetryTimeoutInSeconds));
             await tableOperations.DelegatedSubnetConfigurationOperations.InsertOrUpdateAsync(
