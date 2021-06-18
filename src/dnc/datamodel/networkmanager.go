@@ -911,7 +911,15 @@ func GetPendingRequests() (map[string]RequestContext, error) {
 // RemovePendingRequest - Remove pending request from work item queue.
 func RemovePendingRequest(requestID string) *api.JsonErr {
 	if err := dataStoreShim.Delete(pendingWorkItemsTableName, requestID); err != nil {
-		return api.InternalServerError(api.StatusInternalServerError, err.Error())
+		switch e := err.(type) {
+		case storage.AzureStorageServiceError:
+			if e.StatusCode == http.StatusNotFound {
+				return nil
+			}
+			return &api.JsonErr{Code: api.AzureStorageError, Text: e.Message, HTTPStatus: e.StatusCode}
+		default:
+			return api.InternalServerError(api.StatusInternalServerError, e.Error())
+		}
 	}
 
 	return nil
