@@ -466,7 +466,7 @@ func (a *AzureStorage) WipePartition(tableName string) error {
 	entities, err := a.queryFilter(tableName, storage.NoMetadata, filter)
 	if err != nil {
 		storageErr, ok := err.(storage.AzureStorageServiceError)
-		if ok && storageErr.StatusCode == http.StatusNotFound {
+		if ok && (storageErr.StatusCode == http.StatusNotFound || storageErr.StatusCode == http.StatusGone)  {
 			return nil
 		}
 
