@@ -1563,6 +1563,27 @@ func sendNCCreationReqMetric(networkID, ncID, status string, associationInfo api
 	go aiwrapper.SendMetric(metric)
 }
 
+func EnsureNCPendingWorkItem(vnetID, ncID, nodeID string) *api.JsonErr {
+	ncKey := GetNCKey(vnetID, ncID)
+	pendingItem, err := TryQueryRequestContext(ncKey)
+	if err != nil {
+		return err
+	}
+
+	if pendingItem != nil {
+		return nil
+	}
+
+	loggershim.LS.Debugf("request for nc id %s received, but no pending item found", ncID)
+	requestContext := RequestContext{
+		NetworkID: vnetID,
+		NodeID:    nodeID,
+		Type:      NetworkContainerRequest,
+	}
+
+	return UpsertPendingQueueItem(ncKey, requestContext)
+}
+
 // CreateOrUpdateNCRequestV1 :-
 func CreateOrUpdateNCRequestV1(networkID, ncID string, ncRequestV1 *api.NetworkContainerRequestV1, apiVersion string) *api.JsonErr {
 	if err := createOrUpdateNCRequestV1(networkID, ncID, ncRequestV1, apiVersion); err != nil {
@@ -1585,8 +1606,12 @@ func createOrUpdateNCRequestV1(
 			"could not retrieve configuration for network container: %s. error: %v", ncID, err)
 	}
 
-	// Return if the NC record is already present ( there is no update supported for V1 request )
+	// there is no update supported for V1 request, but we should still ensure the corresponding pending queue item
+	// exists, as its creation is not atomic with NC creation.
 	if nc.RowKey != "" {
+		if nc.Config.State == Prepare && nc.Config.Status == Pending {
+			return EnsureNCPendingWorkItem(networkID, ncID, nc.Config.GetAssociationInfo().NodeID)
+		}
 		return nil
 	}
 
@@ -1727,7 +1752,7 @@ func ensureSubnetCleanupPendingItem(networkID, subnetName string) *api.JsonErr {
 	}
 
 	subnetKey := GetSubnetKey(networkID, subnetName)
-	return AddRequestToPendingQueue(subnetKey, &requestContext)
+	return UpsertPendingQueueItem(subnetKey, requestContext)
 }
 
 // CreateOrUpdateNCRequestV2 - Persists NetworkContainerRequestV2
@@ -1870,7 +1895,14 @@ func UpdateNCRequestV2(nc *NetworkContainerEntity, request api.NetworkContainerR
 	// We must wait for the processing to be complete (or failed) before we queue up another item, otherwise, we risk a
 	// race condition in which the updated records are persisted before current processing ends, and then
 	// at the end of the initial processing, the pending queue item is delete, without having processed the update.
-	if !(nc.Config.Status == Completed || nc.Config.Status == Failed) {
+	if nc.Config.State == Prepare && nc.Config.Status == Pending {
+		// Since the initial NC creation is not atomic, the NC record could have been stored but not a pending work item.
+		// This could happen for a number of reasons but most likely due to throttling. We check for existence of an
+		// associated work item. If one doesn't exist, we attempt to create it and return any errors. Otherwise, we return conflict.
+		if err := EnsureNCPendingWorkItem(nc.Config.NetworkID, nc.Config.NetworkContainerID, nc.Config.GetAssociationInfo().NodeID); err != nil {
+			return err
+		}
+
 		msg := fmt.Sprintf("Network container id %s currently being processed in state %v with status %v. Cannot update while processing",
 			nc.Config.NetworkContainerID, nc.Config.State.String(), nc.Config.Status.String())
 		// 409 Conflict may not be the most accurate error for this condition, but should signal the client to retry the request later

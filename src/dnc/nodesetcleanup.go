@@ -111,18 +111,7 @@ func startNetworkContainerDeletion(nc datamodel.NetworkContainerEntity) (datamod
 
 	// even if the nc is marked for deletion and status is pending, we need to ensure a corresponding queue item
 	if nc.Config.MarkedForDelete && nc.Config.Status == datamodel.Pending {
-		existing, err := datamodel.TryQueryRequestContext(nc.RowKey)
-		if err != nil {
-			return datamodel.NetworkContainerEntity{}, err
-		}
-
-		// if there is a corresponding queue item, no need to proceed further, nc remains the same
-		if existing != nil {
-			return nc, nil
-		}
-
-		// otherwise, we add a pending queue item to drive the nc marked for deletion
-		if err := datamodel.UpsertPendingQueueItem(nc.RowKey, requestContext); err != nil {
+		if err := datamodel.EnsureNCPendingWorkItem(nc.Config.NetworkID, nc.Config.NetworkContainerID, nc.Config.GetAssociationInfo().NodeID); err != nil {
 			return datamodel.NetworkContainerEntity{}, err
 		}
 

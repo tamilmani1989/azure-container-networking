@@ -280,7 +280,7 @@ func ensureNodeSetDeletePendingItem(nodeSetName string) *api.JsonErr {
 		Type:        datamodel.NodeSetCleanupRequest,
 	}
 
-	return datamodel.AddRequestToPendingQueue(key, &reqContext)
+	return datamodel.UpsertPendingQueueItem(key, reqContext)
 }
 
 // DeleteNodeSet - Delete a node set by its name
