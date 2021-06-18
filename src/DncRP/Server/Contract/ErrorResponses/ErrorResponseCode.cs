@@ -14,7 +14,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <summary>
         /// Not Set
         /// </summary>
-        None, 
+        None,
 
         /// <summary>
         /// VirtualNetworkResource Not found
@@ -105,6 +105,11 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <summary>
         /// DeleteSubnetFailed
         /// </summary>
-        DeleteSubnetFailed
+        DeleteSubnetFailed,
+
+        /// <summary>
+        /// SubnetNotFound
+        /// </summary>
+        SubnetNotFound
     }
 }

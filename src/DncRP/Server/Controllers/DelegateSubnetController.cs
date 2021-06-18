@@ -31,13 +31,13 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             ITableOperations tableOperations,
             IHttpUtilityFactory httpUtilityFactory
         )
-            : base (logger, tableOperations)
+            : base(logger, tableOperations)
         {
             IAzureAD azureAD = new AzureAD();
             this.dncHttpUtility = httpUtilityFactory.Resolve(Constants.DncHttpUtility);
             this.httpUtility = httpUtilityFactory.Resolve(Constants.HttpUtility);
             this.azVnetBroker = new AzVNetBroker(httpUtility, logger, azureAD);
-            logger.CLogInformation("DelegateSubnetController initialized");          
+            logger.CLogInformation("DelegateSubnetController initialized");
         }
 
         /// <summary>
@@ -114,8 +114,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <returns></returns>
         [HttpPut]
         public async Task<ContentResult> PutDelegateSubnet(
-            string subscriptionId, 
-            string resourceGroup, 
+            string subscriptionId,
+            string resourceGroup,
             string resourceName)
         {
             this.logger.CLogInformation($"PutDelegateSubnet URI: {HttpContext.Request.GetDisplayUrl()}");
@@ -210,7 +210,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <param name="requestBody"></param>
         /// <returns></returns>
         private async Task<DelegateSubnet> ExecuteDelegateSubnetAsync(
-            string subscriptionId, 
+            string subscriptionId,
             string resourceGroup,
             string resourceName,
             DelegateSubnetRequest requestBody)
@@ -249,7 +249,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 // Get the VirtualNetwork and ensure it is ready to update.
                 string VNetResourceId = AzVNetBroker.GetVNetResourceId(subnetSubId, subnetResourceGroupId, vnetName);
                 NetworkModel.VirtualNetwork virtualNetwork = await azVnetBroker.GetVirtualNetworkAsync(tenantId, VNetResourceId);
-                ValidateVirtualNetwork(virtualNetwork, VNetResourceId);
+                ValidateVirtualNetworkAndSubnet(virtualNetwork, VNetResourceId, subnetName);
 
                 // Insert the Subnet configuration
                 string delegatedSubnetGuid = Guid.NewGuid().ToString();
@@ -271,7 +271,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                     associatedSubnetId);
 
                 // call dnc gateway for join subnet
-                await DncJoinSubnetAsync (
+                await DncJoinSubnetAsync(
                      subscriptionId,
                      resourceGroup,
                      resourceName,
@@ -319,7 +319,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                          authToken,
                          controller,
                          requestBody);
-                }              
+                }
             }
 
             return delegateSubnet;
@@ -358,7 +358,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             // do dnc get subnet to check if join completed
             DncSettings dncSettings = CurrentContext.DncSettings;
             logger.CLogInformation("Dncsettings timeout: RC:{0} RI:{1} RT:{2}", dncSettings.RetryCount, dncSettings.RetryIntervalInSeconds, dncSettings.RetryTimeoutInSeconds);
-            await AsyncRetry.Retry(() => CheckIfSubnetJoined(dncClient, vnetId, subnetName), dncSettings.RetryCount, 
+            await AsyncRetry.Retry(() => CheckIfSubnetJoined(dncClient, vnetId, subnetName), dncSettings.RetryCount,
                 TimeSpan.FromSeconds(dncSettings.RetryIntervalInSeconds), TimeSpan.FromSeconds(dncSettings.RetryTimeoutInSeconds));
             await tableOperations.DelegatedSubnetConfigurationOperations.InsertOrUpdateAsync(
                       subscriptionId,
@@ -387,7 +387,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             string tenantId,
             string vnetName,
             string subnetName,
-            string delegatedSubnetGuid, 
+            string delegatedSubnetGuid,
             string vnetResourceGuid,
             string subnetResourceId)
         {
@@ -409,7 +409,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 
             // SetResourceOwnership is already set
             // Avoid this call if Ownership is already set on a VNet
-            ResourceOwnershipResponse resourceOwnershipResponse = 
+            ResourceOwnershipResponse resourceOwnershipResponse =
                 await azVnetBroker
                 .SetResourceOwnershipForCustomerVnetAsync(
                     tenantId,
@@ -429,10 +429,10 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             return salDetail.Properties.PrimaryContextId;
         }
 
-        private void ValidateAndGetSubnet(string subnetResourceId, 
-            out string subnetSubId, 
-            out string subnetResourceGroupId, 
-            out string vnetName, 
+        private void ValidateAndGetSubnet(string subnetResourceId,
+            out string subnetSubId,
+            out string subnetResourceGroupId,
+            out string vnetName,
             out string subnetName)
         {
             subnetSubId = String.Empty;
@@ -464,9 +464,10 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <param name="containerGroup">The container group.</param>
         /// <param name="virtualNetwork">The azure virtual network.</param>
         /// <param name="virtualNetworkResourceId">The virtual network resource Id.</param>
-        private static void ValidateVirtualNetwork(
+        private static void ValidateVirtualNetworkAndSubnet(
             NetworkModel.VirtualNetwork virtualNetwork,
-            string VNetResourceId)
+            string VNetResourceId,
+            string subnetName)
         {
             if (virtualNetwork == null)
             {
@@ -483,6 +484,16 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                    errorCode: ErrorResponseCode.InvalidVirtualNetworkLocation,
                    errorMessage: $"ResourceId: {VNetResourceId} is created in a different location: {virtualNetwork.Location}, Expected Location: {CurrentContext.AzureRegion}");
             }
+
+            foreach (var subnet in virtualNetwork.Subnets)
+            {
+                if (subnet.Name.Equals(subnetName))
+                {
+                    return;
+                }
+            }
+
+            throw new ErrorResponseMessageException(HttpStatusCode.BadRequest, ErrorResponseCode.SubnetNotFound, $"Subnet {subnetName} not found");
 
             // todo - Handle validation for provisioning state
 
@@ -534,14 +545,14 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             string VNetResourceId = AzVNetBroker.GetVNetResourceId(subnetSubId, subnetResourceGroupId, vnetName);
 
             NetworkModel.VirtualNetwork virtualNetwork = await azVnetBroker.GetVirtualNetworkAsync(tenantId, VNetResourceId);
-            ValidateVirtualNetwork(virtualNetwork, VNetResourceId);
-            
+            ValidateVirtualNetworkAndSubnet(virtualNetwork, VNetResourceId, subnetName);
+
             // call dnc and delete subnet
             await DncDeleteSubnetAsync(
-                subscriptionId, 
-                resourceGroup, 
-                virtualNetwork.ResourceGuid, 
-                subnetName, 
+                subscriptionId,
+                resourceGroup,
+                virtualNetwork.ResourceGuid,
+                subnetName,
                 delegateSubnet);
 
             logger.CLogInformation("Deleting ServiceAssociationLink for {0}", associatedSubnetId);
@@ -586,14 +597,14 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             }
 
             ControllerProperties controllerProperties = (ControllerProperties)controller.Properties;
-                 
+
             // Initialize dnc client with gateway endpoint
             DncClient dncClient = new DncClient(this.dncHttpUtility, this.logger,
                                       controllerProperties.PropertiesList.DncEndpoint);
 
             bool.TryParse(HttpContext.Request.Query["forceDelete"], out bool forceDelete);
             // call dnc delete subnet
-            logger.CLogInformation("Going to call dnc delete subnet for subnetname {0} vnet id {1} to dnc ep {2} forceDelete{3}", 
+            logger.CLogInformation("Going to call dnc delete subnet for subnetname {0} vnet id {1} to dnc ep {2} forceDelete{3}",
                 subnetName, vnetId, controllerProperties.PropertiesList.DncEndpoint, forceDelete);
             await dncClient.DeleteSubnetAsync(vnetId, subnetName, forceDelete);
 
@@ -606,7 +617,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         private async Task CheckIfSubnetDeleted(
             IDncClient dncClient,
             string vnetId,
-            string subnetName)   
+            string subnetName)
         {
             HttpResponseMessage response = await dncClient.GetSubnetAsync(vnetId, subnetName);
             if (response.StatusCode != HttpStatusCode.NotFound)
