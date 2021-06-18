@@ -216,6 +216,20 @@ stages:
                 export KUBECONFIG="_output/${resource_group}/kubeconfig/kubeconfig.eastus2euap.json"
                 az keyvault secret set --name "kubeconfig-${resource_group}" --vault-name mdncnightlytestkv --file "$KUBECONFIG" > /dev/null
                 vnet_name=$(az resource list -g "$resource_group" --resource-type Microsoft.Network/virtualNetworks --query '[0].name' --output tsv)
+                az network vnet subnet update --name "k8s-subnet" --resource-group "$resource_group" --vnet-name "$vnet_name" --disable-private-link-service-network-policies true
+
+                az network lb create --resource-group "$resource_group" --name "ilb-test" --sku Standard --vnet-name "$vnet_name" --subnet "k8s-subnet" --frontend-ip-name feinternal-test --backend-pool-name be-test
+                az network lb probe create --resource-group "$resource_group" --lb-name ilb-test --name ilbprobe-test --protocol tcp --port 443
+                az network lb rule create --resource-group "$resource_group" --lb-name ilb-test --name ilbrule-test --protocol tcp --frontend-port 443 --backend-port 443 --frontend-ip-name feinternal-test --backend-pool-name be-test --probe-name ilbprobe-test --idle-timeout 15 --enable-tcp-reset true
+                
+                master_vm_name=$(az vm list -g "$resource_group" --show-details --query "[?contains(name, 'master')].{Name:name}" -o tsv)
+                master_vm_nic_resource_id=$(az vm nic list --vm-name "$master_vm_name" -g "$resource_group" --query "[0].id" -o tsv)
+                master_vm_nic_name=$(az vm nic show --vm-name "$master_vm_name" -g "$resource_group" --nic "$master_vm_nic_resource_id" --query "{name:name}" -o tsv)
+
+                az network nic ip-config address-pool add --address-pool be-test --ip-config-name "ipconfig1" --nic-name "$master_vm_nic_name" --resource-group "$resource_group" --lb-name ilb-test
+                az network private-link-service create -g  "$resource_group" -n ple2etest --vnet-name "$vnet_name" --subnet "k8s-subnet" --lb-name ilb-test --lb-frontend-ip-configs feinternal-test -l eastus2euap
+                az network private-link-service update -g "$resource_group" -n ple2etest --visibility "9b8218f9-902a-4d20-a65c-e98acec5362f"  --auto-approval "9b8218f9-902a-4d20-a65c-e98acec5362f"
+                
                 az network vnet subnet create --name "pod-subnet" \
                   -g "$resource_group" \
                   --vnet-name "$vnet_name" \
@@ -249,8 +263,11 @@ stages:
                 set -ex
                 resource_group=$(Build.SourceBranchName)-$(git rev-parse --short HEAD)-rp-resources
                 kubeconfig_secret="kubeconfig-$(Build.SourceBranchName)-$(git rev-parse --short HEAD)-cx-cluster"
+                cx_resource_group=$(Build.SourceBranchName)-$(git rev-parse --short HEAD)-cx-cluster
                 az keyvault secret download -f kubeconfig.json -n "$kubeconfig_secret" --vault-name mdncnightlytestkv
-                az group create -l eastus2euap -g "$resource_group"
+                if [[ "$(az group exists --name "$resource_group")" == "false" ]]; then
+                  az group create --name "$resource_group" --location "eastus2euap"
+                fi
                 az cloud register -n USEast2EUAP \
                   --endpoint-active-directory https://login.microsoftonline.com \
                   --endpoint-active-directory-graph-resource-id https://graph.windows.net/ \
@@ -263,26 +280,35 @@ stages:
                 az cloud set -n USEast2EUAP
                 az login --service-principal -u $servicePrincipalId -p $servicePrincipalKey --tenant $tenantId
                 az account set -s "9b8218f9-902a-4d20-a65c-e98acec5362f"
-                az group deployment create \
-                  -n deploy-controller \
-                  -g "$resource_group" \
-                  -f controller.json
+                az extension add --name dnc
+                az dnc controller create \
+                --location "eastus2euap" \
+                --resource-group "$resource_group" \
+                --resource-name "mdnc-e2e-controller"
                 controller_arm_id=$(az resource list -g "$resource_group" --resource-type Microsoft.DelegatedNetwork/controller --query '[0].id' --output tsv)
                 ca_data=$(jq -r '.clusters[0].cluster["certificate-authority-data"]' kubeconfig.json)
                 apiserver=$(jq -r '.clusters[0].cluster.server' kubeconfig.json)
-                az group deployment create \
-                  -n deploy-orchestrator \
-                  -g "$resource_group" \
-                  -f orchestrator.json \
-                  --parameters clusterRootCA="$ca_data" apiServerEndpoint="$apiserver" controllerArmID="$controller_arm_id"
+                private_link_resource_id=$(az network private-link-service show -g "$cx_resource_group" --name ple2etest --query "{id:id}" -o tsv)
+                az dnc orchestrator-instance-service create \
+                --type "SystemAssigned" \
+                --location "eastus2euap"  \
+                --api-server-endpoint "$apiserver"  \
+                --cluster-root-ca "$ca_data" \
+                --id "$controller_arm_id" \
+                --orchestrator-app-id "4daa1833-1fda-4c06-88b4-d0dcbe8cc169" \
+                --orchestrator-tenant-id "72f988bf-86f1-41af-91ab-2d7cd011db47" \
+                --priv-link-resource-id "$private_link_resource_id" \
+                --resource-group "$resource_group" \
+                --resource-name "mdnc-e2e-cx-cluster" 
                 cx_resource_group=$(Build.SourceBranchName)-$(git rev-parse --short HEAD)-cx-cluster
                 cx_vnet_id=$(az resource list -g "$cx_resource_group" --resource-type Microsoft.Network/virtualNetworks --query '[0].id' --output tsv)
                 cx_subnet_id=$(az network vnet show --ids $cx_vnet_id --query "subnets[?name=='pod-subnet']|[0].id" --output tsv)
-                az group deployment create \
-                  -n deploy-delegated-subnet \
-                  -g "$resource_group" \
-                  -f delegatedSubnet.json \
-                  --parameters controllerArmID="$controller_arm_id" subnetArmID="$cx_subnet_id"
+                az dnc delegated-subnet-service create \
+                --location "eastus2euap" \
+                --id "$controller_arm_id" \
+                --subnet-details-id "$cx_subnet_id" \
+                --resource-group "$resource_group" \
+                --resource-name "delegated-k8s-pod-subnet"               
               workingDirectory: "src/DncRP/testdata"
             name: "DeployRPResources"
             displayName: "Deploy RP Resources"
@@ -426,8 +452,9 @@ stages:
                   az login --service-principal -u $servicePrincipalId -p $servicePrincipalKey --tenant $tenantId
                   az account set -s "9b8218f9-902a-4d20-a65c-e98acec5362f"
                 fi
+                az extension add --name dnc                
                 delegated_subnet_arm_id=$(az resource list -g "$resource_group" --resource-type Microsoft.DelegatedNetwork/delegatedSubnets --query '[0].id' --output tsv)
-                az resource delete --ids "$delegated_subnet_arm_id"
+                az dnc delegated-subnet-service delete --ids "$delegated_subnet_arm_id" --yes
             name: "DeleteDelegatedSubnet"
             displayName: "Delete Delegate Subnet"
             condition: succeeded()
@@ -459,10 +486,11 @@ stages:
                   az login --service-principal -u $servicePrincipalId -p $servicePrincipalKey --tenant $tenantId
                   az account set -s "9b8218f9-902a-4d20-a65c-e98acec5362f"
                 fi
+                az extension add --name dnc                
                 orchestrator_arm_id=$(az resource list -g "$resource_group" --resource-type Microsoft.DelegatedNetwork/orchestrators --query '[0].id' --output tsv)
-                az resource delete --ids "$orchestrator_arm_id"
+                az dnc orchestrator-instance-service delete --ids "$orchestrator_arm_id" --yes
                 controller_arm_id=$(az resource list -g "$resource_group" --resource-type Microsoft.DelegatedNetwork/controller --query '[0].id' --output tsv)
-                az resource delete --ids "$controller_arm_id"
+                az dnc controller delete --ids "$controller_arm_id" --yes
                 az group delete -g "$resource_group" -y
             name: "DeleteRPResources"
             displayName: "Delete RP Resources"
