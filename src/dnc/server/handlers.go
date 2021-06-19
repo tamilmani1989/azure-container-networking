@@ -80,7 +80,6 @@ func CreateOrUpdateNode(w http.ResponseWriter, r *http.Request) {
 	config := ctrler.GetConfig()
 	var nodeInfo api.NodeInfoRequest
 
-	w.Header().Set(contentTypeStr, defaultContentType)
 	if err := decodeRequestBody(r, &nodeInfo); err != nil {
 		w.WriteHeader(http.StatusUnprocessableEntity)
 		if err := json.NewEncoder(w).Encode(err); err != nil {
@@ -95,10 +94,8 @@ func CreateOrUpdateNode(w http.ResponseWriter, r *http.Request) {
 
 	putNodeInfoErr := ctrler.PersistNodeInfo(nodeID, &nodeInfo, apiVersion)
 	if putNodeInfoErr != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		if err := json.NewEncoder(w).Encode(putNodeInfoErr); err != nil {
-			panic(err)
-		}
+		setRequestFailed(w, putNodeInfoErr)
+		return
 	} else {
 		w.WriteHeader(http.StatusOK)
 	}
@@ -499,7 +496,7 @@ func CreateNodeSet(w http.ResponseWriter, r *http.Request) {
 	//  until we add any required fields, we want to allow empty body or empty json object.
 	if len(bs) != 0 {
 		var m map[string]interface{}
-		if err := json.NewDecoder(r.Body).Decode(&m); err != nil {
+		if err := json.Unmarshal(bs, &m); err != nil {
 			setRequestFailed(w, api.BadRequest(api.JsonBodyUnMarshalFailed, fmt.Sprintf("could not parse node set request body: %v", err)))
 			return
 		}

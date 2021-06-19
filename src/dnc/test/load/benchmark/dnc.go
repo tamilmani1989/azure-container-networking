@@ -8,6 +8,7 @@ import (
 	"dnc/datamodel"
 	"dnc/retry"
 	"errors"
+	"fmt"
 	"math"
 	"net/http"
 	"sync"
@@ -26,26 +27,30 @@ type DNC struct {
 	Client *client.DncClient
 }
 
-/*
-  todo: methods should return errors instead of fataling.
-   will handle with errgroup which makes it easier but needs to be vendored
-*/
+func (d *DNC) CreateVnets(vnetIDs []string) ([]time.Duration, error) {
+	var (
+		ds         []time.Duration
+		vnetErrors MultiError
+	)
 
-func (d *DNC) CreateVnets(vnetIDs []string) []time.Duration {
-	var ds []time.Duration
 	for _, vnetID := range vnetIDs {
 		start := time.Now()
 		if err := d.Client.AddNetwork(vnetID); err.HTTPStatus != http.StatusOK {
-			logrus.Fatalf("could not create vnet: %v", err)
+			vnetErrors.Collect(fmt.Errorf("could not create vnet: %v", err))
+			continue
 		}
 		logrus.Infof("vnet %s posted", vnetID)
 		ds = append(ds, time.Since(start))
 	}
-	return ds
+
+	return ds, vnetErrors.Any()
 }
 
-func (d *DNC) JoinSubnets(ctx context.Context, vnetIDToSubnets map[string][]string) []time.Duration {
-	var ds []time.Duration
+func (d *DNC) JoinSubnets(ctx context.Context, vnetIDToSubnets map[string][]string) ([]time.Duration, error) {
+	var (
+		ds           []time.Duration
+		subnetErrors MultiError
+	)
 
 	for vnetID, subnets := range vnetIDToSubnets {
 		for _, subnet := range subnets {
@@ -61,7 +66,8 @@ func (d *DNC) JoinSubnets(ctx context.Context, vnetIDToSubnets map[string][]stri
 			start := time.Now()
 			// requires retries if using prepopulated allocs, for example
 			if err := defaultRetrier.Do(ctx, subnetJoinFunc); err != nil {
-				logrus.Fatalf("could not persist vnet %s subnet %s: %v", vnetID, subnet, err)
+				subnetErrors.Collect(fmt.Errorf("could not persist vnet %s subnet %s: %v", vnetID, subnet, err))
+				continue
 			}
 			end := time.Since(start)
 
@@ -70,14 +76,20 @@ func (d *DNC) JoinSubnets(ctx context.Context, vnetIDToSubnets map[string][]stri
 		}
 	}
 
-	return ds
+	return ds, subnetErrors.Any()
 }
 
-func (d *DNC) CreateNodes(ctx context.Context, workerCount int, nodeRequests []NodeRequest) []time.Duration {
+func (d *DNC) CreateNodes(ctx context.Context, workerCount int, nodeRequests []NodeRequest) ([]time.Duration, error) {
 	var (
 		nodeCreationTimes durations
 		wg                sync.WaitGroup
+		nodeErrors        MultiError
 	)
+
+	cancelLog := async.IntervalDo(time.Second*3, func() {
+		logrus.Infof("created %d nodes", nodeCreationTimes.Len())
+	})
+	defer cancelLog()
 
 	nodeReqCh := streamNodeRequests(nodeRequests)
 	wg.Add(workerCount)
@@ -86,7 +98,7 @@ func (d *DNC) CreateNodes(ctx context.Context, workerCount int, nodeRequests []N
 			defer wg.Done()
 			for req := range nodeReqCh {
 				createNodeFunc := func() error {
-					err := d.Client.AddNode(req.NodeID, req.NodeReq.IPAddresses[0], req.NodeReq.OrchestratorType, req.NodeReq.InfrastructureNetwork, "", "", "", 0)
+					err := d.Client.AddNode(req.NodeID, req.NodeReq.IPAddresses[0], req.NodeReq.OrchestratorType, req.NodeReq.InfrastructureNetwork, "", "", req.NodeReq.NodeSet, 0)
 					if err.HTTPStatus != http.StatusOK {
 						return err
 					}
@@ -95,7 +107,8 @@ func (d *DNC) CreateNodes(ctx context.Context, workerCount int, nodeRequests []N
 
 				nodeCreateStart := time.Now()
 				if err := defaultRetrier.Do(ctx, createNodeFunc); err != nil {
-					logrus.Fatalf("could not create node %s: %v", req.NodeID, err)
+					nodeErrors.Collect(fmt.Errorf("could not create node %s: %v", req.NodeID, err))
+					continue
 				}
 
 				nodeCreationTimes.Add(time.Since(nodeCreateStart))
@@ -105,13 +118,14 @@ func (d *DNC) CreateNodes(ctx context.Context, workerCount int, nodeRequests []N
 
 	wg.Wait()
 
-	return nodeCreationTimes.GetAll()
+	return nodeCreationTimes.GetAll(), nodeErrors.Any()
 }
 
-func (d *DNC) CreateNCs(ctx context.Context, workerCount int, ncRequests []NCRequest) []time.Duration {
+func (d *DNC) CreateNCs(ctx context.Context, workerCount int, ncRequests []NCRequest) ([]time.Duration, error) {
 	var (
 		ncCreationTimes durations
 		wg              sync.WaitGroup
+		ncErrors        MultiError
 	)
 
 	cancelLog := async.IntervalDo(time.Second*10, func() {
@@ -135,7 +149,8 @@ func (d *DNC) CreateNCs(ctx context.Context, workerCount int, ncRequests []NCReq
 					return nil
 				})
 				if err != nil {
-					logrus.Fatalf("could not create nc %s: %v", req.NCID, err)
+					ncErrors.Collect(fmt.Errorf("could not create nc %s: %v", req.NCID, err))
+					continue
 				}
 
 				ncCreationTimes.Add(time.Since(ncCreateStart))
@@ -145,13 +160,14 @@ func (d *DNC) CreateNCs(ctx context.Context, workerCount int, ncRequests []NCReq
 
 	wg.Wait()
 
-	return ncCreationTimes.GetAll()
+	return ncCreationTimes.GetAll(), ncErrors.Any()
 }
 
-func (d *DNC) GetAllNCResponses(ctx context.Context, workerCount int, ncRequests []NCRequest) []NCResponse {
+func (d *DNC) GetAllNCResponses(ctx context.Context, workerCount int, ncRequests []NCRequest) ([]NCResponse, error) {
 	var (
 		responses ncResponses
 		wg        sync.WaitGroup
+		ncErrors  MultiError
 	)
 
 	cancelLog := async.IntervalDo(time.Second*10, func() {
@@ -167,7 +183,7 @@ func (d *DNC) GetAllNCResponses(ctx context.Context, workerCount int, ncRequests
 			for req := range ncVerifyCh {
 				stats, err := d.getNCResponse(ctx, req.VnetID, req.NCID)
 				if err != nil {
-					logrus.Errorf("could not verify nc %s: %v", req.NCID, err)
+					ncErrors.Collect(fmt.Errorf("could not verify nc %s: %v", req.NCID, err))
 					continue
 				}
 				responses.Add(stats)
@@ -176,7 +192,7 @@ func (d *DNC) GetAllNCResponses(ctx context.Context, workerCount int, ncRequests
 	}
 
 	wg.Wait()
-	return responses.GetAll()
+	return responses.GetAll(), ncErrors.Any()
 }
 
 var ncRetrier = retry.Retrier{

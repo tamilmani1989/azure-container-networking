@@ -15,6 +15,7 @@ import (
 	"dnc/test/k8s"
 	"dnc/test/load/benchmark"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -96,34 +97,47 @@ func TestOpenAI(t *testing.T) {
 	defer dncPortForward.Stop()
 
 	t.Logf("successfully port forwarded to dnc: %s", dncPortForward.Url())
-	b := benchmark.DNC{Client: client.NewDncClient(dncPortForward.Url())}
+
+	dncClient := client.NewDncClient(dncPortForward.Url())
+	b := benchmark.DNC{Client: dncClient}
 
 	vnetIDs := extractVnetIDs(vnets)
-	vnetCreateTimes := b.CreateVnets(vnetIDs)
+	vnetCreateTimes, err := b.CreateVnets(vnetIDs)
+	require.NoError(t, err)
 	t.Logf("%d vnets posted. avg time: %v", len(vnets), benchmark.Average(vnetCreateTimes))
 
 	vnetProcessWait := time.Second * 10
 	t.Logf("waiting %s for some background operations", vnetProcessWait.String())
 	time.Sleep(vnetProcessWait)
 
+	orchestratorID := uuid.New().String()
+
+	t.Logf("creating node set (orchestrator ID) %s", orchestratorID)
+	apiErr := dncClient.CreateNodeSet(orchestratorID)
+	require.Nil(t, apiErr)
+
 	t.Log("posting subnets")
 	vnetToSubnets := extractVnetToSubnets(vnets)
-	subnetJoinTimes := b.JoinSubnets(ctx, vnetToSubnets)
+	subnetJoinTimes, err := b.JoinSubnets(ctx, vnetToSubnets)
+	require.NoError(t, err)
 	t.Logf("%d subnets joined. avg time: %v", len(subnetJoinTimes), benchmark.Average(subnetJoinTimes))
 
-	nodeRequests, ncRequests := generateOpenAINodesAndNCs(vnets, ncsPerSubnet, 32)
-	t.Logf("creating %d nodes", len(nodeRequests))
-	nodeCreationTimes := b.CreateNodes(ctx, workerCount, nodeRequests)
+	nodeRequests, ncRequests := generateOpenAINodesAndNCs(vnets, orchestratorID, ncsPerSubnet, 32)
+	t.Logf("creating %d nodes on node set (orchestrator ID) %s", len(nodeRequests), orchestratorID)
+	nodeCreationTimes, err := b.CreateNodes(ctx, workerCount, nodeRequests)
+	require.NoError(t, err)
 	t.Logf("created %d nodes", len(nodeRequests))
 
 	t.Logf("submitting %d ncs for processing", len(ncRequests))
-	ncCreationTimes := b.CreateNCs(ctx, workerCount, ncRequests)
+	ncCreationTimes, err := b.CreateNCs(ctx, workerCount, ncRequests)
+	require.NoError(t, err)
 	t.Logf("submitted %d ncs for processing", len(ncRequests))
 
 	t.Logf("verifying %d ncs", len(ncRequests))
 	collectCtx, cancel := context.WithTimeout(ctx, time.Minute*20)
 	defer cancel()
-	allStats := b.GetAllNCResponses(collectCtx, workerCount, ncRequests)
+	allStats, err := b.GetAllNCResponses(collectCtx, workerCount, ncRequests)
+	require.NoError(t, err)
 
 	var (
 		timesToProgram         []time.Duration
@@ -158,8 +172,8 @@ func TestOpenAI(t *testing.T) {
 	openAISuite.AddTestCases(createNodeTestCases)
 
 	reachProgramTestCases := assertStats(t, "reach NC Program Complete state", timesToProgram, []percentileAssertion{
-		{percentile: 0.5, below: 1 * time.Minute},
-		{percentile: 0.9, below: 2 * time.Minute},
+		{percentile: 0.5, below: 1*time.Minute + 30*time.Second},
+		{percentile: 0.9, below: 2*time.Minute + 30*time.Second},
 		{percentile: 0.95, below: 3 * time.Minute},
 		{percentile: 0.99, below: 4 * time.Minute},
 		{percentile: 0.999, below: 5 * time.Minute},
@@ -167,7 +181,7 @@ func TestOpenAI(t *testing.T) {
 
 	openAISuite.AddTestCases(reachProgramTestCases)
 
-	allocateIPTestCases := assertStats(t, "allocate 32 IPs", nodeCreationTimes, []percentileAssertion{
+	allocateIPTestCases := assertStats(t, "allocate 32 secondary IPs per NC", nodeCreationTimes, []percentileAssertion{
 		{percentile: 0.5, below: 10 * time.Second},
 		{percentile: 0.9, below: 20 * time.Second},
 		{percentile: 0.95, below: 30 * time.Second},
@@ -185,9 +199,39 @@ func TestOpenAI(t *testing.T) {
 	bs, _ := json.MarshalIndent(tailNC, "", "  ")
 	t.Logf("tail program time: nc id %s:\n%v", tailNC.NCResponse.NcID, string(bs))
 
-	// todo: find way to add tail program nc to suite output
-	openAISuite.Time = junit.FmtDuration(time.Since(start))
-	suites.Suites = append(suites.Suites, openAISuite)
+	defer func() {
+		openAISuite.Time = junit.FmtDuration(time.Since(start))
+		suites.Suites = append(suites.Suites, openAISuite)
+	}()
+
+	t.Logf("force deleting node set (orchestrator ID) %s", orchestratorID)
+	nodeSetDeletionStart := time.Now()
+	apiErr = dncClient.DeleteNodeSet(orchestratorID, true)
+	require.Nil(t, apiErr)
+
+	t.Log("polling for remaining nodes")
+
+	cleanupRetrier := retry.Retrier{Attempts: 100, Delay: time.Second * 5}
+	err = cleanupRetrier.Do(ctx, func() error {
+		resp, apiErr := dncClient.GetNodes(orchestratorID)
+		if apiErr != nil && apiErr.HTTPStatus != http.StatusOK {
+			t.Logf("could not get nodes: %v", apiErr)
+			return apiErr
+		}
+
+		if resp == nil {
+			return errors.New("no response body")
+		}
+
+		if len(resp.Nodes) > 0 {
+			t.Logf("%d nodes remaining in node set", len(resp.Nodes))
+			return errors.New("nodes remaining, retry")
+		}
+
+		return nil
+	})
+	require.NoError(t, err)
+	t.Logf("all nodes on node set (orchestrator ID) %s removed. took %v", orchestratorID, time.Since(nodeSetDeletionStart))
 }
 
 type percentileAssertion struct {
@@ -331,14 +375,14 @@ func generateOpenAITopology(vnetCount int) map[string]nmagentcontracts.VirtualNe
 	// todo: configurable subnet mask
 	for i := 0; i < vnetCount; i++ {
 		vnetID, vnet := generateVnet()
-		vnet.Subnets = append(vnet.Subnets, nmagentcontracts.Subnet{SubnetName: "subnet1", AddressPrefix: "10.1.0.0/17", DefaultGateway: "10.1.0.1"})
+		vnet.Subnets = append(vnet.Subnets, nmagentcontracts.Subnet{SubnetName: "subnet1", AddressPrefix: "10.1.0.0/16", DefaultGateway: "10.1.0.1"})
 		allVnets[vnetID] = vnet
 	}
 
 	return allVnets
 }
 
-func generateOpenAINodesAndNCs(vnets map[string]nmagentcontracts.VirtualNetworkResponse, ncsPerSubnet int, secondaryIPsPerNC int) ([]benchmark.NodeRequest, []benchmark.NCRequest) {
+func generateOpenAINodesAndNCs(vnets map[string]nmagentcontracts.VirtualNetworkResponse, nodeSet string, ncsPerSubnet int, secondaryIPsPerNC int) ([]benchmark.NodeRequest, []benchmark.NCRequest) {
 	var (
 		nodeRequests []benchmark.NodeRequest
 		ncRequests   []benchmark.NCRequest
@@ -348,7 +392,7 @@ func generateOpenAINodesAndNCs(vnets map[string]nmagentcontracts.VirtualNetworkR
 	for vnetID, vnet := range vnets {
 		for _, subnet := range vnet.Subnets {
 			for i := 0; i < ncsPerSubnet; i++ {
-				nodeId, nodeReq := generateNode(infraVnet)
+				nodeId, nodeReq := generateNode(infraVnet, nodeSet)
 				ncID, ncReq := generateNC(nodeId, subnet.SubnetName, secondaryIPsPerNC)
 
 				nodeRequests = append(nodeRequests, benchmark.NodeRequest{NodeID: nodeId, NodeReq: nodeReq})
@@ -372,12 +416,13 @@ func generateVnet() (string, nmagentcontracts.VirtualNetworkResponse) {
 	return vnetID, vnet
 }
 
-func generateNode(infraVnet string) (string, api.NodeInfoRequest) {
+func generateNode(infraVnet, nodeSet string) (string, api.NodeInfoRequest) {
 	nodeID := uuid.New().String()
 	node := api.NodeInfoRequest{
 		IPAddresses:           []string{"127.0.0.1"},
 		InfrastructureNetwork: infraVnet,
 		OrchestratorType:      "Kubernetes",
+		NodeSet:               nodeSet,
 	}
 
 	return nodeID, node

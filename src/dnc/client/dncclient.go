@@ -32,6 +32,7 @@ const (
 	apiVersion                 = "?api-version=2018-03-01"
 	storageApi                 = "%s/azurestoragesettingsv3/blob/%s/container/%s" + apiVersion
 	nodeApi                    = "%s/nodes/%s" + apiVersion
+	nodeSetApi                 = "%s/nodesets/%s" + apiVersion
 	networkApi                 = "%s/networks/%s" + apiVersion
 	networkStatusApi           = "%s/networks/%s/status" + apiVersion
 	reservationApi             = "%s/networks/%s/reservations/%s" + apiVersion
@@ -49,7 +50,6 @@ const (
 
 const (
 	jsonContentType   string = "application/json"
-	delete            string = "DELETE"
 	sslCertServerName string = "dnc.azure.com"
 )
 
@@ -157,6 +157,37 @@ func (c *DncClient) AddNode(nodeId, ipaddr, orchestratorType, infraVnet, azId, n
 		reportClientErr(respErr, err)
 	}
 	return
+}
+
+func (c *DncClient) CreateNodeSet(nodeSet string) *api.JsonErr {
+	nodesetURL := fmt.Sprintf(nodeSetApi, c.DncEP, nodeSet)
+
+	req, err := http.NewRequest(http.MethodPut, nodesetURL, bytes.NewBufferString("{}"))
+	if err != nil {
+		return api.InternalServerError(api.StatusInternalServerError, err.Error())
+	}
+
+	resp, err := httpc.Do(req)
+	if err != nil {
+		return api.InternalServerErrorf(api.StatusInternalServerError, "transport error: %v", err)
+	}
+	defer resp.Body.Close()
+
+	bs, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return api.InternalServerError(api.StatusInternalServerError, err.Error())
+	}
+
+	if resp.StatusCode == http.StatusOK {
+		return nil
+	}
+
+	var apiErr api.JsonErr
+	if err := json.Unmarshal(bs, &apiErr); err != nil {
+		return api.InternalServerError(api.StatusInternalServerError, err.Error())
+	}
+
+	return &apiErr
 }
 
 func (c *DncClient) AddNetwork(networkId string) (respErr *api.JsonErr) {
@@ -746,7 +777,7 @@ func (c *DncClient) DeleteNode(nodeId string) (respErr *api.JsonErr) {
 		response *http.Response
 		err      error
 		nodeURL  = fmt.Sprintf(nodeApi, c.DncEP, nodeId)
-		req, _   = http.NewRequest(delete, nodeURL, nil)
+		req, _   = http.NewRequest(http.MethodDelete, nodeURL, nil)
 	)
 
 	respErr = &api.JsonErr{HTTPStatus: http.StatusOK}
@@ -765,12 +796,47 @@ func (c *DncClient) DeleteNode(nodeId string) (respErr *api.JsonErr) {
 	return
 }
 
+func (c *DncClient) DeleteNodeSet(nodeSet string, force bool) *api.JsonErr {
+	nodesetURL := fmt.Sprintf(nodeSetApi, c.DncEP, nodeSet)
+
+	if force {
+		nodesetURL += "&force-delete=true"
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, nodesetURL, nil)
+	if err != nil {
+		return api.InternalServerError(api.StatusInternalServerError, err.Error())
+	}
+
+	resp, err := httpc.Do(req)
+	if err != nil {
+		return api.InternalServerErrorf(api.StatusInternalServerError, "transport error: %v", err)
+	}
+	defer resp.Body.Close()
+
+	bs, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return api.InternalServerError(api.StatusInternalServerError, err.Error())
+	}
+
+	if resp.StatusCode == http.StatusAccepted || resp.StatusCode == http.StatusOK {
+		return nil
+	}
+
+	var apiErr api.JsonErr
+	if err := json.Unmarshal(bs, &apiErr); err != nil {
+		return api.InternalServerError(api.StatusInternalServerError, err.Error())
+	}
+
+	return &apiErr
+}
+
 func (c *DncClient) DeleteNetwork(networkId string) (respErr *api.JsonErr) {
 	var (
 		response   *http.Response
 		err        error
 		networkURL = fmt.Sprintf(networkApi, c.DncEP, networkId)
-		req, _     = http.NewRequest(delete, networkURL, nil)
+		req, _     = http.NewRequest(http.MethodDelete, networkURL, nil)
 	)
 
 	respErr = &api.JsonErr{HTTPStatus: http.StatusOK}
@@ -795,7 +861,7 @@ func (c *DncClient) DeleteSubnet(networkId, subnet string, apiversion string) (r
 		err                error
 		subnetURLFormat, _ = getsubnetApiUri(apiversion)
 		subnetURL          = fmt.Sprintf(subnetURLFormat, c.DncEP, networkId, subnet)
-		req, _             = http.NewRequest(delete, subnetURL, nil)
+		req, _             = http.NewRequest(http.MethodDelete, subnetURL, nil)
 	)
 
 	respErr = &api.JsonErr{HTTPStatus: http.StatusOK}
@@ -819,7 +885,7 @@ func (c *DncClient) DeleteNC(networkId, ncId string) (respErr *api.JsonErr) {
 		response *http.Response
 		err      error
 		ncURL    = fmt.Sprintf(ncApi, c.DncEP, networkId, ncId)
-		req, _   = http.NewRequest(delete, ncURL, nil)
+		req, _   = http.NewRequest(http.MethodDelete, ncURL, nil)
 	)
 
 	respErr = &api.JsonErr{HTTPStatus: http.StatusOK}
@@ -843,7 +909,7 @@ func (c *DncClient) DeleteReservation(networkId, reservationId string) (respErr 
 		response       *http.Response
 		err            error
 		reservationURL = fmt.Sprintf(reservationApi, c.DncEP, networkId, reservationId)
-		req, _         = http.NewRequest(delete, reservationURL, nil)
+		req, _         = http.NewRequest(http.MethodDelete, reservationURL, nil)
 	)
 
 	respErr = &api.JsonErr{HTTPStatus: http.StatusOK}
