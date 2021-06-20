@@ -1154,8 +1154,9 @@ func (c *Controller) deleteSubnetCommon(networkID, subnetName string) *api.JsonE
 			reservationKeys = append(reservationKeys, reservation.RowKey)
 		}
 		reservationsString := "[" + strings.Join(reservationKeys, ", ") + "]"
-		return api.BadRequestf(api.SubnetInUse,
-			"Subnet: %s in Network: %s has allocations: %s", subnetName, networkID, reservationsString)
+		errMsg := fmt.Sprintf("Subnet: %s in Network: %s has allocations: %s", subnetName, networkID, reservationsString)
+		loggershim.LS.Errorf("Cannot delete subnet. error: %s", errMsg)
+		return api.BadRequestf(api.SubnetInUse, errMsg)
 	}
 
 	// Mark the subnet as 'not joined' anymore and persist the updated subnet config
