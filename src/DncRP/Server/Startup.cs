@@ -198,14 +198,6 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                     }
                 });
             });
-
-            RenewMSICerts(app.ApplicationServices.GetRequiredService<ITableOperations>());
-        }
-
-        private async void RenewMSICerts(ITableOperations tableOperations)
-        {
-           // await tableOperations.OrchestratorOperations.GetOrchestratorConfigs("as", "rg", "rname");
-            
         }
 
         private void StartLoggingServiceUpMetric(MdmStatsDProvider provider)
