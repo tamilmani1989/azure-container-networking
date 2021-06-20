@@ -110,6 +110,17 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <summary>
         /// SubnetNotFound
         /// </summary>
-        SubnetNotFound
+        SubnetNotFound,
+
+
+        /// <summary>
+        /// DependentResourcesExists
+        /// </summary>
+        DependentResourceExists,
+
+        /// <summary>
+        /// InvalidOrchestratorRequest
+        /// </summary>
+        InvalidOrchestratorRequest
     }
 }

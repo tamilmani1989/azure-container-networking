@@ -17,6 +17,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
     using Microsoft.AspNetCore.Http;
     using Microsoft.AspNetCore.Mvc;
     using Microsoft.Azure.ContainerNetworking.CoreLib;
+    using Microsoft.Azure.ContainerNetworking.DncRP.Unittests;
     using Microsoft.Extensions.Configuration;
     using Microsoft.Extensions.Logging;
     using Microsoft.Extensions.Options;
@@ -37,6 +38,11 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
         private const string settingsFileName = "servicetests.settings.json";
         private const string connectStrRegex = "RunAs=App;AppId=(.*);TenantId=(.*);AppKey=(.*)";
         private const string mdncGuid = "5c7e26be-7ff9-4aaf-9e16-0bc759605aea";
+        private Mock<ILogger<DelegateSubnetController>> delSubLogger;
+        private Mock<ILogger<SubscriptionRegistrationController>> subscriptionLogger;
+        private Mock<ILogger<DncController>> dncCtrlLogger;
+        private ITableOperations tableOperations;
+        private CosmosDbDataStore dataStore;
 
         public ControllerTests()
         {
@@ -70,6 +76,25 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
                 ResourceGroup = this.testConfig.ResourceGroup,
                 Region = this.testConfig.AzureRegion
             };
+
+            CurrentContext.SetContext(this.configuration["AzureEnvironment"], this.configuration["AzureRegion"]);
+            CurrentContext.SetManagedIdentity(clientIdentity);
+
+            Mock<IOptionsMonitor<DatastoreSettings>> optionsMonitorMock = new Mock<IOptionsMonitor<DatastoreSettings>>();
+            optionsMonitorMock.Setup(o => o.CurrentValue).Returns(datastoreSettings);
+            IConnectionStringProvider connectionStringProvider = new ConnectionStringProvider(
+                this.httpUtility,
+                optionsMonitorMock.Object);
+
+            Mock<ILogger<CosmosDbDataStore>> logger = new Mock<ILogger<CosmosDbDataStore>>();
+            Mock<ILogger<TableOperations>> tableOpLogger = new Mock<ILogger<TableOperations>>();
+            dncCtrlLogger = new Mock<ILogger<DncController>>();
+
+            dataStore = new CosmosDbDataStore(connectionStringProvider, logger.Object);
+            dataStore.InitAsync().GetAwaiter().GetResult();
+            tableOperations = new TableOperations(dataStore, tableOpLogger.Object, this.httpUtility, this.keyVaultUtility);
+
+            SubscriptionRegistrationTests.RegisterSub(this.testConfig.SubscriptionId, tableOperations).GetAwaiter().GetResult();
         }
 
         [Fact]
@@ -103,24 +128,6 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
 
         private async Task TestControllerResouce_Get_Put_Delete_Internal(string ctrlName, string rgName, string location, string expectedCtrlResouceGuid)
         {
-            CurrentContext.SetContext(this.configuration["AzureEnvironment"], this.configuration["AzureRegion"]);
-            CurrentContext.SetManagedIdentity(clientIdentity);
-
-            Mock<IOptionsMonitor<DatastoreSettings>> optionsMonitorMock = new Mock<IOptionsMonitor<DatastoreSettings>>();
-            optionsMonitorMock.Setup(o => o.CurrentValue).Returns(datastoreSettings);
-            IConnectionStringProvider connectionStringProvider = new ConnectionStringProvider(
-                this.httpUtility,
-                optionsMonitorMock.Object);
-
-            Mock<ILogger<CosmosDbDataStore>> logger = new Mock<ILogger<CosmosDbDataStore>>();
-            Mock<ILogger<TableOperations>> tableOpLogger = new Mock<ILogger<TableOperations>>();
-            Mock<ILogger<DncController>> dncCtrlLogger = new Mock<ILogger<DncController>>();
-
-            CosmosDbDataStore dataStore = new CosmosDbDataStore(connectionStringProvider, logger.Object);
-            dataStore.InitAsync().GetAwaiter().GetResult();
-            ITableOperations tableOperations = new TableOperations(dataStore, tableOpLogger.Object, this.httpUtility, this.keyVaultUtility);
-
-            await SubscriptionRegistrationTests.RegisterSub(this.testConfig.SubscriptionId, tableOperations);
             DncController dncController = new DncController(tableOperations, dncCtrlLogger.Object);
 
             string expectedId = $"/subscriptions/{this.testConfig.SubscriptionId}/resourceGroups/{rgName}/providers/Microsoft.DelegatedNetwork/controller/{ctrlName}";
@@ -171,6 +178,154 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
 
             // Delete resouce and validate result
             result = await dncController.DeleteDncResource(this.testConfig.SubscriptionId, rgName, ctrlName);
+            Assert.True(HttpStatusCodeCheck.IsSuccess((int)result.StatusCode), "DeleteDncResource failed");
+            Assert.True(result.StatusCode == (int)HttpStatusCode.OK, "DeleteDncResource failed created status check");
+        }
+
+        [Fact]
+        public async void TestControllerDelete_With_OtherResources()
+        {
+            string guid = Guid.NewGuid().ToString();
+            string[] strs = guid.Split(new string[] { "-" }, StringSplitOptions.RemoveEmptyEntries);
+            string rgName = strs[0];
+            string ctrlName = $"AzureContainerNetworking_{guid}";
+            string vnetName = $"testvnet_{guid}";
+            string subnetName = $"testsubnet_{guid}";
+            string dsResourceName = $"testdsresource_{guid}";
+            string orchResourceName = $"testorchresource_{guid}";
+            string privateEndpointName = $"testpe_{guid}";
+            string location = "Central US Euap";
+            string subscriptionId = this.testConfig.SubscriptionId;
+
+            CurrentContext.SetKeyVaultUrl(this.testConfig.KeyVaultUrl);
+            DncController dncController = new DncController(tableOperations, dncCtrlLogger.Object);
+            ControllerRequest request = new ControllerRequest
+            {
+                Location = location
+            };
+
+            // Put resource and validate results
+            this.SetHttpContext(dncController, subscriptionId, rgName, ctrlName, HttpMethod.Put, request);
+            ContentResult result = await dncController.PutDncResource(subscriptionId, rgName, ctrlName);
+            Assert.True(HttpStatusCodeCheck.IsSuccess((int)result.StatusCode), "PutDncResource failed");
+            Assert.True(result.StatusCode == (int)HttpStatusCode.OK, "PutDncResource failed created status check");
+
+            //put delegated subnet resource
+            DelegateSubnetRequest dsRequest = new DelegateSubnetRequest()
+            {
+                Location = CurrentContext.AzureRegion,
+                Properties = new DelegateSubnetRequestProperties()
+                {
+                    SubnetDetails = new SubnetDetails()
+                    {
+                        Id = $"/subscriptions/{subscriptionId}/resourceGroups/{rgName}/providers/Microsoft.Network/virtualNetworks/{vnetName}/subnets/{subnetName}"
+                    },
+                    ControllerDetails = new ControllerDetails()
+                    {
+                        Id = $"/subscriptions/{subscriptionId}/resourceGroups/{rgName}/providers/Microsoft.DelegatedNetwork/controller/{ctrlName}"
+                    }
+                }
+            };
+
+            await this.tableOperations.DelegatedSubnetConfigurationOperations.InsertOrUpdateAsync(
+                subscriptionId,
+                rgName,
+                dsResourceName,
+                Guid.NewGuid().ToString(),
+                Guid.NewGuid().ToString(),
+                DncSubnetStatus.Completed,
+                dsRequest);
+
+            // delete controller resource and it should fail
+            try
+            {
+                result = await dncController.DeleteDncResource(subscriptionId, rgName, ctrlName);
+            }
+            catch (Exception ex)
+            {
+                int statusCode = (int)HttpStatusCode.InternalServerError;
+                ErrorResponseMessageException errorException = ex as ErrorResponseMessageException;
+                if (errorException != null)
+                {
+                    statusCode = (int)errorException.HttpStatus;
+                }
+                Assert.False(HttpStatusCodeCheck.IsSuccess((int)statusCode), "DeleteDncResource should fail");
+                Assert.True(statusCode == (int)HttpStatusCode.Conflict, "DeleteDncResource should fail with conflict");
+            }
+
+            // delete delegatedsubnet resource
+            await this.tableOperations.DelegatedSubnetConfigurationOperations.DeleteAsync(
+                subscriptionId,
+                rgName,
+                dsResourceName);
+            
+            // Delete controller resource and it should succeed
+            result = await dncController.DeleteDncResource(subscriptionId, rgName, ctrlName);
+            Assert.True(HttpStatusCodeCheck.IsSuccess((int)result.StatusCode), "DeleteDncResource failed");
+            Assert.True(result.StatusCode == (int)HttpStatusCode.OK, "DeleteDncResource failed created status check");
+
+            // put dnc controller
+            this.SetHttpContext(dncController, subscriptionId, rgName, ctrlName, HttpMethod.Put, request);
+            result = await dncController.PutDncResource(subscriptionId, rgName, ctrlName);
+            Assert.True(HttpStatusCodeCheck.IsSuccess((int)result.StatusCode), "PutDncResource failed");
+            Assert.True(result.StatusCode == (int)HttpStatusCode.OK, "PutDncResource failed created status check");
+
+            //put orchestrator resource
+            OrchestratorRequest orchRequest = new OrchestratorRequest
+            {
+                Location = location,
+                Kind = OrchestratorKind.Kubernetes,
+                IdentityParameter = new OrchestratorIdentityParameter
+                {
+                    IdentityType = MSIIdentityType.SystemAssigned
+                },
+                Properties = new OrchestratorProperties
+                {
+                    AppId = "546192d7-503f-477a-9cfe-4efc3ee2b6e1", // AAD ID for k8s apiserver auth
+                    TenantId = "da6192d7-503f-477a-9cfe-4efc3ee2b6c3", // Tenant id of above AAD ID
+                    ClusterRootCA = "ddsadsad344mfdsfdl", // Root CA of k8s cluster
+                    ApiServerEndpoint = "https://testk8s.cloudapp.net",  //apiserver url that dnc needs to watch on
+                    PrivateLinkId = $"/subscriptions/9b8218f9-902a-4d20-a65c-e98acec5362f/resourceGroups/{rgName}/providers/Microsoft.Network/privateLinkServices/pltest",
+                    ControllerDetails = new ControllerDetails
+                    {
+                        Id = $"/subscriptions/{subscriptionId}/resourceGroups/{rgName}/providers/Microsoft.DelegatedNetwork/controller/{ctrlName}"
+                    }
+                }
+            };
+            
+            await this.tableOperations.OrchestratorOperations.InsertOrReplaceOrchestratorAsync(
+                subscriptionId,
+                rgName,
+                orchResourceName,
+                privateEndpointName,
+                null,
+                orchRequest
+                );
+
+            try
+            {
+                result = await dncController.DeleteDncResource(subscriptionId, rgName, ctrlName);
+            }
+            catch (Exception ex)
+            {
+                int statusCode = (int)HttpStatusCode.InternalServerError;
+                ErrorResponseMessageException errorException = ex as ErrorResponseMessageException;
+                if (errorException != null)
+                {
+                    statusCode = (int)errorException.HttpStatus;
+                }
+                Assert.False(HttpStatusCodeCheck.IsSuccess((int)statusCode), "DeleteDncResource should fail");
+                Assert.True(statusCode == (int)HttpStatusCode.Conflict, "DeleteDncResource should fail with conflict");
+            }
+
+            // delete orchestrator resource
+            await this.tableOperations.OrchestratorOperations.DeleteOrchestratorAsync(
+                subscriptionId,
+                rgName,
+                orchResourceName);
+
+            // Delete controller resource and it should succeed
+            result = await dncController.DeleteDncResource(subscriptionId, rgName, ctrlName);
             Assert.True(HttpStatusCodeCheck.IsSuccess((int)result.StatusCode), "DeleteDncResource failed");
             Assert.True(result.StatusCode == (int)HttpStatusCode.OK, "DeleteDncResource failed created status check");
         }

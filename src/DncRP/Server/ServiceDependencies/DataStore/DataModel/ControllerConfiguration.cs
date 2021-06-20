@@ -8,6 +8,7 @@
 namespace Microsoft.Azure.ContainerNetworking.DncRP
 {
     using System;
+    using System.Collections.Generic;
     using System.IO;
     using System.Net;
     using System.Threading.Tasks;
@@ -20,6 +21,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
     {
         private ITableDataStore dataStore;
         private const string resourceTableName = "ControllerResource";
+        private const string DelegatedSubnetResourceTableName = "DelegatedSubnetResource";
+        private const string OrchestratorResourceTableName = "OrchestratorInstanceResource";
         private const string mdncGuid = "5c7e26be-7ff9-4aaf-9e16-0bc759605aea";
         private const string mdncFirstPartyId = "a91b1853-4403-4f54-b5cb-d1ea19d90c37";
         private const string dncUrlSuffix = "dnc.azure.com";
@@ -259,6 +262,40 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             {
                 return string.Format(mdncUri, region, dncUrlSuffix);
             }
+        }
+
+        public async Task<List<DelegateSubnet>> GetDelegatedSubnetResourcesByControllerId(string armControllerId)
+        {
+            TableQuery<DelegatedSubnetResourceEntity> tableQuery = new TableQuery<DelegatedSubnetResourceEntity>().Where(
+                    TableQuery.GenerateFilterCondition("ControllerId", QueryComparisons.Equal, armControllerId));
+
+            ICollection<DelegatedSubnetResourceEntity> resourceEntities = await dataStore.GetEntitiesAsync(DelegatedSubnetResourceTableName, tableQuery);
+
+            List<DelegateSubnet> delegateSubnetsList = new List<DelegateSubnet>();
+            foreach(DelegatedSubnetResourceEntity dsEntity in resourceEntities)
+            {
+                DelegateSubnet ds = dsEntity.ConvertToDelegateSubnet();
+                delegateSubnetsList.Add(ds);
+            }
+
+            return delegateSubnetsList;
+        }
+
+        public async Task<List<Orchestrator>> GetOrchestratorResourcesByControllerId(string armControllerId)
+        {
+            TableQuery<OrchestratorResourceEntity> tableQuery = new TableQuery<OrchestratorResourceEntity>().Where(
+                    TableQuery.GenerateFilterCondition("ControllerId", QueryComparisons.Equal, armControllerId));
+
+            ICollection<OrchestratorResourceEntity> resourceEntities = await dataStore.GetEntitiesAsync(OrchestratorResourceTableName, tableQuery);
+
+            List<Orchestrator> orchestratorsList = new List<Orchestrator>();
+            foreach (OrchestratorResourceEntity orchEntity in resourceEntities)
+            {
+                Orchestrator orch = orchEntity.ToOrchestrator();
+                orchestratorsList.Add(orch);
+            }
+
+            return orchestratorsList;
         }
     }
 }

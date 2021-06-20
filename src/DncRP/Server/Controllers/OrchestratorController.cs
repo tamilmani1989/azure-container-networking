@@ -10,9 +10,12 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
     using System.IO;
     using System.Net;
     using System.Net.Http;
+    using System.Net.Http.Headers;
+    using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.Mvc;
     using Microsoft.Azure.ContainerNetworking.CoreLib;
+    using Microsoft.Azure.KeyVault;
     using Microsoft.Extensions.Logging;
     using NetworkModel = Microsoft.Azure.Management.Network.Models;
 
@@ -67,7 +70,16 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 this.logger.CLogInformation("PutOrchestratorResource body: {0}", jsonBody);
 
                 request = JsonUtility.Deserialize<OrchestratorRequest>(jsonBody);
-                request.Identity = this.GetIdentityFromRequestHeaders(HttpContext.Request, request);
+            }
+
+            request.Identity = this.GetIdentityFromRequestHeaders(HttpContext.Request, request);
+            MSIIdentity orchIdentity = await this.GetOrchestratorIdentity(request.Identity);
+            if (orchIdentity == null)
+            {
+                throw new ErrorResponseMessageException(
+                    httpStatus: HttpStatusCode.BadRequest,
+                    errorCode: ErrorResponseCode.InvalidOrchestratorRequest,
+                    errorMessage: $"Failed to get orchestrator identity");
             }
 
             OrchestratorProperties orchProps = request.Properties;
@@ -86,11 +98,14 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             }
             else if (orchProps.ApiServerEndpoint == null || orchProps.ApiServerEndpoint.Length == 0)
             {
-                throw new Exception("Neither private link nor apiserver endpoint specified.");
+                throw new ErrorResponseMessageException(
+                        httpStatus: HttpStatusCode.BadRequest,
+                        errorCode: ErrorResponseCode.InvalidOrchestratorRequest,
+                        errorMessage: $"Neither privateLinkResourceId nor apiserverEndpoint specified");
             }
 
             return await this.ExecuteWithRetryAsync(subscriptionId, () => this.tableOperations.OrchestratorOperations.InsertOrReplaceOrchestratorAsync(
-                subscriptionId, resourceGroupName, resourceName, peName, request), HttpMethod.Put, "PutOrchestrator");
+                subscriptionId, resourceGroupName, resourceName, peName, orchIdentity, request), HttpMethod.Put, "PutOrchestrator");
         }
 
         /// <summary>
@@ -147,6 +162,62 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         private string GetPrivateEndpointName(UInt32 hashCode)
         {
             return string.Format(privateEndpointName, hashCode);
+        }
+
+        private async Task<MSIIdentity> GetOrchestratorIdentity(MSIIdentityMetadata identity)
+        {
+            HttpRequestMessage requestMessage = new HttpRequestMessage
+            {
+                Method = HttpMethod.Get,
+                RequestUri = new Uri(identity.Url),
+            };
+
+            HttpResponseMessage response = await this.httpUtility.SendRequestAndGetHttpResponseAsync(
+                requestMessage, HttpCompletionOption.ResponseHeadersRead, CancellationToken.None);
+
+            if (response.StatusCode == HttpStatusCode.Unauthorized)
+            {
+                var authenticateHeaders = response.Headers.WwwAuthenticate;
+
+                foreach (var authenticateHeader in authenticateHeaders)
+                {
+                    // Sample authentication header - Bearer authorization = "https://login.windows-ppe.net/5D929AE3-B37C-46AA-A3C8-C1558902F101"
+                    // This check basically checks that header starts with keyword Bearer
+                    if (HttpBearerChallenge.IsBearerChallenge(authenticateHeader.ToString()))
+                    {
+                        var challenge = new HttpBearerChallenge(requestMessage.RequestUri, authenticateHeader.ToString());
+                        this.logger.CLogInformation("AuthorizationServer: {0}", challenge.AuthorizationServer);
+                        this.logger.CLogInformation("Resource: {0}", challenge.Resource);
+                        this.logger.CLogInformation("Scope: {0}", challenge.Scope);
+
+                        string resource = $"{challenge.Resource}/.default";
+                        IAzureAD azureAD = new AzureAD();
+                        string token = await azureAD.GetAccessToken(
+                            CurrentContext.ManagedIdentity,
+                            CurrentContext.ArmAccessIdentity,
+                            resource,
+                            challenge.AuthorizationServer,
+                            CurrentContext.AzureEnvironment).ConfigureAwait(false);
+
+                        requestMessage = new HttpRequestMessage
+                        {
+                            Method = HttpMethod.Get,
+                            RequestUri = new Uri($"{identity.Url}?{ResourceConstants.IdentityUrlApiVersion}"),
+                        };
+                        requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+                        return await this.httpUtility.SendRequestAndGetJsonAsync<MSIIdentity>(
+                            requestMessage, HttpCompletionOption.ResponseHeadersRead, CancellationToken.None);
+                    }
+                }
+            }
+
+            string msg = string.Format("GetOrchestratorIdentity: Unexpected response code: {0}. {1}",
+                response.StatusCode,
+                response.Content != null ? response.Content.ToString() : string.Empty);
+            this.logger.CLogError(msg);
+
+            throw new Exception(msg);
         }
     }
 }
