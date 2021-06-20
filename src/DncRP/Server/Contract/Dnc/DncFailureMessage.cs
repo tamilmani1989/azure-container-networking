@@ -8,7 +8,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 {
     public class DncFailureMessage
     {
-        public int Code
+        public int ErrorCode
         {
             get; set;
         }
@@ -18,15 +18,15 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             get; set;
         }
 
-        public int HttpStatus
+        public int HttpStatusCode
         {
             get; set;
         }
 
         public override string ToString()
         {
-            return $"DNCFailureMessage: Code: {Code}, Text: {Text} " +
-                $"HttpStatus: {HttpStatus}";
+            return $"DNCFailureMessage: Code: {ErrorCode}, Text: {Text} " +
+                $"HttpStatus: {HttpStatusCode}";
         }
     }
 }

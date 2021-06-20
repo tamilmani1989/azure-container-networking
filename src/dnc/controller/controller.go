@@ -100,66 +100,74 @@ func (c *Controller) PersistNodeInfo(nodeID string, nodeInfo *api.NodeInfoReques
 	// todo: can nodes for a DNC partition have different orchestrator types? if not, this should just be cached
 	aiwrapper.SetOrchestratorType(nodeInfo.OrchestratorType)
 
-	// Turn off the DNS-CNS for managed and baremetal node type
+	// Only send orchestrator type to CNS when not on managed mode and node is not baremetal
 	if !config.DNCSettings.Managed && !api.IsBareMetalNode(nodeInfo.NodeType) {
-		// Send OrchestratorType to CNS
-		var (
-			info = &cns.SetOrchestratorTypeRequest{
-				OrchestratorType: nodeInfo.OrchestratorType,
-				DncPartitionKey:  config.DataStoreSettings.AzureStorageInfo.PartitionKey,
-				NodeID:           nodeID}
-			body bytes.Buffer
-			resp cns.Response
-		)
-
-		json.NewEncoder(&body).Encode(info)
-		setOrchestratorTypeURL := fmt.Sprintf(
-			setOrchestratorTypeURLFmt,
-			nodeInfo.IPAddresses[0])
-		loggershim.LS.Debugf("[CNS] create/update %+v", nodeInfo)
-
-		w, respErr := c.cnsHttpClient.Post(setOrchestratorTypeURL, "application/json; charset=utf-8", &body)
-		if respErr != nil {
-			msg := fmt.Sprintf("Post to URL %v for node %s failed with error %s",
-				setOrchestratorTypeURL,
-				nodeID,
-				respErr.Error())
-			return &api.JsonErr{
-				Code:       api.NodeProcessingFailedDueToInternalError,
-				Text:       msg,
-				HTTPStatus: http.StatusBadRequest}
-		}
-
-		defer w.Body.Close()
-
-		respErr = utils.DecodeResponse(w, &resp)
-		if respErr != nil {
-			msg := fmt.Sprintf("Create node %s failed with error %s",
-				nodeID,
-				respErr.Error())
-			return &api.JsonErr{
-				Code:       api.NodeProcessingFailedDueToInternalError,
-				Text:       msg,
-				HTTPStatus: http.StatusBadRequest}
-		}
-
-		if resp.ReturnCode != 0 {
-			msg := fmt.Sprintf("Create node %s failed with error code %d. %s",
-				nodeID,
-				resp.ReturnCode,
-				resp.Message)
-			return &api.JsonErr{
-				Code:       api.NodeProcessingFailedDueToInternalError,
-				Text:       msg,
-				HTTPStatus: http.StatusBadRequest}
+		if err := c.sendOrchestratorTypeToCNS(nodeID, nodeInfo); err != nil {
+			return err
 		}
 	}
 
-	sessionInfo := map[string]string{datamodel.NodeRepositoryName: nodeID}
-	c.SessionManager.BeginWriteSession(sessionInfo)
-	defer c.SessionManager.EndWriteSession(sessionInfo)
+	nodesetReadWrite := map[string]string{datamodel.NodeRepositoryName: nodeID}
+	c.SessionManager.BeginWriteSession(nodesetReadWrite)
+	defer c.SessionManager.EndWriteSession(nodesetReadWrite)
+
+	if nodeInfo.NodeSet != "" {
+		nodesetRead := map[string]string{datamodel.NodeSetsTableName: nodeInfo.NodeSet}
+		c.SessionManager.BeginReadSession(nodesetRead)
+		defer c.SessionManager.EndReadSession(nodesetRead)
+
+		ns, err := datamodel.NodeSetsRepo.TryQueryNodeSet(nodeInfo.NodeSet)
+		if err != nil {
+			return err
+		}
+
+		if ns.RowKey == "" {
+			return api.BadRequestf(api.EntityNotFound, "nodeset %s not found", nodeInfo.NodeSet)
+		}
+
+		if ns.MarkedForDelete {
+			return api.BadRequestf(api.EntityMarkedForDeletion, "nodeset %s marked for deletion", nodeInfo.NodeSet, nodeID)
+		}
+	}
+
 	// pass false, 0 and empty Apis slice for non-registration calls
 	return datamodel.NodeConfigRepo.CreateOrUpdateNodeConfiguration(false, 0, nodeID, *nodeInfo, apiVersion, []string{})
+}
+
+func (c *Controller) sendOrchestratorTypeToCNS(nodeID string, nodeInfo *api.NodeInfoRequest) *api.JsonErr {
+	cnsReq := &cns.SetOrchestratorTypeRequest{
+		OrchestratorType: nodeInfo.OrchestratorType,
+		DncPartitionKey:  config.DataStoreSettings.AzureStorageInfo.PartitionKey,
+		NodeID:           nodeID,
+	}
+
+	var body bytes.Buffer
+	if err := json.NewEncoder(&body).Encode(cnsReq); err != nil {
+		return api.InternalServerErrorf(api.JsonMarshallingFailed, "could not marshal cns orchestrator request: %v", err)
+
+	}
+	setOrchestratorTypeURL := fmt.Sprintf(setOrchestratorTypeURLFmt, nodeInfo.IPAddresses[0])
+	loggershim.LS.Debugf("[DNC-CNS] setting orchestrator type for node %s: %+v", nodeID, nodeInfo)
+
+	w, err := c.cnsHttpClient.Post(setOrchestratorTypeURL, "application/json; charset=utf-8", &body)
+	if err != nil {
+		msg := fmt.Sprintf("Post to URL %v for node %s failed with error %s", setOrchestratorTypeURL, nodeID, err.Error())
+		return api.InternalServerError(api.NodeProcessingFailedDueToInternalError, msg)
+	}
+	defer w.Body.Close()
+
+	var resp cns.Response
+	if err := utils.DecodeResponse(w, &resp); err != nil {
+		msg := fmt.Sprintf("Create node %s failed with error %v", nodeID, err)
+		return api.InternalServerError(api.NodeProcessingFailedDueToInternalError, msg)
+	}
+
+	if resp.ReturnCode != 0 {
+		msg := fmt.Sprintf("Create node %s failed with error code %d. %s", nodeID, resp.ReturnCode, resp.Message)
+		return api.InternalServerError(api.NodeProcessingFailedDueToInternalError, msg)
+	}
+
+	return nil
 }
 
 // RegisterNode - Register node
@@ -202,6 +210,11 @@ func (c *Controller) GetNodeConfiguration(nodeID string) (*datamodel.NodeConfigu
 // CreateNodeSet - Creates node set
 func (c *Controller) CreateNodeSet(nodeSetName, apiVersion string) (datamodel.NodeSetEntity, *api.JsonErr) {
 	loggershim.LS.Debugf("[Request] Create NodeSet %q", nodeSetName)
+
+	sessionInfo := map[string]string{datamodel.NodeSetsTableName: nodeSetName}
+	c.SessionManager.BeginWriteSession(sessionInfo)
+	defer c.SessionManager.EndWriteSession(sessionInfo)
+
 	nse := datamodel.NodeSetEntity{
 		PartitionKey: c.GetConfig().DataStoreSettings.AzureStorageInfo.PartitionKey,
 		RowKey:       datamodel.EncodeNodeSetRowKey(nodeSetName),
@@ -226,6 +239,7 @@ func (c *Controller) GetNodeSet(nodeSetName string) (datamodel.NodeSetEntity, *a
 // ForceDeleteNodeSet - Force delete a node set by its name
 func (c *Controller) ForceDeleteNodeSet(nodeSetName string) *api.JsonErr {
 	loggershim.LS.Debugf("[Request] Force Delete NodeSet %q", nodeSetName)
+
 	sessionInfo := map[string]string{datamodel.NodeSetsTableName: nodeSetName}
 	c.SessionManager.BeginWriteSession(sessionInfo)
 	defer c.SessionManager.EndWriteSession(sessionInfo)
@@ -280,13 +294,13 @@ func ensureNodeSetDeletePendingItem(nodeSetName string) *api.JsonErr {
 		Type:        datamodel.NodeSetCleanupRequest,
 	}
 
-	return datamodel.AddRequestToPendingQueue(key, &reqContext)
+	return datamodel.UpsertPendingQueueItem(key, reqContext)
 }
 
 // DeleteNodeSet - Delete a node set by its name
 func (c *Controller) DeleteNodeSet(nodeSetName string) *api.JsonErr {
 	loggershim.LS.Debugf("[Request] Delete NodeSet %q", nodeSetName)
-	// todo: this requires locking on node set during node creation to work correctly, will add in subsequent PR
+
 	sessionInfo := map[string]string{datamodel.NodeSetsTableName: nodeSetName}
 	c.SessionManager.BeginWriteSession(sessionInfo)
 	defer c.SessionManager.EndWriteSession(sessionInfo)
@@ -1140,8 +1154,9 @@ func (c *Controller) deleteSubnetCommon(networkID, subnetName string) *api.JsonE
 			reservationKeys = append(reservationKeys, reservation.RowKey)
 		}
 		reservationsString := "[" + strings.Join(reservationKeys, ", ") + "]"
-		return api.BadRequestf(api.SubnetInUse,
-			"Subnet: %s in Network: %s has allocations: %s", subnetName, networkID, reservationsString)
+		errMsg := fmt.Sprintf("Subnet: %s in Network: %s has allocations: %s", subnetName, networkID, reservationsString)
+		loggershim.LS.Errorf("Cannot delete subnet. error: %s", errMsg)
+		return api.BadRequestf(api.SubnetInUse, errMsg)
 	}
 
 	// Mark the subnet as 'not joined' anymore and persist the updated subnet config

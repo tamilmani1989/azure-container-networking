@@ -7,6 +7,7 @@
 
 namespace Microsoft.Azure.ContainerNetworking.DncRP
 {
+    using System.Collections.Generic;
     using System.Threading.Tasks;
 
     public interface IControllerConfiguration
@@ -55,5 +56,23 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <param name="controllerName"></param>
         /// <returns></returns>
         Task<Controller> DeleteDncControllerAsync(string subId, string resourceGroup, string controllerName);
+
+        /// <summary>
+        /// Get Delegated subnet resources for a given controller Id.
+        /// </summary>
+        /// <param name="subId"></param>
+        /// <param name="resourceGroup"></param>
+        /// <param name="controllerName"></param>
+        /// <returns></returns>
+        Task<List<DelegateSubnet>> GetDelegatedSubnetResourcesByControllerId(string armControllerId);
+
+        /// <summary>
+        /// Get Orchestrator resources for a given controller Id.        
+        /// </summary>
+        /// <param name="subId"></param>
+        /// <param name="resourceGroup"></param>
+        /// <param name="controllerName"></param>
+        /// <returns></returns>
+        Task<List<Orchestrator>> GetOrchestratorResourcesByControllerId(string armControllerId);
     }
 }

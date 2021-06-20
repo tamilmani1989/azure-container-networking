@@ -85,8 +85,9 @@ func (s *Server) registerRoutes(r *mux.Router) {
 }
 
 var (
-	joinedNetworksRegex   = regexp.MustCompile(`NetworkManagement/joinedVirtualNetworks/(.*?)/api-version/1`)
-	networkContainerRegex = regexp.MustCompile(`NetworkManagement/interfaces/(.*?)/networkContainers/(.*?)/authenticationToken/(.*?)/api-version/1`)
+	joinedNetworksRegex            = regexp.MustCompile(`NetworkManagement/joinedVirtualNetworks/(.*?)/api-version/1`)
+	networkContainerRegex          = regexp.MustCompile(`NetworkManagement/interfaces/(.*?)/networkContainers/(.*?)/authenticationToken/(.*?)/api-version/1`)
+	unpublishNetworkContainerRegex = regexp.MustCompile(`NetworkManagement/interfaces/(.*?)/networkContainers/(.*?)/authenticationToken/(.*?)/api-version/1/method/DELETE`)
 )
 
 func (s *Server) MachinePluginsGET(w http.ResponseWriter, r *http.Request) {
@@ -118,6 +119,12 @@ func (s *Server) MachinePluginsPOST(w http.ResponseWriter, r *http.Request) {
 	nmagentRoute := r.URL.Query().Get("type")
 	if nmagentRoute == "" {
 		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	unpublishNCMatches := unpublishNetworkContainerRegex.FindStringSubmatch(nmagentRoute)
+	if len(unpublishNCMatches) == 4 { // todo: nothing done with interface (matches[1]) id and auth token (matches[3]) at the moment
+		s.unpublishNetworkContainer(w, r)
 		return
 	}
 
@@ -159,6 +166,13 @@ func (s *Server) postNetworkContainer(ncID string, w http.ResponseWriter, r *htt
 // todo: could make auth'd vnet/token pairs configurable
 func (s *Server) joinVirtualNetwork(w http.ResponseWriter, _ *http.Request) {
 	w.WriteHeader(http.StatusOK)
+}
+
+func (s *Server) unpublishNetworkContainer(w http.ResponseWriter, _ *http.Request) {
+	resp := nmagentcontracts.DeleteNetworkContainerResponse{
+		ResponseCode: "200",
+	}
+	respondJSON(w, resp)
 }
 
 type joinedVnets map[string]nmagentcontracts.VirtualNetworkResponse

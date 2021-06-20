@@ -14,7 +14,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <summary>
         /// Not Set
         /// </summary>
-        None, 
+        None,
 
         /// <summary>
         /// VirtualNetworkResource Not found
@@ -106,6 +106,21 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// DeleteSubnetFailed
         /// </summary>
         DeleteSubnetFailed,
+
+        /// <summary>
+        /// SubnetNotFound
+        /// </summary>
+        SubnetNotFound,
+
+        /// <summary>
+        /// DependentResourcesExists
+        /// </summary>
+        DependentResourceExists,
+
+        /// <summary>
+        /// InvalidOrchestratorRequest
+        /// </summary>
+        InvalidOrchestratorRequest,
 
         /// <summary>
         /// NodesetCreateFailed

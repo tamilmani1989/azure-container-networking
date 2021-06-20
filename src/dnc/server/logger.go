@@ -139,6 +139,6 @@ func setRequestFailed(w http.ResponseWriter, jsonErr *api.JsonErr) {
 	w.Header().Set(contentTypeStr, defaultContentType)
 	w.WriteHeader(jsonErr.HTTPStatus)
 	if err := json.NewEncoder(w).Encode(jsonErr); err != nil {
-		panic(err)
+		loggershim.LS.Errorf("could not encode error response %v: %v", jsonErr, err)
 	}
 }

@@ -285,8 +285,6 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             {
                 string json = JsonUtility.Serialize(requestBody, SerializationSettings);
                 request.Content = new StringContent(json, Encoding.UTF8, "application/json");
-
-                logger.CLogInformation($"RequestMessage: { request}, Content: { json }");
             }
         }
 

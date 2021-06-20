@@ -14,6 +14,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
     {
         public static Orchestrator ToOrchestrator(this OrchestratorResourceEntity entity)
         {
+            MSIIdentityResponse identityResponse = null;
             string subId = entity.PartitionKey;
             string[] rowParts = entity.RowKey.Split(new string[] { "_" }, StringSplitOptions.None);
 
@@ -22,12 +23,15 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             props.State = TopLevelResourceProperties.ParseProvisioningState(entity.State);
 
             MSIIdentityMetadata metadata = JsonUtility.Deserialize<MSIIdentityMetadata>(entity.IdentityMetadata);
-            MSIIdentityResponse identityResponse = new MSIIdentityResponse
+            if (metadata != null)
             {
-                PrincipalId = metadata.PrincipalId,
-                TenantId = metadata.HomeTenantId,
-                Type = metadata.Type
-            };
+                identityResponse = new MSIIdentityResponse
+                {
+                    PrincipalId = metadata.PrincipalId,
+                    TenantId = metadata.HomeTenantId,
+                    Type = metadata.Type
+                };
+            }
 
             return new Orchestrator(
                 subId,

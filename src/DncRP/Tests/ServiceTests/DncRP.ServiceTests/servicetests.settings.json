@@ -3,7 +3,7 @@
   "SubscriptionId": "9b8218f9-902a-4d20-a65c-e98acec5362f",
   "ResourceGroup": "testCosmosdb",
   "DbAccountName": "acntestcosmosdb",
-  "KeyVaultConnectionString": "",
+  "KeyVaultConnectionString": "RunAs=App;AppId=5450fd6e-cab1-4daa-a1c8-18c17ec4bee7;TenantId=72f988bf-86f1-41af-91ab-2d7cd011db47;AppKey=d5ee208d-62ca-4fc4-a032-c359df7974a6",
   "AzureEnvironment": "azurecloud",
   "AzureRegion": "centraluseuap",
   "KeyVaultUrl": "https://acnkv.vault.azure.net",

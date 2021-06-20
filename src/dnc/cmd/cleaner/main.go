@@ -6,6 +6,7 @@ import (
 	"dnc/configuration"
 	"dnc/datamodel"
 	"dnc/datastoreshim"
+	"dnc/dns"
 	"dnc/logger/loggershim"
 	"dnc/logger/simplejson"
 	"dnc/pubsubproxy"
@@ -280,7 +281,18 @@ func main() {
 		log.Fatalf("Invalid azure environment %s", config.AzureEnvironment.EnvironmentName)
 	}
 	if pubSubCfg.EnablePubSubProxy {
-		akv, err := ad.NewKeyvaultClient(tokenFetcher, env, config.PubSubProxySettings.PubsubCertKeyvaultName)
+		// if a PubsubVipsString is not set, do a DNS lookup for PubsubVips instead
+		if pubSubCfg.PubsubVipsString == "" && pubSubCfg.PubsubConnectionEndpoint != "" {
+			pubsubvips, err := dns.PubsubVipsFromDNS(ctx, pubSubCfg.PubsubConnectionEndpoint)
+			if err != nil {
+				log.Fatalf("Error obtaining PubsubVips from DNS using endpoint: %s, Error: %v", pubSubCfg.PubsubConnectionEndpoint, err)
+			}
+			// TODO: allow overriding of the number of these based on a new config value (ie. PubsubVipsCount)
+			//       then cut off any extra we received from DNS
+			pubSubCfg.PubsubVips = pubsubvips
+		}
+
+		akv, err := ad.NewKeyvaultClient(tokenFetcher, env, pubSubCfg.PubsubCertKeyvaultName)
 		if err != nil {
 			log.Fatalln("Error initializing keyvault client. Error:", err)
 		}

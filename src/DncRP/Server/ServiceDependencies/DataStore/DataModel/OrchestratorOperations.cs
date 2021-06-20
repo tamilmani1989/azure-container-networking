@@ -9,14 +9,10 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 {
     using System;
     using System.Net;
-    using System.Net.Http;
-    using System.Net.Http.Headers;
-    using System.Threading;
     using System.Threading.Tasks;
     using global::Azure.Security.KeyVault.Secrets;
     using Microsoft.Azure.ContainerNetworking.CoreLib;
     using Microsoft.Azure.Cosmos.Table;
-    using Microsoft.Azure.KeyVault;
     using Microsoft.Extensions.Logging;
 
     public class OrchestratorOperations : IOrchestratorOperations
@@ -91,6 +87,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             string resourceName, 
             string privateEndpointName,
             string resourceGuid,
+            MSIIdentity identity,
             OrchestratorRequest orchestratorRequest)
         {
             this.logger.CLogInformation("Starting PUT orchestrator resource. Sub:{0}, RG:{1}, ResourceName:{2}",
@@ -116,7 +113,6 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             else
             {
                 OrchestratorResourceEntity entity = result.Result as OrchestratorResourceEntity;
-                resourceGuid = entity.ResouceGuid;
                 createdDate = entity.CreatedDateUtc;
             }
 
@@ -148,7 +144,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 
             // insert entity into controller config table
             int httpCode = await this.InsertOrReplaceOchestratorConfigAsync(
-                controller.Properties.ResourceGuid, resourceGuid, privateEndpointName, orchestratorType, orchProps, orchestratorRequest.Identity);
+                controller.Properties.ResourceGuid, resourceGuid, privateEndpointName, orchestratorType, orchProps, identity);
             if (!HttpStatusCodeCheck.IsSuccess(httpCode))
             {
                 return Orchestrator.CreateErrorResponse("Error in put orchestrator config", httpCode);
@@ -232,9 +228,9 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             string privateEndpointName,
             OrchestratorKind type,
             OrchestratorProperties orchRequestProperties,
-            MSIIdentityMetadata metadata)
+            MSIIdentity orchIdentity)
         {
-            string clientsecret = null, identityProps;
+            string clientsecret = null, identityProps = null;
             OrchestratorPropertiesInternal orchProperties = orchRequestProperties.ToPropertiesInternal();
 
             TableResult result = await this.dataStore.GetEntityAsync<OrchestratorConfigEntity>(
@@ -244,14 +240,16 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             // in orchestrator properties. It can't be changed by user on subsequent PUT request
             if (HttpStatusCodeCheck.IsResourceNotFound(result.HttpStatusCode))
             {
-                MSIIdentity orchIdentity = await this.GetOrchestratorIdentity(metadata);
-
-                orchProperties.ClientId = orchIdentity.ClientId;
-                orchProperties.ClientSecretName = orchestratorResourceGuid;
                 orchProperties.PrivateEndpointName = privateEndpointName;
-                clientsecret = orchIdentity.ClientSecret;
-                orchIdentity.ClientSecret = null; // We don't want to store client secret in Cosmos. It will be stored in KV
-                identityProps = JsonUtility.Serialize<MSIIdentity>(orchIdentity);
+
+                if (orchIdentity != null)
+                {
+                    orchProperties.ClientId = orchIdentity.ClientId;
+                    orchProperties.ClientSecretName = orchestratorResourceGuid;
+                    clientsecret = orchIdentity.ClientSecret;
+                    orchIdentity.ClientSecret = null; // We don't want to store client secret in Cosmos. It will be stored in KV
+                    identityProps = JsonUtility.Serialize<MSIIdentity>(orchIdentity);
+                }
             }
             else if (!HttpStatusCodeCheck.IsSuccess(result.HttpStatusCode))
             {
@@ -318,71 +316,18 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             OrchestratorConfigEntity entity = result.Result as OrchestratorConfigEntity;
             OrchestratorPropertiesInternal props = JsonUtility.Deserialize<OrchestratorPropertiesInternal>(entity.Properties);
 
-            // Delete secret from key vault
-            DeleteSecretOperation secret = this.keyVaultUtility.DeleteSecret(
-                CurrentContext.KeyVaultUrl, CurrentContext.ManagedIdentity, props.ClientSecretName);
+            if (!string.IsNullOrEmpty(props.ClientSecretName))
+            {
+                // Delete secret from key vault
+                DeleteSecretOperation secret = this.keyVaultUtility.DeleteSecret(
+                    CurrentContext.KeyVaultUrl, CurrentContext.ManagedIdentity, props.ClientSecretName);
+            }
 
             entity.ETag = "*";
 
             // Execute Delete table operation
             result = await this.dataStore.DeleteEntityAsync(configTableName, entity);
             return result.HttpStatusCode;
-        }
-
-        private async Task<MSIIdentity> GetOrchestratorIdentity(MSIIdentityMetadata identity)
-        {
-            HttpRequestMessage requestMessage = new HttpRequestMessage
-            {
-                Method = HttpMethod.Get,
-                RequestUri = new Uri(identity.Url),
-            };
-
-            HttpResponseMessage response = await this.httpUtility.SendRequestAndGetHttpResponseAsync(
-                requestMessage, HttpCompletionOption.ResponseHeadersRead, CancellationToken.None);
-
-            if (response.StatusCode == HttpStatusCode.Unauthorized)
-            {
-                var authenticateHeaders = response.Headers.WwwAuthenticate;
-
-                foreach (var authenticateHeader in authenticateHeaders)
-                {
-                    // Sample authentication header - Bearer authorization = "https://login.windows-ppe.net/5D929AE3-B37C-46AA-A3C8-C1558902F101"
-                    // This check basically checks that header starts with keyword Bearer
-                    if (HttpBearerChallenge.IsBearerChallenge(authenticateHeader.ToString()))
-                    {
-                        var challenge = new HttpBearerChallenge(requestMessage.RequestUri, authenticateHeader.ToString());
-                        this.logger.CLogInformation("AuthorizationServer: {0}", challenge.AuthorizationServer);
-                        this.logger.CLogInformation("Resource: {0}", challenge.Resource);
-                        this.logger.CLogInformation("Scope: {0}", challenge.Scope);
-
-                        string resource = $"{challenge.Resource}/.default";
-                        IAzureAD azureAD = new AzureAD();
-                        string token = await azureAD.GetAccessToken(
-                            CurrentContext.ManagedIdentity,
-                            CurrentContext.ArmAccessIdentity,
-                            resource,
-                            challenge.AuthorizationServer,
-                            CurrentContext.AzureEnvironment).ConfigureAwait(false);
-
-                        requestMessage = new HttpRequestMessage
-                        {
-                            Method = HttpMethod.Get,
-                            RequestUri = new Uri($"{identity.Url}?{ResourceConstants.IdentityUrlApiVersion}"),
-                        };
-                        requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-
-                        return await this.httpUtility.SendRequestAndGetJsonAsync<MSIIdentity>(
-                            requestMessage, HttpCompletionOption.ResponseHeadersRead, CancellationToken.None);
-                    }
-                }
-            }
-
-            string msg = string.Format("GetOrchestratorIdentity: Unexpected response code: {0}. {1}",
-                response.StatusCode,
-                response.Content != null ? response.Content.ToString() : string.Empty);
-            this.logger.CLogError(msg);
-
-            throw new Exception(msg);
         }
     }
 }

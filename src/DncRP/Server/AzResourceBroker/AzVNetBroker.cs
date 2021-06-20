@@ -300,7 +300,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 privateEndpointResourceId);
             if (privateEndpoint == null)
             {
-                logger.CLogError("Private endpoint doesn't exist. Create Private Endpoint:{0}", privateEndpointName);
+                logger.CLogError("Private endpoint doesn't exist.");
                 PrivateEndpointRequest newPrivateEndpoint = new PrivateEndpointRequest();
                 newPrivateEndpoint.properties = new PrivateEndpointRequestProperties();
                 newPrivateEndpoint.properties.Subnet = new Subnet();
@@ -312,6 +312,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 plService.Properties.PrivateLinkServiceId = privateLinkResourceId;
                 plService.Name = privateEndpointName;
                 newPrivateEndpoint.properties.ManualPrivateLinkServiceConnections.Add(plService);
+
+                logger.CLogInformation("Creating PrivateEndpoint:{0} subnet {1}", privateEndpointName, newPrivateEndpoint.properties.Subnet.Id);
                 PrivateEndpointRequest createdPE = await this.PutResourceAsync<PrivateEndpointRequest>(
                     s.TenantId, privateEndpointResourceId, privateEndpointApiVersion, newPrivateEndpoint);
                 logger.CLogInformation("Created Private Endpoint: {0}", createdPE.Id);

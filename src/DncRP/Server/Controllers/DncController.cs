@@ -7,6 +7,7 @@
 namespace Microsoft.Azure.ContainerNetworking.DncRP
 {
     using System;
+    using System.Collections.Generic;
     using System.IO;
     using System.Net;
     using System.Net.Http;
@@ -85,6 +86,42 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         [HttpDelete]
         public async Task<ContentResult> DeleteDncResource(string subscriptionId, string resourceGroupName, string resourceName)
         {
+            Controller controller = await this.tableOperations.ControllerConfiguration.GetDncControllerAsync(
+                subscriptionId,
+                resourceGroupName,
+                resourceName);
+
+            List<DelegateSubnet> delegatedSubnetsList = await this.tableOperations.ControllerConfiguration.GetDelegatedSubnetResourcesByControllerId(controller.Id);
+            if (delegatedSubnetsList.Count > 0)
+            {
+                string dsResources = "";
+                foreach(DelegateSubnet ds in delegatedSubnetsList)
+                {
+                    dsResources = dsResources + "," + ds.Name;
+                }
+
+                throw new ErrorResponseMessageException(
+                        httpStatus: HttpStatusCode.Conflict,
+                        errorCode: ErrorResponseCode.DependentResourceExists,
+                        errorMessage: $"Dependent delegated subnet resource exists:{dsResources}");
+            }
+
+
+            List<Orchestrator> orchestratorsList = await this.tableOperations.ControllerConfiguration.GetOrchestratorResourcesByControllerId(controller.Id);
+            if (orchestratorsList.Count > 0)
+            {
+                string orchResources = "";
+                foreach (Orchestrator o in orchestratorsList)
+                {
+                    orchResources = orchResources + "," + o.Name;
+                }
+
+                throw new ErrorResponseMessageException(
+                        httpStatus: HttpStatusCode.Conflict,
+                        errorCode: ErrorResponseCode.DependentResourceExists,
+                        errorMessage: $"Dependent orchestrator resource exists.{orchResources}");
+            }
+
             return await this.ExecuteWithRetryAsync(subscriptionId, () => this.tableOperations.ControllerConfiguration.DeleteDncControllerAsync(
                subscriptionId, resourceGroupName, resourceName), HttpMethod.Delete, "DeleteController");
         }
