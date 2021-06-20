@@ -15,8 +15,11 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 {
     public interface IDncClient
     {
-       Task PutSubnetAsync(string networkId, string subnetName, string authToken);
-       Task DeleteSubnetAsync(string networkId, string subnetName, bool forceDelete);
-       Task<HttpResponseMessage> GetSubnetAsync(string networkId, string subnetName);
+        Task PutSubnetAsync(string networkId, string subnetName, string authToken);
+        Task DeleteSubnetAsync(string networkId, string subnetName, bool forceDelete);
+        Task<HttpResponseMessage> GetSubnetAsync(string networkId, string subnetName);
+        Task PutNodesetAsync(string orchestratorId);
+        Task DeleteNodesetAsync(string orchestratorId, bool forceDelete);
+        Task<HttpResponseMessage> GetNodesetAsync(string orchestratorId);
     }
 }

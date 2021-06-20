@@ -230,7 +230,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             if (controller.Error != null)
             {
                 throw new ErrorResponseMessageException(
-                       httpStatus: HttpStatusCode.NotFound,
+                       httpStatus: HttpStatusCode.BadRequest,
                        errorCode: ErrorResponseCode.ControllerIdNotFound,
                        errorMessage: controller.Error.Error);
             }
@@ -379,7 +379,11 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             DncResponseStatus dncResponse = await this.dncHttpUtility.ParseHttpResponse<DncResponseStatus>(response);
             if (dncResponse == null || dncResponse.Status != DncSubnetStatus.Completed)
             {
-                throw new Exception($"DNC get subnet call returns {dncResponse}");
+                logger.CLogError("DNC Subnet Pending join. status code:{0}", response.StatusCode);
+                throw new ErrorResponseMessageException(
+                    httpStatus: HttpStatusCode.InternalServerError,
+                    errorCode: ErrorResponseCode.JoinSubnetFailed,
+                    errorMessage: $"DNC subnet Pending join. status code:{response.StatusCode}");
             }
         }
 
@@ -612,7 +616,10 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             if (response.StatusCode != HttpStatusCode.NotFound)
             {
                 logger.CLogError("DNC Subnet Pending delete. status code:{0}", response.StatusCode);
-                throw new Exception($"DNC Subnet Pending delete. status code:{response.StatusCode}");
+                throw new ErrorResponseMessageException(
+                    httpStatus: HttpStatusCode.InternalServerError,
+                    errorCode: ErrorResponseCode.DeleteSubnetFailed,
+                    errorMessage: $"DNC subnet Pending delete. status code:{response.StatusCode}");
             }
         }
     }

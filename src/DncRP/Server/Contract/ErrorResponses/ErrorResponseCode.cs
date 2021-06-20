@@ -105,6 +105,17 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <summary>
         /// DeleteSubnetFailed
         /// </summary>
-        DeleteSubnetFailed
+        DeleteSubnetFailed,
+
+        /// <summary>
+        /// NodesetCreateFailed
+        /// </summary>
+        NodesetCreateFailed,
+
+        /// <summary>
+        /// NodesetDeleteFailed
+        /// </summary>
+        NodesetDeleteFailed
+
     }
 }

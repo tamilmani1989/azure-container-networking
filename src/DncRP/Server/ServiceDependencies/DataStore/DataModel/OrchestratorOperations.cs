@@ -90,6 +90,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             string resourceGroup, 
             string resourceName, 
             string privateEndpointName,
+            string resourceGuid,
             OrchestratorRequest orchestratorRequest)
         {
             this.logger.CLogInformation("Starting PUT orchestrator resource. Sub:{0}, RG:{1}, ResourceName:{2}",
@@ -107,10 +108,9 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             string rowKey = $"{resourceGroup}_{resourceName}";
             TableResult result = await this.dataStore.GetEntityAsync<OrchestratorResourceEntity>(resourceTableName, subId, rowKey);
 
-            string resourceGuid, createdDate;
+            string createdDate;
             if (HttpStatusCodeCheck.IsResourceNotFound(result.HttpStatusCode))
             {
-                resourceGuid = Guid.NewGuid().ToString();
                 createdDate = DateTime.UtcNow.ToString();
             }
             else

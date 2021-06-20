@@ -24,6 +24,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
     {
         private AzVNetBroker azVnetBroker;
         private IHttpUtility httpUtility;
+        private IHttpUtility dncHttpUtility;
+
         private const string privateEndpointName = "privateendpoint-{0}";
 
         public OrchestratorController(
@@ -33,6 +35,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         {
             IAzureAD azureAD = new AzureAD();
             this.httpUtility = httpUtilityFactory.Resolve(Constants.HttpUtility);
+            this.dncHttpUtility = httpUtilityFactory.Resolve(Constants.DncHttpUtility);
             this.azVnetBroker = new AzVNetBroker(httpUtility, logger, azureAD);
             logger.CLogInformation("OrchestratorController initialized");
         }
@@ -71,6 +74,19 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             }
 
             OrchestratorProperties orchProps = request.Properties;
+
+            // Get controller
+            Controller controller = await tableOperations.ControllerConfiguration.GetDncControllerAsync(
+                orchProps.ControllerDetails.Id);
+            if (controller.Error != null)
+            {
+                throw new ErrorResponseMessageException(
+                       httpStatus: HttpStatusCode.BadRequest,
+                       errorCode: ErrorResponseCode.ControllerIdNotFound,
+                       errorMessage: controller.Error.Error);
+            }
+
+            // create private endpoint
             string peName = "";
             if (orchProps.PrivateLinkId != null && orchProps.PrivateLinkId != "")
             {
@@ -89,8 +105,30 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 throw new Exception("Neither private link nor apiserver endpoint specified.");
             }
 
-            return await this.ExecuteWithRetryAsync(subscriptionId, () => this.tableOperations.OrchestratorOperations.InsertOrReplaceOrchestratorAsync(
-                subscriptionId, resourceGroupName, resourceName, peName, request), HttpMethod.Put, "PutOrchestrator");
+            // Get orchestrator
+            string resourceGuid = null;
+            Orchestrator orch = await this.tableOperations.OrchestratorOperations.GetOrchestratorAsync(
+                            subscriptionId, resourceGroupName, resourceName);
+            if (orch.Error == null)
+            {
+                resourceGuid = Guid.NewGuid().ToString();
+            }
+            else
+            {
+                resourceGuid = orch.Properties.ResourceGuid;
+            }
+
+            // insert entry in cosmos
+            ContentResult result = await this.ExecuteWithRetryAsync(subscriptionId, () => this.tableOperations.OrchestratorOperations.InsertOrReplaceOrchestratorAsync(
+                subscriptionId, resourceGroupName, resourceName, peName, resourceGuid, request), HttpMethod.Put, "PutOrchestrator");
+
+            //call dnc put nodeset
+            ControllerProperties controllerProperties = (ControllerProperties)controller.Properties;
+            DncClient dncClient = new DncClient(this.dncHttpUtility, this.logger, controllerProperties.PropertiesList.DncEndpoint);
+            logger.CLogInformation("Calling dnc putnodeset for orchestrator id: {0}", resourceGuid);
+            await dncClient.PutNodesetAsync(resourceGuid);
+
+            return result;
         }
 
         /// <summary>
@@ -112,6 +150,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         [HttpDelete]
         public async Task<ContentResult> DeleteOrchestratorResource(string subscriptionId, string resourceGroupName, string resourceName)
         {
+            // Get orchestrator
             Orchestrator orch = await this.tableOperations.OrchestratorOperations.GetOrchestratorAsync(subscriptionId, resourceGroupName, resourceName);
             if (orch == null)
             {
@@ -123,7 +162,20 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 };
             }
 
-            OrchestratorProperties orchProps = (OrchestratorProperties) orch.Properties;
+            OrchestratorProperties orchProps = (OrchestratorProperties)orch.Properties;
+
+            // Get controller
+            Controller controller = await tableOperations.ControllerConfiguration.GetDncControllerAsync(
+                                                    orchProps.ControllerDetails.Id);
+            if (controller.Error != null)
+            {
+                throw new ErrorResponseMessageException(
+                       httpStatus: HttpStatusCode.BadRequest,
+                       errorCode: ErrorResponseCode.ControllerIdNotFound,
+                       errorMessage: controller.Error.Error);
+            }
+
+            // Delete private endpoint
             if (orchProps.PrivateLinkId != null && orchProps.PrivateLinkId != "")
             {
                 UInt32 hashCode = (UInt32)ExtensionMethods.GetDeterministicHashCode(orchProps.PrivateLinkId);
@@ -140,8 +192,36 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 }
             }
 
+            // call dnc delete nodeset
+            bool.TryParse(HttpContext.Request.Query["forceDelete"], out bool forceDelete);
+            ControllerProperties controllerProperties = (ControllerProperties)controller.Properties;
+            DncClient dncClient = new DncClient(this.dncHttpUtility, this.logger, controllerProperties.PropertiesList.DncEndpoint);
+            logger.CLogInformation("Calling dnc deletenodeset for orchestrator id: {0}", orch.Properties.ResourceGuid);
+            await dncClient.DeleteNodesetAsync(orch.Properties.ResourceGuid, forceDelete);
+
+            // get dnc nodeset should return 404
+            DncSettings dncSettings = CurrentContext.DncSettings;
+            await AsyncRetry.Retry(() => CheckIfNodesetDeleted(dncClient, orch.Properties.ResourceGuid), dncSettings.RetryCount,
+                        TimeSpan.FromSeconds(dncSettings.RetryIntervalInSeconds), TimeSpan.FromSeconds(dncSettings.RetryTimeoutInSeconds));
+
+            // remove entries from db
             return await this.ExecuteWithRetryAsync(subscriptionId, () => this.tableOperations.OrchestratorOperations.DeleteOrchestratorAsync(
                subscriptionId, resourceGroupName, resourceName), HttpMethod.Delete, "DeleteOrchestrator");
+        }
+
+        private async Task CheckIfNodesetDeleted(
+            IDncClient dncClient,
+            string orchestratorId)
+        {
+            HttpResponseMessage response = await dncClient.GetNodesetAsync(orchestratorId);
+            if (response.StatusCode != HttpStatusCode.NotFound)
+            {
+                logger.CLogError("DNC Nodeset Pending delete. status code:{0}", response.StatusCode);
+                throw new ErrorResponseMessageException(
+                    httpStatus: HttpStatusCode.InternalServerError,
+                    errorCode: ErrorResponseCode.NodesetDeleteFailed,
+                    $"DNC Nodeset Pending delete. status code:{response.StatusCode}");
+            }
         }
 
         private string GetPrivateEndpointName(UInt32 hashCode)
