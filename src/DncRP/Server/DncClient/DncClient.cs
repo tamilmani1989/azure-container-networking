@@ -66,11 +66,12 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 HttpResponseMessage response = await this.httpUtility.SendAsync(requestMessage);
                 if (response.StatusCode != HttpStatusCode.Accepted)
                 {
+                    DncFailureMessage errMsg = await ParseErrorResponse(response);
                     throw new ErrorResponseMessageException(
                                            httpStatus: response.StatusCode,
                                            errorCode: ErrorResponseCode.JoinSubnetFailed,
                                            errorMessage: $"DNC Putsubnet failed to this endpoint: " +
-                                           $"{dncEndpoint}, , response content: {response.Content}");
+                                           $"{dncEndpoint}, , response content: {errMsg.ToString()}");
                 }
             }
         }
@@ -103,11 +104,12 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 HttpResponseMessage response = await this.httpUtility.SendAsync(requestMessage);
                 if (response.StatusCode != HttpStatusCode.Accepted)
                 {
+                    DncFailureMessage errMsg = await ParseErrorResponse(response);
                     throw new ErrorResponseMessageException(
                                            httpStatus: response.StatusCode,
                                            errorCode: ErrorResponseCode.DeleteSubnetFailed,
                                            errorMessage: $"DNC Deletesubnet failed to this endpoint: " +
-                                           $"{dncEndpoint}, response content: {response.Content}");
+                                           $"{dncEndpoint}, response content: {errMsg.ToString()}");
                 }
             }
         }
@@ -147,6 +149,25 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             }
 
             return accessToken;
+        }
+
+        private async Task<DncFailureMessage> ParseErrorResponse(HttpResponseMessage response)
+        {
+            if (response.Content != null && response.StatusCode != System.Net.HttpStatusCode.NoContent)
+            {
+                // This API is only expecting response Content to be in Json format.
+                if (response.Content is object &&
+                    response.Content.Headers != null &&
+                    response.Content.Headers.ContentType != null &&
+                    response.Content.Headers.ContentType.MediaType == "application/json")
+                {
+                    var contentStream = await response.Content.ReadAsStringAsync();
+                    // use the default settings
+                    return JsonUtility.Deserialize<DncFailureMessage>(contentStream);
+                }
+            }
+
+            return new DncFailureMessage { };
         }
     }
 }

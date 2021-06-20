@@ -45,7 +45,7 @@
   "MdmMetrics": {
     "AccountName": "AzureContainerNetworking",
     "Namespace": "DncRP",
-    "StatsDHost": "127.0.0.1",
+    "StatsDHost": "geneva-services",
     "StatsdPort": 8125,
     "StatsdSocketProtocol": "Udp"
   },
