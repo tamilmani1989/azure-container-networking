@@ -276,6 +276,11 @@ func (s SynchronousDNCClient) RegisterVnet(ctx context.Context, networkID string
 		return err
 	}
 
+	// Check if we got a vnet status
+	if vnetStatus == nil {
+		return fmt.Errorf("unable to get vnet status: %w", respErr)
+	}
+
 	if vnetStatus.State != "Join" || vnetStatus.Status != "Completed" {
 		return fmt.Errorf("register network %s failed with response: %+v", networkID, vnetStatus)
 	}
