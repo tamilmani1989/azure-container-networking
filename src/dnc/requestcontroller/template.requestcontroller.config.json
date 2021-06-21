@@ -25,8 +25,8 @@
         "requestTimeout": "30m",
         "pollingInterval": "1s",
         "dncEndpoint": "http://localhost:9000",
-        "skipSubnetJoin": true
-
+        "skipSubnetJoin": true,
+        "useNodeSets": __UseNodeSets__
     },
     "DatastoreSettings": {
         "AzureStorageInfo": {

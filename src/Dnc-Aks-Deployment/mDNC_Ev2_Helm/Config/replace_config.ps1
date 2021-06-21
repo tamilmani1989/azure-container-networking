@@ -78,6 +78,7 @@ foreach ($configReplacement in $configReplacementJson.ServiceConfigReplacement) 
     $config = $config.replace('__BatchSize__', (Out-String -InputObject (Get-Value "Application" "ScalerBatchSize" "30")).Trim())
     $config = $config.replace('__RequestThresholdPercent__', (Out-String -InputObject (Get-Value "Application" "RequestThresholdPercent" "50")).Trim())
     $config = $config.replace('__ReleaseThresholdPercent__', (Out-String -InputObject (Get-Value "Application" "ReleaseThresholdPercent" "150")).Trim())
+    $config = $config.replace('__UseNodeSets__', (Out-String -InputObject (Get-Value "Application" "UseNodeSets" "true")).Trim())
 
     $config = $config.replace('__SubscriptionId__', (Out-String -InputObject (Get-Value "Cluster" "SubscriptionId")).Trim())
     $config = $config.replace('__ResourceGroup__', (Out-String -InputObject (Get-Value "Cluster" "ResourceGroup")).Trim())
