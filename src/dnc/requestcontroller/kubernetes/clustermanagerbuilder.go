@@ -103,6 +103,11 @@ func (c *ClusterManagerBuilder) Build(opts requestcontroller.ClusterManagerBuild
 		return nil, fmt.Errorf("error creating Node reconciler: %w", err)
 	}
 
+	var nodeSet string
+	if c.Config.DNCClientConfig.UseNodeSets {
+		nodeSet = opts.OrchestratorID
+	}
+
 	// build the NNC reconciler and add it to the manager
 	nodeNetworkConfigReconciler := NewNodeNetworkConfigReconciler(NodeNetworkConfigReconcilerOptions{
 		K8sClient:                   ctrlRuntimeMgr.GetClient(),
@@ -115,6 +120,7 @@ func (c *ClusterManagerBuilder) Build(opts requestcontroller.ClusterManagerBuild
 		OrchestratorID:              opts.OrchestratorID,
 		SkipSubnetJoin:              c.Config.DNCClientConfig.SkipSubnetJoin,
 		Recorder:                    ctrlRuntimeMgr.GetEventRecorderFor("dnc-rc/nnc-reconciler"),
+		NodeSet:                     nodeSet,
 	})
 
 	if err := ctrlrun.NewControllerManagedBy(ctrlRuntimeMgr).
@@ -137,11 +143,6 @@ func (c *ClusterManagerBuilder) Build(opts requestcontroller.ClusterManagerBuild
 	unversionedRESTClient, err := getUnversionedRESTClient(opts.ClusterAuthConfig.GetConfig())
 	if err != nil {
 		return nil, err
-	}
-
-	var nodeSet string
-	if c.Config.DNCClientConfig.UseNodeSets {
-		nodeSet = opts.OrchestratorID
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
