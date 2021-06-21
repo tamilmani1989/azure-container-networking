@@ -298,6 +298,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
                 rgName,
                 orchResourceName,
                 privateEndpointName,
+                "a43192d7-503f-477a-9cfe-4efc3ee2b6e1",
                 null,
                 orchRequest
                 );

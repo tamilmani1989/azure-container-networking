@@ -112,7 +112,6 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// </summary>
         SubnetNotFound,
 
-
         /// <summary>
         /// DependentResourcesExists
         /// </summary>
@@ -121,6 +120,17 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <summary>
         /// InvalidOrchestratorRequest
         /// </summary>
-        InvalidOrchestratorRequest
+        InvalidOrchestratorRequest,
+
+        /// <summary>
+        /// NodesetCreateFailed
+        /// </summary>
+        NodesetCreateFailed,
+
+        /// <summary>
+        /// NodesetDeleteFailed
+        /// </summary>
+        NodesetDeleteFailed
+
     }
 }

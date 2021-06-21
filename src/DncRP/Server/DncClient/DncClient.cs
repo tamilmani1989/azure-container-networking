@@ -28,6 +28,9 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         private string dncEndpoint;
         private const string dncPutSubnetFormat = "{0}/networks/{1}/subnets/{2}?api-version=2021-02-24";
         private const string dncGetSubnetFormat = "{0}/networks/{1}/subnets/{2}/status?api-version=2021-02-24";
+        private const string dncPutNodesetFormat = "{0}/nodesets/{1}?api-version=2021-02-24";
+        private const string dncGetNodesetFormat = "{0}/nodesets/{1}/status?api-version=2021-02-24";
+
         public DncClient(
             IHttpUtility httpUtility,
             ILogger logger,
@@ -136,6 +139,93 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             }
         }
 
+        /// <summary>
+        /// PutNodesetAsync - Calls dnc put nodeset
+        /// </summary>
+        /// <param name="orchestratorId">orchestrator guid</param>
+        /// <returns></returns>
+        public async Task PutNodesetAsync(
+            string orchestratorId)
+        {
+            string accessToken = await GetDncAccessTokenAsync();
+
+            // send dnc put request for nodeset create
+            string requestUri = string.Format(dncPutNodesetFormat, dncEndpoint, orchestratorId);
+            using (HttpRequestMessage requestMessage = new HttpRequestMessage(HttpMethod.Put, requestUri))
+            {
+                requestMessage.Headers.Authorization = new AuthenticationHeaderValue(scheme: "Bearer", parameter: accessToken);
+                logger.CLogInformation($"Dnc put nodeset RequestMessage uri: { requestMessage.RequestUri.ToString() }");
+
+                HttpResponseMessage response = await this.httpUtility.SendAsync(requestMessage);
+                if (response.StatusCode != HttpStatusCode.OK)
+                {
+                    DncFailureMessage errMsg = await this.ParseErrorResponse(response);
+                    throw new ErrorResponseMessageException(
+                                           httpStatus: HttpStatusCode.InternalServerError,
+                                           errorCode: ErrorResponseCode.NodesetCreateFailed,
+                                           errorMessage: $"DNC Put Nodeset failed to this endpoint: " +
+                                           $"{dncEndpoint}, , response content: {errMsg.ToString()}");
+                }
+            }
+        }
+
+        /// <summary>
+        /// DeleteNodesetAsync - Calls dnc delete nodeset
+        /// </summary>
+        /// <param name="orchestratorId">orchestrator guid</param>
+        /// <returns></returns>
+        public async Task DeleteNodesetAsync(
+            string orchestratorId,
+            bool forceDelete)
+        {
+            string accessToken = await GetDncAccessTokenAsync();
+            // send dnc delete request for nodeset delete
+            string requestUri = string.Format(dncPutNodesetFormat, dncEndpoint, orchestratorId);
+
+            if (forceDelete)
+            {
+                requestUri = requestUri + "&force-delete=true";
+            }
+
+            using (HttpRequestMessage requestMessage = new HttpRequestMessage(HttpMethod.Delete, requestUri))
+            {
+                requestMessage.Headers.Authorization = new AuthenticationHeaderValue(scheme: "Bearer", parameter: accessToken);
+                logger.CLogInformation($"Dnc Delete nodeset RequestMessage uri: { requestMessage.RequestUri.ToString() }");
+
+                HttpResponseMessage response = await this.httpUtility.SendAsync(requestMessage);
+                if (response.StatusCode != HttpStatusCode.Accepted)
+                {
+                    DncFailureMessage errMsg = await this.ParseErrorResponse(response);
+                    throw new ErrorResponseMessageException(
+                                           httpStatus: HttpStatusCode.InternalServerError,
+                                           errorCode: ErrorResponseCode.NodesetDeleteFailed,
+                                           errorMessage: $"DNC Delete Nodeset failed to this endpoint: " +
+                                           $"{dncEndpoint}, , response content: {errMsg.ToString()}");
+                }
+            }
+        }
+
+        /// <summary>
+        /// GetNodesetAsync - Calls dnc get nodeset
+        /// </summary>
+        /// <param name="orchestratorId">orchestrator guid</param>
+        /// <returns>Httpresponse</returns>
+        public async Task<HttpResponseMessage> GetNodesetAsync(
+           string orchestratorId)
+        {
+            string accessToken = await GetDncAccessTokenAsync();
+
+            // http get call to get nodeset status
+            string requestUri = string.Format(dncGetNodesetFormat, dncEndpoint, orchestratorId);
+            using (HttpRequestMessage requestMessage = new HttpRequestMessage(HttpMethod.Get, requestUri))
+            {
+                requestMessage.Headers.Authorization = new AuthenticationHeaderValue(scheme: "Bearer", parameter: accessToken);
+                logger.CLogInformation($"DNC Get Nodeset RequestMessage: {  requestMessage.RequestUri.ToString() }");
+                return await this.httpUtility.SendAsync(requestMessage);
+            }
+        }
+
+        // get access token to connect to dnc
         private async Task<string> GetDncAccessTokenAsync()
         {
             IAzureAD azureAD = new AzureAD();
@@ -151,6 +241,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             return accessToken;
         }
 
+        // parse dnc error response
         private async Task<DncFailureMessage> ParseErrorResponse(HttpResponseMessage response)
         {
             if (response.Content != null && response.StatusCode != System.Net.HttpStatusCode.NoContent)

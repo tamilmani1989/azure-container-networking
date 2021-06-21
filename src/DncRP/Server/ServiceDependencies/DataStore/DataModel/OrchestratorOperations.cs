@@ -86,6 +86,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             string resourceGroup, 
             string resourceName, 
             string privateEndpointName,
+            string resourceGuid,
             MSIIdentity identity,
             OrchestratorRequest orchestratorRequest)
         {
@@ -104,16 +105,14 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             string rowKey = $"{resourceGroup}_{resourceName}";
             TableResult result = await this.dataStore.GetEntityAsync<OrchestratorResourceEntity>(resourceTableName, subId, rowKey);
 
-            string resourceGuid, createdDate;
+            string createdDate;
             if (HttpStatusCodeCheck.IsResourceNotFound(result.HttpStatusCode))
             {
-                resourceGuid = Guid.NewGuid().ToString();
                 createdDate = DateTime.UtcNow.ToString();
             }
             else
             {
                 OrchestratorResourceEntity entity = result.Result as OrchestratorResourceEntity;
-                resourceGuid = entity.ResouceGuid;
                 createdDate = entity.CreatedDateUtc;
             }
 

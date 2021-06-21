@@ -155,6 +155,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 
             services.AddControllers();
             StartLoggingServiceUpMetric(metricsProvider);
+           
             Console.WriteLine("Startup ConfigureServices done");
         }
 
