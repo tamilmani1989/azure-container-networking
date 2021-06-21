@@ -331,6 +331,14 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
             Assert.True(result.StatusCode == (int)HttpStatusCode.OK, "DeleteDncResource failed created status check");
         }
 
+        [Fact]
+        public void TestController_ValidateRequestParameters()
+        {
+            var controller = new DncController(tableOperations, dncCtrlLogger.Object);
+            Assert.Throws<ErrorResponseMessageException>(() => controller.ValidateRequestParameters(
+                new ControllerRequest() { Location = "" }));
+        }
+
         /// <summary>
         /// Commented on purpose. Will be enabled in subsequent iteration
         /// </summary>

@@ -121,6 +121,9 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             this.logger.CLogInformation($"PutDelegateSubnet URI: {HttpContext.Request.GetDisplayUrl()}");
 
             DelegateSubnetRequest delegateSubnetRequest = await GetRequestAsync<DelegateSubnetRequest>(HttpContext.Request.Body, "PutDelegateSubnet");
+
+            ValidateRequestParameters(delegateSubnetRequest);
+
             return await this.ExecuteWithRetryAsync(subscriptionId, () =>
                 ExecuteDelegateSubnetAsync(
                        subscriptionId,
@@ -631,6 +634,41 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                     httpStatus: HttpStatusCode.InternalServerError,
                     errorCode: ErrorResponseCode.DeleteSubnetFailed,
                     errorMessage: $"DNC subnet Pending delete. status code:{response.StatusCode}");
+            }
+        }
+
+        public void ValidateRequestParameters(DelegateSubnetRequest request)
+        {
+            string errorMessage = "{0} parameter not present";
+            if (string.IsNullOrEmpty(request.Location))
+            {
+                throw new ErrorResponseMessageException(HttpStatusCode.BadRequest, ErrorResponseCode.None,
+                    string.Format(errorMessage, "location"));
+            }
+            if (request.Properties == null)
+            {
+                throw new ErrorResponseMessageException(HttpStatusCode.BadRequest, ErrorResponseCode.None,
+                    string.Format(errorMessage, "properties"));
+            }
+            if (request.Properties.ControllerDetails == null)
+            {
+                throw new ErrorResponseMessageException(HttpStatusCode.BadRequest, ErrorResponseCode.None,
+                    string.Format(errorMessage, "properties.controllerDetails"));
+            }
+            if (request.Properties.SubnetDetails == null)
+            {
+                throw new ErrorResponseMessageException(HttpStatusCode.BadRequest, ErrorResponseCode.None,
+                    string.Format(errorMessage, "properties.subnetDetails"));
+            }
+            if (string.IsNullOrEmpty(request.Properties.ControllerDetails.Id))
+            {
+                throw new ErrorResponseMessageException(HttpStatusCode.BadRequest, ErrorResponseCode.None,
+                    string.Format(errorMessage, "properties.controllerDetails.Id"));
+            }
+            if (string.IsNullOrEmpty(request.Properties.SubnetDetails.Id))
+            {
+                throw new ErrorResponseMessageException(HttpStatusCode.BadRequest, ErrorResponseCode.None,
+                    string.Format(errorMessage, "properties.subnetDetails.Id"));
             }
         }
     }

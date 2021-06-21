@@ -238,6 +238,55 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
                 DncSubnetStatus.New);
         }
 
+        [Fact]
+        public async void TestDelegateSubnetController_ValidateRequestParameters()
+        {
+            var controller = new DelegateSubnetController(delSubLogger.Object, tableOperations, this.httpUtilityFactory);
+            Assert.Throws<ErrorResponseMessageException>(() => controller.ValidateRequestParameters(
+                new DelegateSubnetRequest() { Location = "" }));
+            Assert.Throws<ErrorResponseMessageException>(() => controller.ValidateRequestParameters(
+                new DelegateSubnetRequest() { Location = "test-location", Properties = null }));
+            Assert.Throws<ErrorResponseMessageException>(() => controller.ValidateRequestParameters(
+                new DelegateSubnetRequest()
+                {
+                    Location = "test-location",
+                    Properties = new DelegateSubnetRequestProperties()
+                    {
+                        ControllerDetails = null
+                    }
+                }));
+            Assert.Throws<ErrorResponseMessageException>(() => controller.ValidateRequestParameters(
+                new DelegateSubnetRequest()
+                {
+                    Location = "test-location",
+                    Properties = new DelegateSubnetRequestProperties()
+                    {
+                        ControllerDetails = new ControllerDetails(),
+                        SubnetDetails = null
+                    }
+                }));
+            Assert.Throws<ErrorResponseMessageException>(() => controller.ValidateRequestParameters(
+                new DelegateSubnetRequest()
+                {
+                    Location = "test-location",
+                    Properties = new DelegateSubnetRequestProperties()
+                    {
+                        ControllerDetails = new ControllerDetails() { Id = "" },
+                        SubnetDetails = new SubnetDetails()
+                    }
+                }));
+            Assert.Throws<ErrorResponseMessageException>(() => controller.ValidateRequestParameters(
+                new DelegateSubnetRequest()
+                {
+                    Location = "test-location",
+                    Properties = new DelegateSubnetRequestProperties()
+                    {
+                        ControllerDetails = new ControllerDetails() { Id = "test-Id" },
+                        SubnetDetails = new SubnetDetails() { Id = "" }
+                    }
+                }));
+        }
+
         private async Task<DelegateSubnetResponse> GetAndValidateDelegateSubnetAsync(
             DelegateSubnetController delegateSubnetController,
             string subscriptionId,

@@ -61,6 +61,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 request = JsonUtility.Deserialize<ControllerRequest>(jsonBody);
             }
 
+            ValidateRequestParameters(request);
+
             return await this.ExecuteWithRetryAsync(subscriptionId, () => this.tableOperations.ControllerConfiguration.InsertOrReplaceDncControllerAsync(
                 subscriptionId, resourceGroupName, resourceName, request), HttpMethod.Put, "PutController");
         }
@@ -124,6 +126,14 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 
             return await this.ExecuteWithRetryAsync(subscriptionId, () => this.tableOperations.ControllerConfiguration.DeleteDncControllerAsync(
                subscriptionId, resourceGroupName, resourceName), HttpMethod.Delete, "DeleteController");
+        }
+
+        public void ValidateRequestParameters(ControllerRequest request)
+        {
+            if (string.IsNullOrEmpty(request.Location))
+            {
+                throw new ErrorResponseMessageException(HttpStatusCode.BadRequest, ErrorResponseCode.None, "location parameter not present");
+            }
         }
     }
 }

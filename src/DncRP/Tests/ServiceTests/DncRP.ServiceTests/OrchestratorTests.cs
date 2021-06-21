@@ -301,6 +301,64 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
             }
         }
 
+        [Fact]
+        public void TestOrchestratorResource_ValidateRequestParameters()
+        {
+            Assert.Throws<ErrorResponseMessageException>(() => orchController.ValidateRequestParameters(
+                new OrchestratorRequest() { Location = ""}));
+            Assert.Throws<ErrorResponseMessageException>(() => orchController.ValidateRequestParameters(
+                new OrchestratorRequest() { Location = "test_location", Kind = OrchestratorKind.Unknown }));
+            Assert.Throws<ErrorResponseMessageException>(() => orchController.ValidateRequestParameters(
+                new OrchestratorRequest()
+                {
+                    Location = "test_location", Kind = OrchestratorKind.Kubernetes, Properties = null
+                }));
+            Assert.Throws<ErrorResponseMessageException>(() => orchController.ValidateRequestParameters(
+                new OrchestratorRequest()
+                {
+                    Location = "test_location",
+                    Kind = OrchestratorKind.Kubernetes,
+                    Properties = new OrchestratorProperties() { AppId = "" }
+                }));
+            Assert.Throws<ErrorResponseMessageException>(() => orchController.ValidateRequestParameters(
+                new OrchestratorRequest()
+                {
+                    Location = "test_location",
+                    Kind = OrchestratorKind.Kubernetes,
+                    Properties = new OrchestratorProperties()
+                    { AppId = "test-app-id", ClusterRootCA = "" }
+                }));
+            Assert.Throws<ErrorResponseMessageException>(() => orchController.ValidateRequestParameters(
+                new OrchestratorRequest()
+                {
+                    Location = "test_location",
+                    Kind = OrchestratorKind.Kubernetes,
+                    Properties = new OrchestratorProperties()
+                    { AppId = "test-app-id", ClusterRootCA = "test-root-ca", TenantId = "" }
+                }));
+            Assert.Throws<ErrorResponseMessageException>(() => orchController.ValidateRequestParameters(
+                new OrchestratorRequest()
+                {
+                    Location = "test_location",
+                    Kind = OrchestratorKind.Kubernetes,
+                    Properties = new OrchestratorProperties()
+                    { AppId = "test-app-id", ClusterRootCA = "test-root-ca", TenantId = "test-id", ControllerDetails = null }
+                }));
+            Assert.Throws<ErrorResponseMessageException>(() => orchController.ValidateRequestParameters(
+                new OrchestratorRequest()
+                {
+                    Location = "test_location",
+                    Kind = OrchestratorKind.Kubernetes,
+                    Properties = new OrchestratorProperties()
+                    {
+                        AppId = "test-app-id",
+                        ClusterRootCA = "test-root-ca",
+                        TenantId = "test-id",
+                        ControllerDetails = new ControllerDetails() { Id = "" }
+                    }
+                }));
+        }
+
         private void SetOrchestratorHttpContext(
             OrchestratorController controller, string subId, string resourceGroup, string resourceName, HttpMethod method,
             OrchestratorRequest request)

@@ -85,6 +85,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                     errorMessage: $"Failed to get orchestrator identity");
             }
 
+            ValidateRequestParameters(request);
+
             OrchestratorProperties orchProps = request.Properties;
 
             // Get controller
@@ -102,7 +104,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             string peName = "";
             if (orchProps.PrivateLinkId != null && orchProps.PrivateLinkId != "")
             {
-                UInt32 hashCode = (UInt32) ExtensionMethods.GetDeterministicHashCode(orchProps.PrivateLinkId);
+                UInt32 hashCode = (UInt32)ExtensionMethods.GetDeterministicHashCode(orchProps.PrivateLinkId);
                 peName = GetPrivateEndpointName(hashCode);
 
                 NetworkModel.PrivateEndpoint privateEndpoint = await azVnetBroker.GetOrCreatePrivateEndpoint(
@@ -110,7 +112,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 
                 string privateEndpointIP = await azVnetBroker.GetPrivateEndpointIP(privateEndpoint);
                 this.logger.CLogInformation("Private Endpoint IP: {0}", privateEndpointIP);
-                    orchProps.ApiServerEndpoint = "https://" + privateEndpointIP;
+                orchProps.ApiServerEndpoint = "https://" + privateEndpointIP;
             }
             else if (orchProps.ApiServerEndpoint == null || orchProps.ApiServerEndpoint.Length == 0)
             {
@@ -299,6 +301,51 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             this.logger.CLogError(msg);
 
             throw new Exception(msg);
+        }
+
+        public void ValidateRequestParameters(OrchestratorRequest request)
+        {
+            string errorMessage = "{0} parameter not present";
+            if (string.IsNullOrEmpty(request.Location))
+            {
+                throw new ErrorResponseMessageException(HttpStatusCode.BadRequest, ErrorResponseCode.None,
+                    string.Format(errorMessage, "location"));
+            }
+            if (string.IsNullOrEmpty(request.Kind.ToString()) || request.Kind == OrchestratorKind.Unknown)
+            {
+                throw new ErrorResponseMessageException(HttpStatusCode.BadRequest, ErrorResponseCode.None,
+                    string.Format(errorMessage, "kind"));
+            }
+            if (request.Properties == null)
+            {
+                throw new ErrorResponseMessageException(HttpStatusCode.BadRequest, ErrorResponseCode.None,
+                    string.Format(errorMessage, "properties"));
+            }
+            if (string.IsNullOrEmpty(request.Properties.AppId))
+            {
+                throw new ErrorResponseMessageException(HttpStatusCode.BadRequest, ErrorResponseCode.None,
+                    string.Format(errorMessage, "properties.orchestratorAppId"));
+            }
+            if (string.IsNullOrEmpty(request.Properties.ClusterRootCA))
+            {
+                throw new ErrorResponseMessageException(HttpStatusCode.BadRequest, ErrorResponseCode.None,
+                    string.Format(errorMessage, "properties.clusterRootCA"));
+            }
+            if (string.IsNullOrEmpty(request.Properties.TenantId))
+            {
+                throw new ErrorResponseMessageException(HttpStatusCode.BadRequest, ErrorResponseCode.None,
+                    string.Format(errorMessage, "properties.orchestratorTenantId"));
+            }
+            if (request.Properties.ControllerDetails == null)
+            {
+                throw new ErrorResponseMessageException(HttpStatusCode.BadRequest, ErrorResponseCode.None,
+                    string.Format(errorMessage, "properties.controllerDetails"));
+            }
+            if (string.IsNullOrEmpty(request.Properties.ControllerDetails.Id))
+            {
+                throw new ErrorResponseMessageException(HttpStatusCode.BadRequest, ErrorResponseCode.None,
+                    string.Format(errorMessage, "properties.controllerDetails.Id"));
+            }
         }
     }
 }

@@ -257,7 +257,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             if (controllerName.StartsWith("AzureContainerNetworking_", StringComparison.OrdinalIgnoreCase))
             {
                 return "https://" + controllerId + "-" + region + "." + dncUrlSuffix;
-            } 
+            }
             else
             {
                 return string.Format(mdncUri, region, dncUrlSuffix);
