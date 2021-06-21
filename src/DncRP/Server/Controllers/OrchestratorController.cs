@@ -128,12 +128,12 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                             subscriptionId, resourceGroupName, resourceName);
             if (orch.Error == null)
             {
-                resourceGuid = Guid.NewGuid().ToString();
+                resourceGuid = orch.Properties.ResourceGuid;
+                logger.CLogInformation("Orchestrator Exists. {0}", resourceGuid);
             }
             else
             {
-                resourceGuid = orch.Properties.ResourceGuid;
-                logger.CLogInformation("Orchestrator Exists. {0}", resourceGuid);
+                resourceGuid = Guid.NewGuid().ToString();
             }
 
             // insert entry in cosmos
