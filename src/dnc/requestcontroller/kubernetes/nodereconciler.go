@@ -137,7 +137,14 @@ func (n *NodeReconciler) Reconcile(request reconcile.Request) (reconcile.Result,
 			SubnetNameLabel:        subnetNameLabel,
 		}
 
-		if err := createNodeNetworkConfig(ctx, n.k8sClient, request.Name, n.namespace, n.initialIPCount, nncLabels); err != nil {
+		// set the ip count to the initial count, unless that is too large, then just use max IP count of node
+		initialIPCount := n.initialIPCount
+		maxIPCount := getMaxIPCountOfNode(node)
+		if maxIPCount < initialIPCount {
+			initialIPCount = maxIPCount
+		}
+
+		if err := createNodeNetworkConfig(ctx, n.k8sClient, request.Name, n.namespace, initialIPCount, nncLabels); err != nil {
 			n.recorder.Eventf(createEventNodeRef(node.Name), corev1.EventTypeWarning, "ErrorCreatingNNC", "Error creating NodeNetworkConfig %s, err = %s", request.Name, err)
 			// return error to requeue and try creating NetworkConfig again
 			logger.WithError(err).Infof("Error creating NNC: %v", err)

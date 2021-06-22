@@ -665,7 +665,7 @@ func (n *NodeNetworkConfigReconciler) getNNCStatusFromNCResponse(nc *api.Network
 		BatchSize:               n.getBatchSize(*node),
 		ReleaseThresholdPercent: n.scalerConfig.ReleaseThresholdPercent,
 		RequestThresholdPercent: n.scalerConfig.RequestThresholdPercent,
-		MaxIPCount:              n.getMaxIPCountOfNode(*node),
+		MaxIPCount:              getMaxIPCountOfNode(*node),
 	}
 	nncStatus.Scaler = scaler
 
@@ -728,36 +728,10 @@ func (n *NodeNetworkConfigReconciler) getDNCNodeNameFromNNCName(ctx context.Cont
 	return dncNodeName, nil
 }
 
-// getMaxIPCountOfNode gets the max ip count for a node
-// returns default max ip count if label is either not found or 0
-func (n *NodeNetworkConfigReconciler) getMaxIPCountOfNode(node corev1.Node) int64 {
-	// Get node capacity from node object
-	// Returns 0 if label is not present
-	nodeCapacity := node.Status.Capacity.Pods().Value()
-	if nodeCapacity <= 0 {
-		// if node capacity not present or < 0, set it to system max
-		nodeCapacity = swiftIPCountSystemMax
-	}
-
-	// Get max desired swift pods from label
-	// Start with system max, overwrite if label is found and parsed successfully
-	var maxDesiredPods int64 = swiftIPCountSystemMax
-	maxDesiredPodsString := node.Labels[MaxVnetPodsLabel]
-	if parsedNum, err := strconv.ParseInt(maxDesiredPodsString, 10, 0); err == nil {
-		// don't allow value <= 0
-		if parsedNum > 0 {
-			maxDesiredPods = parsedNum
-		}
-	}
-
-	// Take the min of nodeCapacity, maxDesiredPods, and systemMax
-	return minInt64(minInt64(nodeCapacity, maxDesiredPods), swiftIPCountSystemMax)
-}
-
 // getBatchSize gets the batch size
 // If the batch size is > than maxIPCount, make batch size = maxIPCount
 func (n *NodeNetworkConfigReconciler) getBatchSize(node corev1.Node) int64 {
-	maxIPCount := n.getMaxIPCountOfNode(node)
+	maxIPCount := getMaxIPCountOfNode(node)
 
 	batchSize := n.scalerConfig.BatchSize
 	if batchSize > maxIPCount {
@@ -801,12 +775,4 @@ func (p *processedNNCMetricPublisher) SendMetric() {
 
 func (p *processedNNCMetricPublisher) GetDuration() time.Duration {
 	return p.duration
-}
-
-func minInt64(a, b int64) int64 {
-	if a <= b {
-		return a
-	}
-
-	return b
 }

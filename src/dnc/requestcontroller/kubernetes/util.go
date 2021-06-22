@@ -3,6 +3,8 @@
 package kubernetes
 
 import (
+	"strconv"
+
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -18,16 +20,6 @@ func removeStringFromSlice(strings []string, remove string) ([]string, bool) {
 		}
 	}
 	return ret, deletedSomething
-}
-
-func containsString(strings []string, s string) bool {
-	for _, t := range strings {
-		if t == s {
-			return true
-		}
-	}
-
-	return false
 }
 
 func appendStringIfNotPresent(strings []string, s string) []string {
@@ -56,4 +48,38 @@ func createEventNodeRef(nodeName string) *v1.ObjectReference {
 		UID:       types.UID(nodeName), // not a UID, but that's how it works
 		Namespace: "",
 	}
+}
+
+// getMaxIPCountOfNode gets the max ip count for a node
+// returns default max ip count if label is either not found or 0
+func getMaxIPCountOfNode(node v1.Node) int64 {
+	// Get node capacity from node object
+	// Returns 0 if label is not present
+	nodeCapacity := node.Status.Capacity.Pods().Value()
+	if nodeCapacity <= 0 {
+		// if node capacity not present or < 0, set it to system max
+		nodeCapacity = swiftIPCountSystemMax
+	}
+
+	// Get max desired swift pods from label
+	// Start with system max, overwrite if label is found and parsed successfully
+	var maxDesiredPods int64 = swiftIPCountSystemMax
+	maxDesiredPodsString := node.Labels[MaxVnetPodsLabel]
+	if parsedNum, err := strconv.ParseInt(maxDesiredPodsString, 10, 0); err == nil {
+		// don't allow value <= 0
+		if parsedNum > 0 {
+			maxDesiredPods = parsedNum
+		}
+	}
+
+	// Take the min of nodeCapacity, maxDesiredPods, and systemMax
+	return minInt64(minInt64(nodeCapacity, maxDesiredPods), swiftIPCountSystemMax)
+}
+
+func minInt64(a, b int64) int64 {
+	if a <= b {
+		return a
+	}
+
+	return b
 }

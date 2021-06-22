@@ -11,7 +11,9 @@ import (
 
 	acnv1alpha "github.com/Azure/azure-container-networking/nodenetworkconfig/api/v1alpha"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
@@ -70,6 +72,73 @@ func TestReconcileNewNode(t *testing.T) {
 
 	if nnc.Name != nodeName {
 		t.Fatalf("Reconcile should have created a NodeNetworkConfig with name %s but created %s", nodeName, nnc.Name)
+	}
+}
+
+// TestReconcileNewNodeWithSmallMax tests that a NodeNetworkConfig is created for a new Node and respects max ip count
+func TestReconcileNewNodeWithSmallMax(t *testing.T) {
+	namespace := "test"
+	nodeName := "test-node"
+	mockClient := newMockK8sClient()
+	nodeReconciler := NewNodeReconciler(NodeReconcilerOptions{
+		K8sClient:      mockClient,
+		DNCClient:      &syncdncclient.MockSynchronousDNCClient{},
+		Namespace:      namespace,
+		InitialIPCount: swiftIPCountSystemMax, // use a large default initial count
+		Logger:         logger,
+		Recorder:       &record.FakeRecorder{},
+	})
+	maxPods := int64(32)
+
+	maxPodsQ, _ := resource.ParseQuantity("32")
+
+	node := corev1.Node{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: nodeName,
+			Labels: map[string]string{
+				DelegatedSubnetIDLabel: "b7806e74-9fd3-4ff8-8906-6e2278f4415b",
+				SubnetNameLabel:        "subnet1",
+			},
+		},
+		Status: v1.NodeStatus{
+			Capacity: v1.ResourceList{
+				v1.ResourcePods: maxPodsQ,
+			},
+		},
+	}
+
+	err := mockClient.Create(context.Background(), &node)
+	if err != nil {
+		t.Fatalf("Mock client Create failed with error: %v", err)
+	}
+
+	nodeKey := types.NamespacedName{
+		Namespace: "",
+		Name:      nodeName,
+	}
+	expectedNNCKey := types.NamespacedName{
+		Namespace: namespace,
+		Name:      nodeName,
+	}
+
+	_, err = nodeReconciler.Reconcile(reconcile.Request{nodeKey})
+	if err != nil {
+		t.Fatalf("Reconcile failed with error: %v", err)
+	}
+
+	// Reconcile should have created a NodeNetworkConfig with same name as testNode in the test namespace
+	nnc := acnv1alpha.NodeNetworkConfig{}
+	err = mockClient.Get(context.Background(), expectedNNCKey, &nnc)
+	if err != nil {
+		t.Fatalf("Reconcile failed with error: %v", err)
+	}
+
+	if nnc.Name != nodeName {
+		t.Fatalf("Reconcile should have created a NodeNetworkConfig with name %s but created %s", nodeName, nnc.Name)
+	}
+
+	if nnc.Spec.RequestedIPCount != maxPods {
+		t.Fatalf("incorrect ip count, expected %d, got %d", maxPods, nnc.Spec.RequestedIPCount)
 	}
 }
 
