@@ -39,7 +39,7 @@ func (t *prepopulatedStrategy) scaleDown(reservations []datamodel.ReservationRow
 		}
 	}
 
-	// get all existing records that need to be cleared
+	t.logf("verifying %d allocation ids to be cleared from allocation records", len(allocIDs))
 	tbdEntities, err := t.allocator.Allocations.QueryIPAllocationsByAllocationID(t.subnetInfo.vnetID, t.subnetInfo.subnetName, allocIDs)
 	if err != nil {
 		return nil, err
@@ -64,6 +64,7 @@ func (t *prepopulatedStrategy) scaleDown(reservations []datamodel.ReservationRow
 			updatedTBDEntities = append(updatedTBDEntities, tbdEntity)
 		}
 
+		t.logf("%d allocations to be updated with a tbd owner", len(updatedTBDEntities))
 		if err := t.allocator.UpdateAllocations(t.subnetInfo.vnetID, t.subnetInfo.subnetName, updatedTBDEntities); err != nil {
 			t.logErrorf("Failed to set ToBeDeletedOwner for associated allocIds, allocId Count %d, err %+v", len(allocIDs), err)
 			return nil, err
@@ -79,33 +80,12 @@ func (t *prepopulatedStrategy) scaleDown(reservations []datamodel.ReservationRow
 		tbdEntities[i].ToBeDeletedOwner = ""
 	}
 
+	t.logf("%d allocations to be cleared", len(tbdEntities))
 	if err := t.allocator.UpdateAllocations(t.subnetInfo.vnetID, t.subnetInfo.subnetName, tbdEntities); err != nil {
 		return nil, err
 	}
 
 	return reservations, nil
-}
-
-// clearAllocations will clear all properties for the given allocation ids
-func (t *prepopulatedStrategy) clearAllocations(networkID, subnetName string, allocationIDs []string) *api.JsonErr {
-	entities, err := t.allocator.Allocations.QueryIPAllocationsByAllocationID(networkID, subnetName, allocationIDs)
-	if err != nil {
-		return err
-	}
-
-	if len(entities) == 0 {
-		t.logf("the following allocation ids were not found in allocation table: %+v", allocationIDs)
-		return nil
-	}
-
-	// will retain etags
-	for i := range entities {
-		entities[i].IPAllocation = ""
-		entities[i].AllocationID = ""
-		entities[i].ToBeDeletedOwner = ""
-	}
-
-	return t.allocator.UpdateAllocations(networkID, subnetName, entities)
 }
 
 func (t *prepopulatedStrategy) scaleUp(reservations []datamodel.ReservationRow) ([]datamodel.ReservationRow, error) {

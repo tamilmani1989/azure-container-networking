@@ -162,8 +162,6 @@ func (s *subnetHandler) process(batch requestSet) {
 }
 
 func (s *subnetHandler) cleanUpTBDs(batch requestSet) []datamodel.ReservationRow {
-	s.logf("deallocating ips")
-
 	reservations := batch.getAllReservations()
 	reservationSet := toReservationSet(reservations)
 	reservationToTBD := batch.getAllValidTBDAllocIDs() // or, to be cleared ips
@@ -173,9 +171,13 @@ func (s *subnetHandler) cleanUpTBDs(batch requestSet) []datamodel.ReservationRow
 	}
 
 	var resWithTBD []datamodel.ReservationRow
-	for resID := range reservationToTBD {
+	var tbdRemainingInReservations int
+	for resID, allocIDs := range reservationToTBD {
+		tbdRemainingInReservations += len(allocIDs)
 		resWithTBD = append(resWithTBD, reservationSet[resID])
 	}
+
+	s.logf("deallocating ips, %d allocation ids remaining in %d reservations", tbdRemainingInReservations, len(resWithTBD))
 
 	deallocatedReservations, err := s.scaleStrategy.scaleDown(resWithTBD, reservationToTBD)
 	if err != nil {
@@ -185,7 +187,7 @@ func (s *subnetHandler) cleanUpTBDs(batch requestSet) []datamodel.ReservationRow
 			delete(reservationSet, resID)
 		}
 	} else {
-		s.logf("updating deallocated reservations")
+		s.logf("updating %d deallocated reservations", len(deallocatedReservations))
 		if err := s.reservations.UpdateReservations(deallocatedReservations); err != nil {
 			for _, newRes := range deallocatedReservations {
 				batch.removeWithError(newRes.Configuration.ReservationID, err)
