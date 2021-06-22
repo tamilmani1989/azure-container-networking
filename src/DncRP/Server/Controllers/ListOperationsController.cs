@@ -27,7 +27,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 
         public ListOperationsController(
             ITableOperations tableOperations,
-            ILogger<ListOperationsController> logger) : base(logger, tableOperations)
+            ILogger<ListOperationsController> logger,
+            IMetricsProvider metricsProvider) : base(logger, tableOperations, metricsProvider)
         {
             logger.CLogInformation("ListOperationsController initialized");
         }

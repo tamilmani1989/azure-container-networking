@@ -128,7 +128,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
 
         private async Task TestControllerResouce_Get_Put_Delete_Internal(string ctrlName, string rgName, string location, string expectedCtrlResouceGuid)
         {
-            DncController dncController = new DncController(tableOperations, dncCtrlLogger.Object);
+            DncController dncController = new DncController(tableOperations, dncCtrlLogger.Object, new MockMetricsProvider());
 
             string expectedId = $"/subscriptions/{this.testConfig.SubscriptionId}/resourceGroups/{rgName}/providers/Microsoft.DelegatedNetwork/controller/{ctrlName}";
 
@@ -198,7 +198,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
             string subscriptionId = this.testConfig.SubscriptionId;
 
             CurrentContext.SetKeyVaultUrl(this.testConfig.KeyVaultUrl);
-            DncController dncController = new DncController(tableOperations, dncCtrlLogger.Object);
+            DncController dncController = new DncController(tableOperations, dncCtrlLogger.Object, new MockMetricsProvider());
             ControllerRequest request = new ControllerRequest
             {
                 Location = location
@@ -334,7 +334,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
         [Fact]
         public void TestController_ValidateRequestParameters()
         {
-            var controller = new DncController(tableOperations, dncCtrlLogger.Object);
+            var controller = new DncController(tableOperations, dncCtrlLogger.Object, new MockMetricsProvider());
             Assert.Throws<ErrorResponseMessageException>(() => controller.ValidateRequestParameters(
                 new ControllerRequest() { Location = "" }));
         }

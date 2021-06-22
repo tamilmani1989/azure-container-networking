@@ -42,6 +42,12 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
             this.EmitMetric(metricName, value, dimensionValues);
         }
 
+        public void IncrementCounter(string metricName, IEnumerable<DimensionValue> dimensionValues = null)
+        {
+            string bucket = this.CreateStatsDBucket(metricName, dimensionValues);
+            this.statsd.Increment(bucket);
+        }
+
         public void EmitMetric(string metricName, double value, DimensionValue dimensionValue)
         {
             this.EmitMetric(metricName, value, new List<DimensionValue> { dimensionValue });

@@ -15,10 +15,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Http;
-    using Microsoft.AspNetCore.Http.Extensions;
     using Microsoft.AspNetCore.Mvc;
     using Microsoft.Azure.ContainerNetworking.CoreLib;
-    using Microsoft.Extensions.Configuration;
     using Microsoft.Extensions.Logging;
 
     [ApiController]
@@ -27,13 +25,16 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
     {
         protected readonly ILogger<T> logger;
         protected readonly ITableOperations tableOperations;
+        protected readonly IMetricsProvider metricsProvider;
 
         public DncRpControllerBase(
             ILogger<T> logger,
-            ITableOperations tableOperations)
+            ITableOperations tableOperations,
+            IMetricsProvider metricsProvider)
         {
             this.logger = logger;
             this.tableOperations = tableOperations;
+            this.metricsProvider = metricsProvider;
         }
 
         /// <summary>
@@ -46,7 +47,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             string subscriptionId,
             Func<Task<TResouce>> action,
             HttpMethod method,
-            string methodNameForLogging) where TResouce : TopLevelResource
+            string methodNameForLogging,
+            IEnumerable<DimensionValue> metricDimentions = null) where TResouce : TopLevelResource
         {
             TResouce response = null;
 
@@ -69,16 +71,20 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 {
                     statusCode = (int)errorException.HttpStatus;
                     message += errorException.Message + $"InternalErrorCode: {errorException.ErrorCode}";
+                    ((List<DimensionValue>)metricDimentions).Add(new DimensionValue() { Name = DimensionNames.InternalErrorCode, Value = Convert.ToString(errorException.ErrorCode) });
                 }
+                ((List<DimensionValue>)metricDimentions).Add(new DimensionValue() { Name = DimensionNames.InternalErrorCode, Value = Convert.ToString(statusCode) });
 
                 // only return error message in response (instead stack trace) since this is public API
                 string externalMessage = $"{message}. {ex.Message}";
                 message += $"InternalException: {ex}";
 
                 logger.CLogError(message);
+                metricsProvider.IncrementCounter($"{methodNameForLogging}{MetricSuffix.failure}", metricDimentions);
                 return ConvertToExceptionResult(externalMessage, statusCode);
             }
 
+            metricsProvider.IncrementCounter($"{methodNameForLogging}{MetricSuffix.success}", metricDimentions);
             return this.ConvertToContentResult(response, method, methodNameForLogging);
         }
 

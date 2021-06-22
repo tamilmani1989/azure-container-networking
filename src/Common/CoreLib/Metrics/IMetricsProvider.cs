@@ -33,5 +33,12 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
         /// <param name="value"></param>
         /// <param name="dimensionValues"></param>
         void EmitMetric(string metricName, double value, IEnumerable<DimensionValue> dimensionValues);
+
+        /// <summary>
+        /// Increments a metric by 1
+        /// Counter is reset to zero after default 10 seconds flush interval
+        /// </summary>
+        /// <param name="metricName"></param>
+        void IncrementCounter(string metricName, IEnumerable<DimensionValue> dimensionValues = null);
     }
 }

@@ -127,7 +127,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
             SubscriptionRegistrationTests.RegisterSub(subscriptionId, tableOperations);
 
             // Pass TestHttpUtility for NRP operations.
-            DelegateSubnetController delegateSubnetController = new DelegateSubnetController(delSubLogger.Object, tableOperations, this.httpUtilityFactory);
+            DelegateSubnetController delegateSubnetController = new DelegateSubnetController(delSubLogger.Object, tableOperations, this.httpUtilityFactory, new MockMetricsProvider());
 
             Guid testGuid = Guid.NewGuid();
             string resourceGroup = $"testRG_{testGuid}";
@@ -241,7 +241,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
         [Fact]
         public async void TestDelegateSubnetController_ValidateRequestParameters()
         {
-            var controller = new DelegateSubnetController(delSubLogger.Object, tableOperations, this.httpUtilityFactory);
+            var controller = new DelegateSubnetController(delSubLogger.Object, tableOperations, this.httpUtilityFactory, new MockMetricsProvider());
             Assert.Throws<ErrorResponseMessageException>(() => controller.ValidateRequestParameters(
                 new DelegateSubnetRequest() { Location = "" }));
             Assert.Throws<ErrorResponseMessageException>(() => controller.ValidateRequestParameters(

@@ -29,9 +29,10 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         public DelegateSubnetController(
             ILogger<DelegateSubnetController> logger,
             ITableOperations tableOperations,
-            IHttpUtilityFactory httpUtilityFactory
+            IHttpUtilityFactory httpUtilityFactory,
+            IMetricsProvider metricsProvider
         )
-            : base(logger, tableOperations)
+            : base (logger, tableOperations, metricsProvider)
         {
             IAzureAD azureAD = new AzureAD();
             this.dncHttpUtility = httpUtilityFactory.Resolve(Constants.DncHttpUtility);
@@ -56,6 +57,11 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             this.logger.CLogInformation($"GetDelegateSubnet URI: {HttpContext.Request.GetDisplayUrl()}");
 
             // TODO Validate arguments
+            IEnumerable<DimensionValue> metricDimensions = new List<DimensionValue>()
+            {
+                new DimensionValue() { Name = DimensionNames.Subscription, Value = subscriptionId },
+                new DimensionValue() { Name = DimensionNames.Subscription, Value = resourceGroup }
+            };
             try
             {
                 // Check if SubnetConfiguration is already defined
@@ -81,6 +87,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                     ContentType = "application/json"
                 };
 
+                metricsProvider.IncrementCounter($"{MetricNames.GetDelegateSubnet}{MetricSuffix.success}", metricDimensions);
+
                 return result;
             }
             catch (Exception ex)
@@ -93,13 +101,16 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 {
                     statusCode = (int)errorException.HttpStatus;
                     message += errorException.Message + $"InternalErrorCode: {errorException.ErrorCode}";
+                    ((List<DimensionValue>)metricDimensions).Add(new DimensionValue() { Name = DimensionNames.InternalErrorCode, Value = Convert.ToString(errorException.ErrorCode) });
                 }
+                ((List<DimensionValue>)metricDimensions).Add(new DimensionValue() { Name = DimensionNames.HttpStatusCode, Value = Convert.ToString(statusCode) });
 
                 // only return error message in response (instead stack trace) since this is public API
                 string externalMessage = $"{message}. {ex.Message}";
                 message += $"InternalException: {ex}";
 
                 this.logger.CLogError($"{message}, StatusCode: {statusCode}");
+                metricsProvider.IncrementCounter($"{MetricNames.GetDelegateSubnet}{MetricSuffix.failure}", metricDimensions);
 
                 return ConvertToExceptionResult(externalMessage, statusCode);
             }
@@ -131,7 +142,12 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                        resourceName,
                        delegateSubnetRequest),
                 HttpMethod.Put,
-                "PutDelegateSubnet");
+                MetricNames.PutDelegateSubnet,
+                new List<DimensionValue>()
+                {
+                    new DimensionValue() { Name = DimensionNames.Subscription, Value = subscriptionId },
+                    new DimensionValue() { Name = DimensionNames.ResourceGroup, Value = resourceGroup }
+                });
         }
 
         /// <summary>
@@ -167,6 +183,11 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             this.logger.CLogInformation($"DeleteDelegateSubnet URI: {HttpContext.Request.GetDisplayUrl()}");
 
             // TODO Validate arguments
+            IEnumerable<DimensionValue> metricDimensions = new List<DimensionValue>()
+            {
+                new DimensionValue() { Name = DimensionNames.Subscription, Value = subscriptionId },
+                new DimensionValue() { Name = DimensionNames.Subscription, Value = resourceGroup }
+            };
             try
             {
                 await tableOperations.SubscriptionOperation.ValidateSubscriptionRegistrationAsync(subscriptionId);
@@ -178,6 +199,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                     Content = null,
                     ContentType = "application/json"
                 };
+
+                metricsProvider.IncrementCounter($"{MetricNames.DeleteDelegateSubnet}{MetricSuffix.success}", metricDimensions);
 
                 return result;
             }
@@ -191,13 +214,16 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 {
                     statusCode = (int)errorException.HttpStatus;
                     message += errorException.Message + $"InternalErrorCode: {errorException.ErrorCode}.";
+                    ((List<DimensionValue>)metricDimensions).Add(new DimensionValue() { Name = DimensionNames.InternalErrorCode, Value = Convert.ToString(errorException.ErrorCode) });
                 }
+                ((List<DimensionValue>)metricDimensions).Add(new DimensionValue() { Name = DimensionNames.HttpStatusCode, Value = Convert.ToString(statusCode) });
 
                 // only return error message in response (instead stack trace) since this is public API
                 string externalMessage = $"{message} {ex.Message}";
                 message += $"InternalException: {ex}";
 
                 this.logger.CLogError($"{message}, StatusCode: {statusCode}");
+                metricsProvider.IncrementCounter($"{MetricNames.DeleteDelegateSubnet}{MetricSuffix.failure}", metricDimensions);
 
                 return ConvertToExceptionResult(externalMessage, statusCode);
             }

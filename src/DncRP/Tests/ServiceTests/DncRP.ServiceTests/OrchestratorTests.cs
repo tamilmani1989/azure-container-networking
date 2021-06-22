@@ -119,8 +119,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
             CosmosDbDataStore dataStore = new CosmosDbDataStore(connectionStringProvider, logger.Object);
             dataStore.InitAsync().GetAwaiter().GetResult();
             this.tableOperations = new TableOperations(dataStore, tableOpLogger.Object, this.httpUtility, this.keyVaultUtility);
-            this.orchController = new OrchestratorController(tableOperations, httpUtilityFactory, orchLogger.Object);
-            this.dncController = new DncController(tableOperations, dncCtrlLogger.Object);
+            this.orchController = new OrchestratorController(tableOperations, httpUtilityFactory, orchLogger.Object, new MockMetricsProvider());
+            this.dncController = new DncController(tableOperations, dncCtrlLogger.Object, new MockMetricsProvider());
         }
 
         [Fact]

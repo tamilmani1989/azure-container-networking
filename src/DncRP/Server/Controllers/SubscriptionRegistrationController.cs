@@ -7,6 +7,7 @@
 namespace Microsoft.Azure.ContainerNetworking.DncRP
 {
     using System;
+    using System.Collections.Generic;
     using System.IO;
     using System.Net;
     using System.Threading.Tasks;
@@ -26,8 +27,9 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         public SubscriptionRegistrationController(
             ILogger<SubscriptionRegistrationController> logger,
             ITableOperations tableOperations,
-            IHttpUtility httpUtility)
-            : base(logger, tableOperations)
+            IHttpUtility httpUtility,
+            IMetricsProvider metricsProvider)
+            : base(logger, tableOperations, metricsProvider)
         {
             this.azSubscriptionBroker = new AzSubscriptionBroker(httpUtility, logger);
             logger.CLogInformation("SubscriptionRegistrationController initialized");
@@ -42,6 +44,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         {
             this.logger.CLogInformation($"PutSubscriptionRegistration URI: {HttpContext.Request.GetDisplayUrl()}");
 
+            IEnumerable<DimensionValue> metricDimensions = new List<DimensionValue>()
+            { new DimensionValue() { Name = DimensionNames.Subscription, Value = subscriptionId }};
             if (HttpContext.Request.Body == null)
             {
                 throw new EmptyRequestBody("Empty request body");
@@ -50,6 +54,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             try
             {
                 string jsonBody = await AddOrUpdateSubscriptionAsync(subscriptionId);
+                metricsProvider.IncrementCounter($"{MetricNames.PutSubscriptionRegistration}{MetricSuffix.success}", metricDimensions);
                 return new ContentResult { 
                     StatusCode = (int)HttpStatusCode.OK, 
                     Content = jsonBody, 
@@ -66,9 +71,13 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 {
                     statusCode = (int)errorException.HttpStatus;
                     message += errorException.Message + $"InternalErrorCode: {errorException.ErrorCode}";
+                    ((List<DimensionValue>)metricDimensions).Add(new DimensionValue() { Name = DimensionNames.InternalErrorCode, Value = Convert.ToString(errorException.ErrorCode) });
                 }
+                ((List<DimensionValue>)metricDimensions).Add(new DimensionValue() { Name = DimensionNames.HttpStatusCode, Value = Convert.ToString(statusCode) });
 
                 message += $"InternalException: {ex}";
+
+                metricsProvider.IncrementCounter($"{MetricNames.PutSubscriptionRegistration}{MetricSuffix.failure}", metricDimensions);
 
                 return ConvertToExceptionResult(message, statusCode);
             }

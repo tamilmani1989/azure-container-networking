@@ -108,7 +108,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
         {
             // register Sub
             string subscriptionId = this.testConfig.SubscriptionId;
-            SubscriptionRegistrationController subController = new SubscriptionRegistrationController(subscriptionLogger.Object, tableOperations, new TestHttpUtility());
+            SubscriptionRegistrationController subController = new SubscriptionRegistrationController(subscriptionLogger.Object, tableOperations, new TestHttpUtility(), new MockMetricsProvider());
 
             SubscriptionRegistrationRequest request = new SubscriptionRegistrationRequest()
             {
@@ -169,7 +169,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
             ITableOperations tableOperations)
         {
             Mock<ILogger<SubscriptionRegistrationController>> logger = new Mock<ILogger<SubscriptionRegistrationController>>();
-            SubscriptionRegistrationController subController = new SubscriptionRegistrationController(logger.Object, tableOperations, new TestHttpUtility());
+            SubscriptionRegistrationController subController = new SubscriptionRegistrationController(logger.Object, tableOperations, new TestHttpUtility(), new MockMetricsProvider());
 
             SubscriptionRegistrationRequest request = new SubscriptionRegistrationRequest()
             {

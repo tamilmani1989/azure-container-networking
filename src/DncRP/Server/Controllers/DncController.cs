@@ -6,7 +6,6 @@
 
 namespace Microsoft.Azure.ContainerNetworking.DncRP
 {
-    using System;
     using System.Collections.Generic;
     using System.IO;
     using System.Net;
@@ -24,7 +23,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
     {
         public DncController(
             ITableOperations tableOperations,
-            ILogger<DncController> logger) : base(logger, tableOperations)
+            ILogger<DncController> logger,
+            IMetricsProvider metricsProvider) : base(logger, tableOperations, metricsProvider)
         {
             logger.CLogInformation("DncController initialized");
         }
@@ -36,8 +36,16 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         [HttpGet]
         public async Task<ContentResult> GetDncResource(string subscriptionId, string resourceGroupName, string resourceName)
         {
-            return await this.ExecuteWithRetryAsync(subscriptionId, () => this.tableOperations.ControllerConfiguration.GetDncControllerAsync(
-                subscriptionId, resourceGroupName, resourceName), HttpMethod.Get, "GetController");
+            return await this.ExecuteWithRetryAsync(
+                subscriptionId,
+                () => this.tableOperations.ControllerConfiguration.GetDncControllerAsync(subscriptionId, resourceGroupName, resourceName),
+                HttpMethod.Get,
+                MetricNames.GetController,
+                new List<DimensionValue>()
+                {
+                    new DimensionValue() { Name = DimensionNames.Subscription, Value = subscriptionId },
+                    new DimensionValue() { Name = DimensionNames.ResourceGroup, Value = resourceGroupName }
+                });
         }
 
         /// <summary>
@@ -63,8 +71,16 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 
             ValidateRequestParameters(request);
 
-            return await this.ExecuteWithRetryAsync(subscriptionId, () => this.tableOperations.ControllerConfiguration.InsertOrReplaceDncControllerAsync(
-                subscriptionId, resourceGroupName, resourceName, request), HttpMethod.Put, "PutController");
+            return await this.ExecuteWithRetryAsync(
+                subscriptionId,
+                () => this.tableOperations.ControllerConfiguration.InsertOrReplaceDncControllerAsync(subscriptionId, resourceGroupName, resourceName, request),
+                HttpMethod.Put,
+                MetricNames.PutController,
+                new List<DimensionValue>()
+                {
+                    new DimensionValue() { Name = DimensionNames.Subscription, Value = subscriptionId },
+                    new DimensionValue() { Name = DimensionNames.ResourceGroup, Value = resourceGroupName }
+                });
         }
 
         /// <summary>
@@ -77,8 +93,16 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             // TODO : Get this from HttpContext
             ControllerRequest requestBody = null;
 
-            return await this.ExecuteWithRetryAsync(subscriptionId, () => this.tableOperations.ControllerConfiguration.MergeDncControllerAsync(
-                subscriptionId, resourceGroupName, resourceName, requestBody), HttpMethod.Patch, "PatchController");
+            return await this.ExecuteWithRetryAsync(
+                subscriptionId,
+                () => this.tableOperations.ControllerConfiguration.MergeDncControllerAsync(subscriptionId, resourceGroupName, resourceName, requestBody),
+                HttpMethod.Patch,
+                MetricNames.PatchController,
+                new List<DimensionValue>()
+                {
+                    new DimensionValue() { Name = DimensionNames.Subscription, Value = subscriptionId },
+                    new DimensionValue() { Name = DimensionNames.ResourceGroup, Value = resourceGroupName }
+                });
         }
 
         /// <summary>
@@ -97,7 +121,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             if (delegatedSubnetsList.Count > 0)
             {
                 string dsResources = "";
-                foreach(DelegateSubnet ds in delegatedSubnetsList)
+                foreach (DelegateSubnet ds in delegatedSubnetsList)
                 {
                     dsResources = dsResources + "," + ds.Name;
                 }
@@ -124,8 +148,16 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                         errorMessage: $"Dependent orchestrator resource exists.{orchResources}");
             }
 
-            return await this.ExecuteWithRetryAsync(subscriptionId, () => this.tableOperations.ControllerConfiguration.DeleteDncControllerAsync(
-               subscriptionId, resourceGroupName, resourceName), HttpMethod.Delete, "DeleteController");
+            return await this.ExecuteWithRetryAsync(
+                subscriptionId,
+                () => this.tableOperations.ControllerConfiguration.DeleteDncControllerAsync(subscriptionId, resourceGroupName, resourceName),
+                HttpMethod.Delete,
+                MetricNames.DeleteController,
+                new List<DimensionValue>()
+                {
+                    new DimensionValue() { Name = DimensionNames.Subscription, Value = subscriptionId },
+                    new DimensionValue() { Name = DimensionNames.ResourceGroup, Value = resourceGroupName }
+                });
         }
 
         public void ValidateRequestParameters(ControllerRequest request)

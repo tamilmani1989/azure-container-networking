@@ -7,6 +7,7 @@
 namespace Microsoft.Azure.ContainerNetworking.DncRP
 {
     using System;
+    using System.Collections.Generic;
     using System.IO;
     using System.Net;
     using System.Net.Http;
@@ -34,7 +35,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         public OrchestratorController(
             ITableOperations tableOperations,
             IHttpUtilityFactory httpUtilityFactory,
-            ILogger<OrchestratorController> logger) : base(logger, tableOperations)
+            ILogger<OrchestratorController> logger,
+            IMetricsProvider metricsProvider) : base(logger, tableOperations, metricsProvider)
         {
             IAzureAD azureAD = new AzureAD();
             this.httpUtility = httpUtilityFactory.Resolve(Constants.HttpUtility);
@@ -50,8 +52,16 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         [HttpGet]
         public async Task<ContentResult> GetOrchestratorResource(string subscriptionId, string resourceGroupName, string resourceName)
         {
-            return await this.ExecuteWithRetryAsync(subscriptionId, () => this.tableOperations.OrchestratorOperations.GetOrchestratorAsync(
-                subscriptionId, resourceGroupName, resourceName), HttpMethod.Get, "GetOrchestrator");
+            return await this.ExecuteWithRetryAsync(
+                subscriptionId,
+                () => this.tableOperations.OrchestratorOperations.GetOrchestratorAsync(subscriptionId, resourceGroupName, resourceName),
+                HttpMethod.Get,
+                MetricNames.GetOrchestrator,
+                new List<DimensionValue>()
+                {
+                    new DimensionValue() { Name = DimensionNames.Subscription, Value = subscriptionId },
+                    new DimensionValue() { Name = DimensionNames.ResourceGroup, Value = resourceGroupName }
+                });
         }
 
         /// <summary>
@@ -137,8 +147,16 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             }
 
             // insert entry in cosmos
-            ContentResult result = await this.ExecuteWithRetryAsync(subscriptionId, () => this.tableOperations.OrchestratorOperations.InsertOrReplaceOrchestratorAsync(
-                subscriptionId, resourceGroupName, resourceName, peName, resourceGuid, orchIdentity, request), HttpMethod.Put, "PutOrchestrator");
+            ContentResult result = await this.ExecuteWithRetryAsync(
+                subscriptionId,
+                () => this.tableOperations.OrchestratorOperations.InsertOrReplaceOrchestratorAsync(subscriptionId, resourceGroupName, resourceName, peName, resourceGuid, orchIdentity, request),
+                HttpMethod.Put,
+                MetricNames.PutOrchestrator,
+                new List<DimensionValue>()
+                {
+                    new DimensionValue() { Name = DimensionNames.Subscription, Value = subscriptionId },
+                    new DimensionValue() { Name = DimensionNames.ResourceGroup, Value = resourceGroupName }
+                });
 
             //call dnc put nodeset
             ControllerProperties controllerProperties = (ControllerProperties)controller.Properties;
@@ -223,8 +241,16 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                         TimeSpan.FromSeconds(dncSettings.RetryIntervalInSeconds), TimeSpan.FromSeconds(dncSettings.RetryTimeoutInSeconds));
 
             // remove entries from db
-            return await this.ExecuteWithRetryAsync(subscriptionId, () => this.tableOperations.OrchestratorOperations.DeleteOrchestratorAsync(
-               subscriptionId, resourceGroupName, resourceName), HttpMethod.Delete, "DeleteOrchestrator");
+            return await this.ExecuteWithRetryAsync(
+                subscriptionId,
+                () => this.tableOperations.OrchestratorOperations.DeleteOrchestratorAsync(subscriptionId, resourceGroupName, resourceName),
+                HttpMethod.Delete,
+                MetricNames.DeleteOrchestrator,
+                new List<DimensionValue>()
+                {
+                    new DimensionValue() { Name = DimensionNames.Subscription, Value = subscriptionId },
+                    new DimensionValue() { Name = DimensionNames.ResourceGroup, Value = resourceGroupName }
+                });
         }
 
         private async Task CheckIfNodesetDeleted(

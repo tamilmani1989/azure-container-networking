@@ -8,6 +8,7 @@
 namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
 {
     using Microsoft.AspNetCore.Mvc;
+    using Microsoft.Azure.ContainerNetworking.CoreLib;
     using Microsoft.Extensions.Logging;
     using Moq;
     using Newtonsoft.Json.Linq;
@@ -19,7 +20,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
         public void Test_OperationsList_Json()
         {
             Mock<ILogger<ListOperationsController>> logger = new Mock<ILogger<ListOperationsController>>();
-            ListOperationsController listOperations = new ListOperationsController(null, logger.Object);
+            ListOperationsController listOperations = new ListOperationsController(null, logger.Object, new MockMetricsProvider());
             ContentResult result =  listOperations.GetOperationsList();
             Assert.NotNull(JObject.Parse(result.Content));
         }
