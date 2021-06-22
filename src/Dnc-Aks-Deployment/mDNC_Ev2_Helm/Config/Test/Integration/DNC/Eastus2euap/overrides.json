@@ -1,5 +1,6 @@
 {
     "Application": {
+        "AIMetadata": "6f9518fc-9dc3-492e-87e2-b2b8941a0e92",
         "PartitionKey": "ev2_test_1",
         "ManagedDncGuid": "5c7e26be-7ff9-4aaf-9e16-0bc759605aea",
         "PubsubCertName": "DncPubSubCert",

@@ -40,5 +40,8 @@
     "cosmosMSISettings": {
         "azureEnvironment": "AzurePublicCloud",
         "cosmosResourceID": "__RpCosmosDbResoureID__"
+    },
+    "TelemetrySettings": {
+        "AIMetadata": "__AIMetadata__"
     }
 }

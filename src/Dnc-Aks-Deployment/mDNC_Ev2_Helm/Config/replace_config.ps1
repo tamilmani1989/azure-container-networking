@@ -93,6 +93,9 @@ foreach ($configReplacement in $configReplacementJson.ServiceConfigReplacement) 
     $config = $config.replace('__MaxIPReservationBatchSize__', (Out-String -InputObject (Get-Value "Application" "MaxIPReservationBatchSize" "100")).Trim())
     $config = $config.replace('__UsePrepopulatedIPAllocations__', (Out-String -InputObject (Get-Value "Application" "UsePrepopulatedIPAllocations" "true")).Trim())
 
+    # AppInsights
+    $config = $config.replace('__AIMetadata__', (Out-String -InputObject (Get-Value "Application" "AIMetadata", "6f9518fc-9dc3-492e-87e2-b2b8941a0e92")).Trim())
+
     $destinationPath = Join-Path $PSScriptRoot $configReplacement.DestinationFile
     Write-Host "Writing file to $destinationPath"
     

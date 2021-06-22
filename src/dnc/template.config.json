@@ -94,7 +94,8 @@
         "DisableMetadataRefreshThread": false,
         "DisableTelemetry": false,
         "DebugMode": false,
-        "DisableAiLogging": false
+        "DisableAiLogging": true,
+        "AIMetadata": "__AIMetadata__"
     },
     "AznmSettings": {
         "Port": 444

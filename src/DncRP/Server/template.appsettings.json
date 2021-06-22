@@ -31,7 +31,7 @@
     "SslCertName": "DncSslCert3"
   },
   "ApplicationInsights": {
-    "InstrumentationKey": "6f9518fc-9dc3-492e-87e2-b2b8941a0e92"
+    "InstrumentationKey": "__AIMetadata__"
   },
   "Imds": {
     "InstanceEndpoint": "http://169.254.169.254/metadata/instance?api-version=2019-08-15&format=json"
