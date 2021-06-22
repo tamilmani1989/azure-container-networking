@@ -60,7 +60,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             IEnumerable<DimensionValue> metricDimensions = new List<DimensionValue>()
             {
                 new DimensionValue() { Name = DimensionNames.Subscription, Value = subscriptionId },
-                new DimensionValue() { Name = DimensionNames.Subscription, Value = resourceGroup }
+                new DimensionValue() { Name = DimensionNames.ResourceGroup, Value = resourceGroup }
             };
             try
             {
@@ -186,7 +186,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             IEnumerable<DimensionValue> metricDimensions = new List<DimensionValue>()
             {
                 new DimensionValue() { Name = DimensionNames.Subscription, Value = subscriptionId },
-                new DimensionValue() { Name = DimensionNames.Subscription, Value = resourceGroup }
+                new DimensionValue() { Name = DimensionNames.ResourceGroup, Value = resourceGroup }
             };
             try
             {
