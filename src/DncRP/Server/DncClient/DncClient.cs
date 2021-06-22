@@ -157,13 +157,14 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 logger.CLogInformation($"Dnc put nodeset RequestMessage uri: { requestMessage.RequestUri.ToString() }");
 
                 HttpResponseMessage response = await this.httpUtility.SendAsync(requestMessage);
-                if (response.StatusCode != HttpStatusCode.OK)
+                if (response.StatusCode != HttpStatusCode.OK && response.StatusCode != HttpStatusCode.Conflict)
                 {
                     DncFailureMessage errMsg = await this.ParseErrorResponse(response);
+                    logger.CLogError("Put nodeset httpstatus code: {0}", response.StatusCode);
                     throw new ErrorResponseMessageException(
                                            httpStatus: HttpStatusCode.InternalServerError,
                                            errorCode: ErrorResponseCode.NodesetCreateFailed,
-                                           errorMessage: $"DNC Put Nodeset failed to this endpoint: " +
+                                           errorMessage: $"httpstatus: {response.StatusCode} DNC Put Nodeset failed to this endpoint: " +
                                            $"{dncEndpoint}, , response content: {errMsg.ToString()}");
                 }
             }
@@ -193,13 +194,14 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 logger.CLogInformation($"Dnc Delete nodeset RequestMessage uri: { requestMessage.RequestUri.ToString() }");
 
                 HttpResponseMessage response = await this.httpUtility.SendAsync(requestMessage);
-                if (response.StatusCode != HttpStatusCode.Accepted)
+                if (response.StatusCode != HttpStatusCode.Accepted && response.StatusCode != HttpStatusCode.NotFound)
                 {
                     DncFailureMessage errMsg = await this.ParseErrorResponse(response);
+                    logger.CLogError("Delete nodeset httpstatus code: {0}", response.StatusCode);
                     throw new ErrorResponseMessageException(
                                            httpStatus: HttpStatusCode.InternalServerError,
                                            errorCode: ErrorResponseCode.NodesetDeleteFailed,
-                                           errorMessage: $"DNC Delete Nodeset failed to this endpoint: " +
+                                           errorMessage: $"httpstatus: {response.StatusCode} DNC Delete Nodeset failed to this endpoint: " +
                                            $"{dncEndpoint}, , response content: {errMsg.ToString()}");
                 }
             }
