@@ -72,13 +72,6 @@ func DefaultConfig() Config {
 			VnetID:           "",
 			SubnetName:       "",
 		},
-		CleanupConfig: CleanupConfig{
-			Mode:               CleanupConfigmapMode,
-			ConfigMapName:      "dnc-cleanup-signal",
-			ConfigMapNamespace: "kube-system",
-			PollingInterval:    "30s",
-			SuccessSafetyValue: "",
-		},
 		TelemetrySettings: configuration.TelemetrySettings{
 			DisableTelemetry:             false,
 			TelemetryBatchSizeBytes:      16384,
@@ -106,7 +99,6 @@ type Config struct {
 	CosmosMSISettings        CosmosMSISettings        `json:"cosmosMSISettings,omitempty"`
 	LeaderElectionSettings   LeaderElectionSettings   `json:"leaderElectionSettings,omitempty"`
 	SubnetInfoProviderConfig SubnetInfoProviderConfig `json:"subnetInfoProviderConfig,omitempty"`
-	CleanupConfig            CleanupConfig            `json:"cleanupConfig,omitempty"`
 	TelemetrySettings        configuration.TelemetrySettings
 	MetricsConfig            MetricsConfig `json:"metricsConfig,omitempty"`
 	FeatureFlags             FeatureFlags  `json:"featureFlags,omitempty"`
@@ -180,15 +172,6 @@ type SubnetInfoProviderConfig struct {
 	SecondaryTokenID string `json:"secondaryTokenID,omitempty"`
 	VnetID           string `json:"vnetID,omitempty"`
 	SubnetName       string `json:"subnetName,omitempty"`
-}
-
-type CleanupConfig struct {
-	// Mode must be (configmap), no other mode is currently supported
-	Mode               string `json:"mode,omitempty"`
-	ConfigMapName      string `json:"configMapName,omitempty"`
-	ConfigMapNamespace string `json:"configMapNamespace,omitempty"`
-	PollingInterval    string `json:"pollingInterval,omitempty"`
-	SuccessSafetyValue string `json:"successSafetyValue,omitempty"`
 }
 
 type MetricsConfig struct {

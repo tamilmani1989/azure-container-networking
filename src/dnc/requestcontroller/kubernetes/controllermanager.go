@@ -51,12 +51,6 @@ type K8sClient interface {
 	Status() client.StatusWriter
 }
 
-type Cleaner interface {
-	HasCleanupSignal(ctx context.Context) bool
-	WaitForCleanupSignal(ctx context.Context) chan struct{}
-	Clean(ctx context.Context) error
-}
-
 // controllerManager is an implementation of requestcontroller.ControllerManager
 type controllerManager struct {
 	ctrlRuntimeMgr             ctrlmanager.Manager
@@ -64,7 +58,6 @@ type controllerManager struct {
 	syncDNCClient              requestcontroller.SynchronousDNCClient
 	logger                     logrus.FieldLogger
 	metricsPublishers          []requestcontroller.MetricsPublisher
-	cleaner                    Cleaner
 	nncNamespace               string
 	initialIPCount             int64
 	enableStartupNodeReconcile bool
@@ -76,14 +69,6 @@ func (c *controllerManager) Start(ctx context.Context) error {
 	// Ensure CRD definition is installed on cluster before starting up manager
 	if err := ensureCRDIsRegistered(ctx, c.crdClient, c.logger); err != nil {
 		return err
-	}
-
-	// Check if cleanup signal exists. It is possible that this function is called after a credential refresh, after cleanup error, or that the cluster is deleted before the DNC-RC even starts. If so, we can just
-	// kick off the cleanup here instead of restarting the reconcilers.
-	cleanupSignal := c.cleaner.HasCleanupSignal(ctx)
-	if cleanupSignal {
-		// cleanup
-		return c.cleaner.Clean(ctx)
 	}
 
 	// Start up the controllerManager
@@ -128,20 +113,12 @@ func (c *controllerManager) Start(ctx context.Context) error {
 		}(metricsCtx, publisher)
 	}
 
-	// Start a cleaner loop
-	cleanupCtx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	// Block until context is cancelled, cleanup signal was received, or unrecoverable error from c.controller
+	// Block until context is cancelled or unrecoverable error from c.controller
 	select {
 	case <-ctx.Done():
 		// stop the controllermanager and return
 		close(ctrlMgrExitChan)
 		return nil
-	case <-c.cleaner.WaitForCleanupSignal(cleanupCtx):
-		// stop the controllermanager, clean, then return
-		close(ctrlMgrExitChan)
-		return c.cleaner.Clean(cleanupCtx)
 	case err := <-ctrlMgrErrChan:
 		// there was an error running the c.controller, so return it to the caller
 		return err

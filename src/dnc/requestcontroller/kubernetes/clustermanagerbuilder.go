@@ -6,14 +6,9 @@ import (
 	"fmt"
 	"time"
 
-	"k8s.io/apimachinery/pkg/runtime"
-
 	acnv1alpha "github.com/Azure/azure-container-networking/nodenetworkconfig/api/v1alpha"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/runtime/serializer"
-	"k8s.io/client-go/kubernetes"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	ctrlrun "sigs.k8s.io/controller-runtime"
 	ctrl "sigs.k8s.io/controller-runtime/pkg/controller"
@@ -58,11 +53,6 @@ func (c *ClusterManagerBuilder) Build(opts requestcontroller.ClusterManagerBuild
 	nncReconcilerMetricPublishInterval, err := time.ParseDuration(c.Config.MetricsConfig.NNCReconcilerMetricPublishInterval)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing NNC Processed Metric publishing interval from %s: %w", c.Config.MetricsConfig.NNCReconcilerMetricPublishInterval, err)
-	}
-
-	cleanupPollingInterval, err := time.ParseDuration(c.Config.CleanupConfig.PollingInterval)
-	if err != nil {
-		return nil, fmt.Errorf("error parsing cleanup polling interval from %s: %w", c.Config.CleanupConfig.PollingInterval, err)
 	}
 
 	// resync reconcilers every hour
@@ -133,18 +123,6 @@ func (c *ClusterManagerBuilder) Build(opts requestcontroller.ClusterManagerBuild
 		return nil, fmt.Errorf("error creating NNC reconciler: %w", err)
 	}
 
-	//build the ConfigMapCleaner
-	clientset, err := kubernetes.NewForConfig(opts.ClusterAuthConfig.GetConfig())
-	if err != nil {
-		return nil, fmt.Errorf("error creating kube client for Cleaner: %w", err)
-	}
-
-	// Get untyped rest client for cleaner
-	unversionedRESTClient, err := getUnversionedRESTClient(opts.ClusterAuthConfig.GetConfig())
-	if err != nil {
-		return nil, err
-	}
-
 	ctx, cancel := context.WithCancel(context.Background())
 	return &requestcontroller.ClusterManager{
 		RunningContext: requestcontroller.CancellableContext{
@@ -152,24 +130,11 @@ func (c *ClusterManagerBuilder) Build(opts requestcontroller.ClusterManagerBuild
 			Cancel:  cancel,
 		},
 		ControllerManager: &controllerManager{
-			ctrlRuntimeMgr:    ctrlRuntimeMgr,
-			crdClient:         crdClient,
-			syncDNCClient:     c.SyncDNCClient,
-			logger:            c.Logger.WithField("orchestratorID", opts.OrchestratorID),
-			metricsPublishers: nodeNetworkConfigReconciler.getMetricsPublishers(),
-			cleaner: NewConfigmapCleaner(CleanerOpts{
-				KubeCoreV1Client:    clientset.CoreV1(),
-				KubeRESTClient:      unversionedRESTClient,
-				SyncDNCClient:       c.SyncDNCClient,
-				Logger:              c.Logger,
-				SignalCheckInterval: cleanupPollingInterval,
-				Signal: CleanupSignal{
-					ConfigMapName:        c.Config.CleanupConfig.ConfigMapName,
-					ConfigMapNamespace:   c.Config.CleanupConfig.ConfigMapNamespace,
-					ConfigMapSafetyValue: c.Config.CleanupConfig.SuccessSafetyValue,
-				},
-				NNCNamespace: c.Config.KubernetesConfig.Namespace,
-			}),
+			ctrlRuntimeMgr:             ctrlRuntimeMgr,
+			crdClient:                  crdClient,
+			syncDNCClient:              c.SyncDNCClient,
+			logger:                     c.Logger.WithField("orchestratorID", opts.OrchestratorID),
+			metricsPublishers:          nodeNetworkConfigReconciler.getMetricsPublishers(),
 			nncNamespace:               c.Config.KubernetesConfig.Namespace,
 			initialIPCount:             c.Config.RequestScalerConfig.BatchSize,
 			enableStartupNodeReconcile: c.Config.FeatureFlags.EnableStartupNodeReconcile,
@@ -177,28 +142,4 @@ func (c *ClusterManagerBuilder) Build(opts requestcontroller.ClusterManagerBuild
 		},
 		OrchestratorID: opts.OrchestratorID,
 	}, nil
-}
-
-// TODO: This will break in managed DNC scenario since we don't keep refreshing this copy of the config. But, we don't
-// use this in managed DNC scenario, so it's fine for now. We are planning to remove this code after AKS cleanupservice is
-// done, so this comment and code will be removed soon anyway.
-func getUnversionedRESTClient(restConfig *rest.Config) (*rest.RESTClient, error) {
-	// When reusing the restConfig that is given to the managers, we see an issue where the scheme gets corrupted
-	// and starts dumping lots of errors to stdout. While these errors seem benign (rc keeps working), we can just build
-	// a new restConfig here so we don't dump a bunch of errors to stdout.
-	config := rest.CopyConfig(restConfig)
-
-	newScheme := runtime.NewScheme()
-	if err := clientgoscheme.AddToScheme(newScheme); err != nil {
-		return nil, err
-	}
-	if err := acnv1alpha.AddToScheme(newScheme); err != nil {
-		return nil, err
-	}
-	config.ContentConfig.GroupVersion = &acnv1alpha.GroupVersion
-	config.APIPath = "/apis"
-	config.NegotiatedSerializer = serializer.NewCodecFactory(newScheme)
-	config.UserAgent = rest.DefaultKubernetesUserAgent()
-
-	return rest.UnversionedRESTClientFor(config)
 }
