@@ -61,17 +61,63 @@ var (
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
+			// Create a logger
+			baseLogger := logrus.StandardLogger()
+			baseLogger.SetFormatter(&logrus.JSONFormatter{})
+			var logger logrus.FieldLogger = baseLogger
+
 			// read the command line flags
 			configFile, err := cmd.Flags().GetString(configFlag)
 			if err != nil {
-				logrus.Fatal(err, "error getting config flag value")
+				logger.Fatalf("error getting config flag value: %v", err)
 			}
+
+			// get the config
+			config, err := getConfig(configFile)
+			if err != nil {
+				logger.Fatalf("error getting config: %v", err)
+			}
+
+			// add mdnc guid to the logger if present
+			if config.KubernetesConfig.KubeconfigInfo.ManagedDNCGUID != "" {
+				logger = logger.WithField("managedDNCGUID", config.KubernetesConfig.KubeconfigInfo.ManagedDNCGUID)
+			}
+
+			// add orchestrator ID to the logger if present
+			if config.KubernetesConfig.KubeconfigInfo.OrchestratorID != "" {
+				logger = logger.WithField("orchestratorID", config.KubernetesConfig.KubeconfigInfo.OrchestratorID)
+			}
+
+			// log the version
+			logger.WithField("version", utils.Version).Infoln()
+
+			// Create the metrics client
+			persistentDimensions := make(map[string]string)
+			// For managed dnc, add the mdnc guid to all metrics
+			if config.KubernetesConfig.KubeconfigInfo.ManagedDNCGUID != "" {
+				persistentDimensions[MDNCGUIDDimensionName] = config.KubernetesConfig.KubeconfigInfo.ManagedDNCGUID
+			}
+			// For AKS, add the orchestrator ID to all metrics
+			if config.KubernetesConfig.KubeconfigInfo.OrchestratorID != "" {
+				persistentDimensions[OrchestratorIDDimensionName] = config.KubernetesConfig.KubeconfigInfo.OrchestratorID
+			}
+			metricsClient := appinsights.NewMetricsClient(appinsights.MetricsClientOptions{
+				Logger:               logger,
+				Config:               config.TelemetrySettings,
+				AppName:              executable,
+				AppVersion:           utils.Version,
+				PersistentDimensions: persistentDimensions,
+			})
 
 			// run the request controller
 			errChan := make(chan error)
 			defer close(errChan)
 			go func(errChan chan error) {
-				if err := runRequestController(ctx, configFile); err != nil {
+				if err := runRequestController(ctx, options{
+					logger:        logger,
+					metricsClient: metricsClient,
+					config:        config,
+				}); err != nil {
 					errChan <- err
 				}
 			}(errChan)
@@ -82,7 +128,14 @@ var (
 				// return to cancel the context and exit
 				return
 			case err := <-errChan:
-				logrus.Fatalf("error running request controller: %v", err)
+				metricsClient.SendMetric(requestcontroller.Metric{
+					Name:  DNCRCStartupFailureMetricName,
+					Value: 1,
+				})
+				// TODO: the metrics client sends metrics in a goroutine with no confirmation of done,
+				// so we will sleep for 3 seconds here to give the metrics client a chance to send
+				time.Sleep(3 * time.Second)
+				logger.Fatalf("error running request controller: %v", err)
 			}
 		},
 	}
@@ -107,55 +160,7 @@ func Execute() error {
 	return rootCmd.Execute()
 }
 
-func runRequestController(ctx context.Context, configFile string) error {
-	logger := logrus.StandardLogger()
-	logger.SetFormatter(&logrus.JSONFormatter{})
-
-	// Get the config
-	config, err := getConfig(configFile)
-	if err != nil {
-		return fmt.Errorf("error getting config: %w", err)
-	}
-
-	// Create the metrics client
-	var persistentDimensions map[string]string
-	// For managed dnc, add the mdnc guid to all metrics
-	if config.KubernetesConfig.KubeconfigInfo.ManagedDNCGUID != "" {
-		persistentDimensions = map[string]string{
-			MDNCGUIDDimensionName: config.KubernetesConfig.KubeconfigInfo.ManagedDNCGUID,
-		}
-	}
-	// For AKS, add the orchestrator ID to all metrics
-	if config.KubernetesConfig.KubeconfigInfo.OrchestratorID != "" {
-		persistentDimensions = map[string]string{
-			OrchestratorIDDimensionName: config.KubernetesConfig.KubeconfigInfo.OrchestratorID,
-		}
-	}
-	metricsClient := appinsights.NewMetricsClient(appinsights.MetricsClientOptions{
-		Logger:               logger,
-		Config:               config.TelemetrySettings,
-		AppName:              executable,
-		AppVersion:           utils.Version,
-		PersistentDimensions: persistentDimensions,
-	})
-
-	if err := runRequestControllerWithOptions(ctx, options{
-		logger:        logger,
-		metricsClient: metricsClient,
-		config:        config,
-	}); err != nil {
-		metricsClient.SendMetric(requestcontroller.Metric{
-			Name:  DNCRCStartupFailureMetricName,
-			Value: 1,
-		})
-
-		return err
-	}
-
-	return nil
-}
-
-func runRequestControllerWithOptions(ctx context.Context, opts options) error {
+func runRequestController(ctx context.Context, opts options) error {
 	config := opts.config
 	metricsClient := opts.metricsClient
 	logger := opts.logger
@@ -188,9 +193,11 @@ func runRequestControllerWithOptions(ctx context.Context, opts options) error {
 			KubeconfigFile: kubeconfigInfo.File,
 			OrchestratorID: config.KubernetesConfig.KubeconfigInfo.OrchestratorID,
 		}
+		logger = logger.WithField("orchestratorID", config.KubernetesConfig.KubeconfigInfo.OrchestratorID)
 	case requestcontroller.KubeconfigDatastoreMode:
 		// Datastore mode requires a secret provider
 		var secretProvider requestcontroller.SecretProvider
+		var err error
 		switch mode := kubeconfigInfo.ClientCertificatesSecretMode; mode {
 		case requestcontroller.ClientCertificatesKeyvaultMode:
 			var err error
@@ -286,7 +293,6 @@ func runRequestControllerWithOptions(ctx context.Context, opts options) error {
 		ManagerBuilder: &kubernetes.ClusterManagerBuilder{
 			Config:             config,
 			SyncDNCClient:      syncDncClient,
-			Logger:             logger,
 			SubnetInfoProvider: subnetInfoProvider,
 			MetricsClient:      metricsClient,
 		},

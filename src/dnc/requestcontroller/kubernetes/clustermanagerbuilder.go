@@ -7,7 +7,6 @@ import (
 	"time"
 
 	acnv1alpha "github.com/Azure/azure-container-networking/nodenetworkconfig/api/v1alpha"
-	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/rest"
 	ctrlrun "sigs.k8s.io/controller-runtime"
@@ -17,7 +16,6 @@ import (
 type ClusterManagerBuilder struct {
 	Config             requestcontroller.Config
 	SyncDNCClient      requestcontroller.SynchronousDNCClient
-	Logger             logrus.FieldLogger
 	SubnetInfoProvider requestcontroller.SubnetInfoProvider
 	MetricsClient      requestcontroller.MetricsClient
 }
@@ -80,7 +78,7 @@ func (c *ClusterManagerBuilder) Build(opts requestcontroller.ClusterManagerBuild
 		Namespace:        c.Config.KubernetesConfig.Namespace,
 		InitialIPCount:   c.Config.RequestScalerConfig.BatchSize,
 		K8sClientTimeout: k8sClientTimeout,
-		Logger:           c.Logger,
+		Logger:           opts.Logger,
 		MetricsClient:    c.MetricsClient,
 		Recorder:         ctrlRuntimeMgr.GetEventRecorderFor("dnc-rc/node-reconciler"),
 	})
@@ -106,7 +104,7 @@ func (c *ClusterManagerBuilder) Build(opts requestcontroller.ClusterManagerBuild
 		DNCClient:                   c.SyncDNCClient,
 		ScalerConfig:                c.Config.RequestScalerConfig,
 		SubnetInfoProvider:          c.SubnetInfoProvider,
-		Logger:                      c.Logger,
+		Logger:                      opts.Logger,
 		MetricsClient:               c.MetricsClient,
 		ReconcileTimeout:            dncClientRequestTimeout,
 		ProcessedNNCMetricsDuration: nncReconcilerMetricPublishInterval,
@@ -136,7 +134,7 @@ func (c *ClusterManagerBuilder) Build(opts requestcontroller.ClusterManagerBuild
 			ctrlRuntimeMgr:             ctrlRuntimeMgr,
 			crdClient:                  crdClient,
 			syncDNCClient:              c.SyncDNCClient,
-			logger:                     c.Logger.WithField("orchestratorID", opts.OrchestratorID),
+			logger:                     opts.Logger.WithField("orchestratorID", opts.OrchestratorID),
 			nncNamespace:               c.Config.KubernetesConfig.Namespace,
 			initialIPCount:             c.Config.RequestScalerConfig.BatchSize,
 			enableStartupNodeReconcile: c.Config.FeatureFlags.EnableStartupNodeReconcile,

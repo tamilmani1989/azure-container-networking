@@ -128,6 +128,7 @@ func (r *RequestController) refreshClusterAuthConfigs(ctx context.Context) error
 				mgr, err := r.ClusterManagerBuilder.Build(ClusterManagerBuilderOptions{
 					ClusterAuthConfig: clusterAuthConfig,
 					OrchestratorID:    orchestratorID,
+					Logger:            r.Logger.WithField("orchestratorID", orchestratorID),
 				})
 
 				if err != nil {
@@ -179,6 +180,7 @@ type ClusterManagerBuilder interface {
 type ClusterManagerBuilderOptions struct {
 	ClusterAuthConfig ClusterAuthConfig
 	OrchestratorID    string
+	Logger            logrus.FieldLogger
 }
 
 type SubnetInfo struct {
