@@ -17,9 +17,20 @@ namespace Microsoft.Azure.ContainerNetworking.Gateway
         {
             // Otherwise forward the request
             HttpResponseMessage response = await httpClient.SendAsync(request);
-            string responseStream = await response.Content.ReadAsStringAsync();
-            var contentType = response.Content.Headers.GetValues("Content-Type").FirstOrDefault();
-            return new ContentResult { Content = responseStream, ContentType = contentType, StatusCode = (int)response.StatusCode };
+            if (response.Content != null && response.StatusCode != System.Net.HttpStatusCode.NoContent)
+            {
+                if (response.Content is object &&
+                    response.Content.Headers != null &&
+                    response.Content.Headers.ContentType != null)
+                {
+                    string responseStream = await response.Content.ReadAsStringAsync();
+                    var contentType = response.Content.Headers.ContentType.MediaType;
+                    return new ContentResult { Content = responseStream, ContentType = contentType, StatusCode = (int)response.StatusCode };
+                }
+            }
+
+ 
+            return new ContentResult { StatusCode = (int)response.StatusCode };
         }
     }
 }

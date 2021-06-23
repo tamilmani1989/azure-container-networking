@@ -194,7 +194,9 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 logger.CLogInformation($"Dnc Delete nodeset RequestMessage uri: { requestMessage.RequestUri.ToString() }");
 
                 HttpResponseMessage response = await this.httpUtility.SendAsync(requestMessage);
-                if (response.StatusCode != HttpStatusCode.Accepted && response.StatusCode != HttpStatusCode.NotFound)
+                if (response.StatusCode != HttpStatusCode.Accepted && 
+                    response.StatusCode != HttpStatusCode.NoContent && 
+                    response.StatusCode != HttpStatusCode.NotFound)
                 {
                     DncFailureMessage errMsg = await this.ParseErrorResponse(response);
                     logger.CLogError("Delete nodeset httpstatus code: {0}", response.StatusCode);

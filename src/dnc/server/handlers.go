@@ -554,7 +554,7 @@ func DeleteNodeSet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // DeleteReservation - Handler for deleting reservation request.
