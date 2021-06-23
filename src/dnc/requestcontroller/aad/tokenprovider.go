@@ -19,23 +19,28 @@ import (
 )
 
 const (
-	expirationDeltaSeconds = 60
+	expirationDeltaSeconds             = 60
+	tokenProviderFailureMetricName     = "DNCRCTokenProviderFailure"
+	tokenProviderErrorMessageDimension = "ErrorMessage"
 )
 
 type TokenProvider struct {
-	cache  map[string]adal.Token
-	mutex  sync.RWMutex
-	logger logrus.FieldLogger
+	cache         map[string]adal.Token
+	mutex         sync.RWMutex
+	logger        logrus.FieldLogger
+	metricsClient requestcontroller.MetricsClient
 }
 
 type TokenProviderOptions struct {
-	Logger logrus.FieldLogger
+	Logger        logrus.FieldLogger
+	MetricsClient requestcontroller.MetricsClient
 }
 
 func NewTokenProvider(opts TokenProviderOptions) *TokenProvider {
 	return &TokenProvider{
-		logger: opts.Logger.WithField("component", "TokenProvider"),
-		cache:  make(map[string]adal.Token),
+		logger:        opts.Logger.WithField("component", "TokenProvider"),
+		cache:         make(map[string]adal.Token),
+		metricsClient: opts.MetricsClient,
 	}
 }
 
@@ -78,6 +83,10 @@ func (t *TokenProvider) GetToken(ctx context.Context, tokenOptions requestcontro
 
 	token, err := t.getTokenFromAAD(tokenOptions)
 	if err != nil {
+		t.metricsClient.SendMetric(requestcontroller.Metric{
+			Name:  tokenProviderFailureMetricName,
+			Value: 1,
+		})
 		return adal.Token{}, fmt.Errorf("unable to get token from AAD: %w", err)
 	}
 

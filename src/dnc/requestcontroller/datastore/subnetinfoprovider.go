@@ -10,6 +10,7 @@ import (
 	"dnc/requestcontroller"
 	"fmt"
 	"net/http"
+	"strconv"
 	"sync"
 )
 
@@ -24,6 +25,13 @@ type SubnetInfoProvider struct {
 	datastoreClient datastoreClient
 	mutex           sync.Mutex
 	cache           map[string]map[string]requestcontroller.SubnetInfo // delegatedSubnetID -> {subnetName -> SubnetInfo, subnetName -> SubnetInfo}
+	metricsClient   requestcontroller.MetricsClient
+}
+
+type SubnetInfoProviderOptions struct {
+	DataStoreSettings configuration.DataStoreSettings
+	LoggingConfig     requestcontroller.LoggingConfig
+	MetricsClient     requestcontroller.MetricsClient
 }
 
 // Table:            SubnetTokenMap
@@ -33,7 +41,7 @@ type SubnetInfoProvider struct {
 // SecondaryTokenId: <Token> (optional)
 // VnetResourceGuid: <VnetID>
 
-func NewSubnetInfoProvider(dataStoreSettings configuration.DataStoreSettings, loggingConfig requestcontroller.LoggingConfig) (*SubnetInfoProvider, error) {
+func NewSubnetInfoProvider(opts SubnetInfoProviderOptions) (*SubnetInfoProvider, error) {
 	//datastoreshim has a dependency on loggershim, and loggershim has a global that needs to be initialized with the NewLoggerShim function followed by Init
 	if loggershim.LS == nil {
 		// loggershim.LS hasn't been initialized elsewhere, so do it here
@@ -41,7 +49,7 @@ func NewSubnetInfoProvider(dataStoreSettings configuration.DataStoreSettings, lo
 		loggershim.LS.Init(true, nil)
 	}
 
-	ds, err := datastoreshim.NewDataStoreShim(dataStoreSettings, loggingConfig.ThresholdForLoggingDataStoreOpLatencyMs, map[string]string{subnetTokenMapTableName: vnetGUIDPropertyName})
+	ds, err := datastoreshim.NewDataStoreShim(opts.DataStoreSettings, opts.LoggingConfig.ThresholdForLoggingDataStoreOpLatencyMs, map[string]string{subnetTokenMapTableName: vnetGUIDPropertyName})
 	if err != nil {
 		return nil, err
 	}
@@ -49,6 +57,7 @@ func NewSubnetInfoProvider(dataStoreSettings configuration.DataStoreSettings, lo
 	s := SubnetInfoProvider{
 		datastoreClient: ds,
 		cache:           make(map[string]map[string]requestcontroller.SubnetInfo),
+		metricsClient:   opts.MetricsClient,
 	}
 
 	return &s, nil
@@ -73,10 +82,24 @@ func (s *SubnetInfoProvider) GetSubnetInfo(ctx context.Context, delegatedSubnetI
 	}
 	entity, status, err := s.datastoreClient.QueryInPartition(subnetTokenMapTableName, delegatedSubnetID, subnetName)
 	if err != nil {
+		s.metricsClient.SendMetric(requestcontroller.Metric{
+			Name:  datastoreFailureMetricName,
+			Value: 1,
+			CustomDimensions: map[string]string{
+				datastoreErrorCodeDimension: strconv.Itoa(status),
+			},
+		})
 		return subnetInfo, err
 	}
 
 	if status != http.StatusOK {
+		s.metricsClient.SendMetric(requestcontroller.Metric{
+			Name:  datastoreFailureMetricName,
+			Value: 1,
+			CustomDimensions: map[string]string{
+				datastoreErrorCodeDimension: strconv.Itoa(status),
+			},
+		})
 		return subnetInfo, fmt.Errorf("unexpected status %d returned by cosmos", status)
 	}
 

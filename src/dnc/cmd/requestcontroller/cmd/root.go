@@ -3,13 +3,13 @@ package cmd
 import (
 	"context"
 	ad "dnc/activedirectory"
-	"dnc/aiwrapper"
 	dncclient "dnc/client"
 	"dnc/datastoreshim"
 	"dnc/logger/loggershim"
 	"dnc/logger/simplejson"
 	"dnc/requestcontroller"
 	"dnc/requestcontroller/aad"
+	"dnc/requestcontroller/appinsights"
 	"dnc/requestcontroller/datastore"
 	syncdncclient "dnc/requestcontroller/dncclient"
 	"dnc/requestcontroller/env"
@@ -17,24 +17,32 @@ import (
 	"dnc/requestcontroller/json"
 	"dnc/requestcontroller/kubernetes"
 	"dnc/utils"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
 
-	"github.com/Azure/azure-container-networking/aitelemetry"
-	"sigs.k8s.io/controller-runtime/pkg/manager/signals"
-
 	"github.com/Azure/go-autorest/autorest/azure"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"sigs.k8s.io/controller-runtime/pkg/manager/signals"
 )
 
 const (
-	shortDesc  = "Watches K8s api-server for SWIFT-based CNI deployment"
-	longDesc   = "Watches K8s api-server for Nodes, creates/deletes NodeNetworkConfigs, and responds to NodeNetworkConfig changes"
-	configFlag = "config"
-	executable = "requestcontroller"
+	shortDesc                     = "Watches K8s api-server for SWIFT-based CNI deployment"
+	longDesc                      = "Watches K8s api-server for Nodes, creates/deletes NodeNetworkConfigs, and responds to NodeNetworkConfig changes"
+	configFlag                    = "config"
+	executable                    = "requestcontroller"
+	DNCRCStartupFailureMetricName = "DNCRCStartupFailure"
+	MDNCGUIDDimensionName         = "MDNCGUID"
+	OrchestratorIDDimensionName   = "OrchestratorID"
 )
+
+type options struct {
+	logger        logrus.FieldLogger
+	metricsClient requestcontroller.MetricsClient
+	config        requestcontroller.Config
+}
 
 var (
 	/* Using a global lock since loggershim has a global var that needs to be initialized
@@ -109,6 +117,49 @@ func runRequestController(ctx context.Context, configFile string) error {
 		return fmt.Errorf("error getting config: %w", err)
 	}
 
+	// Create the metrics client
+	var persistentDimensions map[string]string
+	// For managed dnc, add the mdnc guid to all metrics
+	if config.KubernetesConfig.KubeconfigInfo.ManagedDNCGUID != "" {
+		persistentDimensions = map[string]string{
+			MDNCGUIDDimensionName: config.KubernetesConfig.KubeconfigInfo.ManagedDNCGUID,
+		}
+	}
+	// For AKS, add the orchestrator ID to all metrics
+	if config.KubernetesConfig.KubeconfigInfo.OrchestratorID != "" {
+		persistentDimensions = map[string]string{
+			OrchestratorIDDimensionName: config.KubernetesConfig.KubeconfigInfo.OrchestratorID,
+		}
+	}
+	metricsClient := appinsights.NewMetricsClient(appinsights.MetricsClientOptions{
+		Logger:               logger,
+		Config:               config.TelemetrySettings,
+		AppName:              executable,
+		AppVersion:           utils.Version,
+		PersistentDimensions: persistentDimensions,
+	})
+
+	if err := runRequestControllerWithOptions(ctx, options{
+		logger:        logger,
+		metricsClient: metricsClient,
+		config:        config,
+	}); err != nil {
+		metricsClient.SendMetric(requestcontroller.Metric{
+			Name:  DNCRCStartupFailureMetricName,
+			Value: 1,
+		})
+
+		return err
+	}
+
+	return nil
+}
+
+func runRequestControllerWithOptions(ctx context.Context, opts options) error {
+	config := opts.config
+	metricsClient := opts.metricsClient
+	logger := opts.logger
+
 	// Get the Cosmos token via MSI if necessary
 	if config.DataStoreSettings.AzureStorageInfo.IsUsingCosmosDb && config.DataStoreSettings.AzureStorageInfo.Key == "" {
 		logger.Info("Getting key for CosmosDB with MSI")
@@ -142,6 +193,7 @@ func runRequestController(ctx context.Context, configFile string) error {
 		var secretProvider requestcontroller.SecretProvider
 		switch mode := kubeconfigInfo.ClientCertificatesSecretMode; mode {
 		case requestcontroller.ClientCertificatesKeyvaultMode:
+			var err error
 			secretProvider, err = getKeyvaultClientFromMSI(context.TODO(), kubeconfigInfo.ClientCertificatesKeyvaultConfig.KeyvaultName,
 				kubeconfigInfo.ClientCertificatesKeyvaultConfig.MSIResourceID, kubeconfigInfo.ClientCertificatesKeyvaultConfig.AzureEnvironment)
 			if err != nil {
@@ -180,8 +232,10 @@ func runRequestController(ctx context.Context, configFile string) error {
 			AzureEnvironment: kubeconfigInfo.AzureEnvironment,
 			ManagedDNCGUID:   kubeconfigInfo.ManagedDNCGUID,
 			TokenProvider: aad.NewTokenProvider(aad.TokenProviderOptions{
-				Logger: logger,
+				Logger:        logger,
+				MetricsClient: metricsClient,
 			}),
+			MetricsClient: metricsClient,
 		}
 
 		kcp, err := datastore.NewKubeClusterAuthProvider(kubeClusterAuthProviderOpts)
@@ -206,7 +260,11 @@ func runRequestController(ctx context.Context, configFile string) error {
 
 	switch mode := config.SubnetInfoProviderConfig.Mode; mode {
 	case requestcontroller.SubnetInfoProviderDatastoreMode:
-		subnetInfoProvider, err = datastore.NewSubnetInfoProvider(config.DataStoreSettings, config.LoggingConfig)
+		subnetInfoProvider, err = datastore.NewSubnetInfoProvider(datastore.SubnetInfoProviderOptions{
+			DataStoreSettings: config.DataStoreSettings,
+			LoggingConfig:     config.LoggingConfig,
+			MetricsClient:     metricsClient,
+		})
 		if err != nil {
 			return fmt.Errorf("could not create subnet info provider: %w", err)
 		}
@@ -230,39 +288,24 @@ func runRequestController(ctx context.Context, configFile string) error {
 			SyncDNCClient:      syncDncClient,
 			Logger:             logger,
 			SubnetInfoProvider: subnetInfoProvider,
+			MetricsClient:      metricsClient,
 		},
-		Logger: logger,
-		Config: config,
+		Logger:        logger,
+		Config:        config,
+		MetricsClient: metricsClient,
 	})
 
 	if err != nil {
 		return fmt.Errorf("error creating new RequestController: %w", err)
 	}
 
-	// Initialize the global AI Wrapper
-	// TODO: Metrics should be an interface instead of global
-	if !config.TelemetrySettings.DisableTelemetry {
-		aiConfig := aitelemetry.AIConfig{
-			BatchSize:                    config.TelemetrySettings.TelemetryBatchSizeBytes,
-			BatchInterval:                config.TelemetrySettings.TelemetryBatchIntervalInSecs,
-			RefreshTimeout:               config.TelemetrySettings.RefreshIntervalInSecs,
-			DisableMetadataRefreshThread: config.TelemetrySettings.DisableMetadataRefreshThread,
-			DebugMode:                    config.TelemetrySettings.DebugMode,
-			AppVersion:                   utils.Version,
-			AppName:                      aiwrapper.AppName,
-			GetEnvRetryCount:             config.TelemetrySettings.GetEnvRetryCount,
-			GetEnvRetryWaitTimeInSecs:    config.TelemetrySettings.GetEnvRetryWaitTimeInSecs,
-		}
-
-		err = aiwrapper.CreateTelemetryHandle(config.TelemetrySettings.AIMetadata, aiConfig)
-		if err != nil {
-			// Print message to be consistent with dnc, but might be worth exiting with error?
-			logger.WithError(err).Error("error creating AITelemetry handle")
+	// Start the RequestController - this function blocks
+	if err := requestController.Start(ctx); err != nil {
+		if !errors.Is(err, context.Canceled) {
+			// return any non-cancellation errors
+			return err
 		}
 	}
-
-	// Start the RequestController
-	requestController.Start(ctx) // blocks
 
 	return nil
 }

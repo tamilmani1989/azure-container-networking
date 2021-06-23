@@ -4,18 +4,28 @@ import (
 	"context"
 	"dnc/configuration"
 	"dnc/requestcontroller"
+	"dnc/requestcontroller/appinsights"
 	"reflect"
 	"testing"
 
 	"github.com/Azure/azure-sdk-for-go/storage"
+	"github.com/sirupsen/logrus"
 )
 
 func TestSubnetInfoProvider(t *testing.T) {
-	subnetInfoProvider, err := NewSubnetInfoProvider(configuration.DataStoreSettings{
-		TestPersistenceStoreInfo: configuration.TestPersistenceStoreInfo{
-			Test: "true",
+	metricsClient := appinsights.NewMetricsClient(appinsights.MetricsClientOptions{
+		Logger: logrus.StandardLogger(),
+		Config: configuration.TelemetrySettings{DisableTelemetry: true},
+	})
+	subnetInfoProvider, err := NewSubnetInfoProvider(SubnetInfoProviderOptions{
+		DataStoreSettings: configuration.DataStoreSettings{
+			TestPersistenceStoreInfo: configuration.TestPersistenceStoreInfo{
+				Test: "true",
+			},
 		},
-	}, requestcontroller.DefaultConfig().LoggingConfig)
+		LoggingConfig: requestcontroller.DefaultConfig().LoggingConfig,
+		MetricsClient: metricsClient,
+	})
 
 	if err != nil {
 		t.Fatalf("could not build subnetInfoProvider: %v", err)

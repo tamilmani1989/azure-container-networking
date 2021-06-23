@@ -57,11 +57,11 @@ type controllerManager struct {
 	crdClient                  K8sCRDClient
 	syncDNCClient              requestcontroller.SynchronousDNCClient
 	logger                     logrus.FieldLogger
-	metricsPublishers          []requestcontroller.MetricsPublisher
 	nncNamespace               string
 	initialIPCount             int64
 	enableStartupNodeReconcile bool
 	nodeSet                    string
+	metricsClient              requestcontroller.MetricsClient
 }
 
 // Start starts the controller and blocks until the exitchan is closed, or an unrecoverable error occurs
@@ -94,23 +94,6 @@ func (c *controllerManager) Start(ctx context.Context) error {
 				c.logger.Errorf("Error rehydrating nodes from DNC: %v", err)
 			}
 		}(rehydrateCtx)
-	}
-
-	// Start a metrics publisher loop for each metric
-	metricsCtx, metricsCancel := context.WithCancel(ctx)
-	defer metricsCancel()
-	for _, publisher := range c.metricsPublishers {
-		go func(ctx context.Context, publisher requestcontroller.MetricsPublisher) {
-			publisher.SendMetric()
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				case <-time.After(publisher.GetDuration()):
-					publisher.SendMetric()
-				}
-			}
-		}(metricsCtx, publisher)
 	}
 
 	// Block until context is cancelled or unrecoverable error from c.controller

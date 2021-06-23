@@ -21,6 +21,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
+const (
+	nodeReconilerSuccessMetricName  = "NodeReconcilerSuccess"
+	nodeReconcilerFailureMetricName = "NodeReconcilerFailure"
+)
+
 // NodeReconciler watches Nodes and creates/deletes NetworkConfigs
 type NodeReconciler struct {
 	k8sClient        K8sClient
@@ -30,6 +35,8 @@ type NodeReconciler struct {
 	k8sClientTimeout time.Duration
 	logger           logrus.FieldLogger
 	recorder         record.EventRecorder
+	metricsClient    requestcontroller.MetricsClient
+	orchestratorID   string
 }
 
 type NodeReconcilerOptions struct {
@@ -40,6 +47,8 @@ type NodeReconcilerOptions struct {
 	K8sClientTimeout time.Duration
 	Logger           logrus.FieldLogger
 	Recorder         record.EventRecorder
+	MetricsClient    requestcontroller.MetricsClient
+	OrchestratorID   string
 }
 
 var _ reconcile.Reconciler = &NodeReconciler{}
@@ -57,18 +66,50 @@ func NewNodeReconciler(opts NodeReconcilerOptions) *NodeReconciler {
 		k8sClientTimeout: opts.K8sClientTimeout,
 		logger:           logger,
 		recorder:         opts.Recorder,
+		metricsClient:    opts.MetricsClient,
+		orchestratorID:   opts.OrchestratorID,
 	}
 }
 
-// Reconcile ensures a NetworkConfig object exists for each Node, and deletes them on Node deletion
+// Recocile wraps the reconcile function to provide logging and metrics
 func (n *NodeReconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	name := request.NamespacedName.String()
-
 	logger := n.logger.WithFields(logrus.Fields{
-		"object": name,
+		"object": request.NamespacedName.String(),
 	})
 
 	logger.Infof("Reconciling: %s", request.NamespacedName)
+
+	res, err := n.reconcile(request)
+	if err != nil {
+		logger.WithError(err).Errorf("failed to reconcile node %s", request.NamespacedName.String())
+		n.metricsClient.SendMetric(requestcontroller.Metric{
+			Name:  nodeReconcilerFailureMetricName,
+			Value: 1,
+			CustomDimensions: map[string]string{
+				objectDimensionName:         request.NamespacedName.String(),
+				orchestratorIDDimensionName: n.orchestratorID,
+			},
+		})
+	} else {
+		logger.Infof("reconcile node %s completed", request.NamespacedName.String())
+		n.metricsClient.SendMetric(requestcontroller.Metric{
+			Name:  nodeReconilerSuccessMetricName,
+			Value: 1,
+			CustomDimensions: map[string]string{
+				objectDimensionName:         request.NamespacedName.String(),
+				orchestratorIDDimensionName: n.orchestratorID,
+			},
+		})
+	}
+
+	return res, err
+}
+
+// reconcile ensures a NetworkConfig object exists for each Node, and deletes them on Node deletion
+func (n *NodeReconciler) reconcile(request reconcile.Request) (reconcile.Result, error) {
+	logger := n.logger.WithFields(logrus.Fields{
+		"object": request.NamespacedName.String(),
+	})
 
 	// Get the node from the cache
 	node := corev1.Node{}
@@ -153,7 +194,7 @@ func (n *NodeReconciler) Reconcile(request reconcile.Request) (reconcile.Result,
 
 		n.recorder.Eventf(createEventNodeRef(node.Name), corev1.EventTypeNormal, "CreatedNNC", "Created NodeNetworkConfig %s", request.Name)
 		n.logger.WithFields(logrus.Fields{
-			"object":  fmt.Sprintf("%s/%s", n.namespace, name),
+			"object":  fmt.Sprintf("%s/%s", n.namespace, node.Name),
 			"ipCount": strconv.FormatInt(n.initialIPCount, 10),
 		}).Infof("Created NodeNetworkConfig %s in namespace %s with IP Count %d",
 			request.Name, n.namespace, n.initialIPCount)

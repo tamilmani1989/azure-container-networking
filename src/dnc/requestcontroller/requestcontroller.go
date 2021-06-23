@@ -29,6 +29,7 @@ type RequestController struct {
 	ClusterManagerBuilder   ClusterManagerBuilder
 	Logger                  logrus.FieldLogger
 	Config                  Config
+	MetricsClient           MetricsClient
 	clusterManagerPool      clusterManagerPool
 	orchestrators           map[string]struct{}
 }
@@ -38,6 +39,7 @@ type RequestControllerOptions struct {
 	ManagerBuilder          ClusterManagerBuilder
 	Logger                  logrus.FieldLogger
 	Config                  Config
+	MetricsClient           MetricsClient
 }
 
 func NewRequestController(opts RequestControllerOptions) *RequestController {
@@ -46,6 +48,7 @@ func NewRequestController(opts RequestControllerOptions) *RequestController {
 		ClusterManagerBuilder:   opts.ManagerBuilder,
 		Logger:                  opts.Logger,
 		Config:                  opts.Config,
+		MetricsClient:           opts.MetricsClient,
 		clusterManagerPool: clusterManagerPool{
 			clusterManagers: make(map[string]*ClusterManager),
 			logger:          opts.Logger,
@@ -54,7 +57,7 @@ func NewRequestController(opts RequestControllerOptions) *RequestController {
 	}
 }
 
-// Start starts the request controller and blocks until the context is cancelled or until an unrecoverable error occurs
+// Start starts the request controller and blocks until the context is cancelled
 func (r *RequestController) Start(ctx context.Context) error {
 	// start the kubeconfig refresh loop
 	go r.refreshClusterAuthConfigsForever(ctx)
@@ -135,6 +138,8 @@ func (r *RequestController) refreshClusterAuthConfigs(ctx context.Context) error
 				}
 
 				r.clusterManagerPool.add(mgr, clusterAuthConfig)
+				r.Logger.WithField("orchestraotorID", orchestratorID).
+					Info("successfully built a cluster manager for the orchestrator")
 
 				return nil
 			})
@@ -221,9 +226,14 @@ type SecretProvider interface {
 	GetLatestSecret(ctx context.Context, name string) (string, error)
 }
 
-type MetricsPublisher interface {
-	SendMetric()
-	GetDuration() time.Duration
+type Metric struct {
+	Name             string
+	Value            float64
+	CustomDimensions map[string]string
+}
+
+type MetricsClient interface {
+	SendMetric(Metric)
 }
 
 type ConfigSubnetInfoProvider struct {

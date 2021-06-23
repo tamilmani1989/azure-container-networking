@@ -7,9 +7,12 @@ import (
 	"testing"
 	"time"
 
+	"dnc/configuration"
+	"dnc/requestcontroller/appinsights"
 	syncdncclient "dnc/requestcontroller/dncclient"
 
 	acnv1alpha "github.com/Azure/azure-container-networking/nodenetworkconfig/api/v1alpha"
+	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -30,8 +33,12 @@ func TestReconcileNewNode(t *testing.T) {
 		DNCClient:      &syncdncclient.MockSynchronousDNCClient{},
 		Namespace:      namespace,
 		InitialIPCount: 8,
-		Logger:         logger,
+		Logger:         logrus.StandardLogger(),
 		Recorder:       &record.FakeRecorder{},
+		MetricsClient: appinsights.NewMetricsClient(appinsights.MetricsClientOptions{
+			Logger: logrus.StandardLogger(),
+			Config: configuration.TelemetrySettings{DisableTelemetry: true},
+		}),
 	})
 
 	node := corev1.Node{
@@ -85,8 +92,12 @@ func TestReconcileNewNodeWithSmallMax(t *testing.T) {
 		DNCClient:      &syncdncclient.MockSynchronousDNCClient{},
 		Namespace:      namespace,
 		InitialIPCount: swiftIPCountSystemMax, // use a large default initial count
-		Logger:         logger,
+		Logger:         logrus.StandardLogger(),
 		Recorder:       &record.FakeRecorder{},
+		MetricsClient: appinsights.NewMetricsClient(appinsights.MetricsClientOptions{
+			Logger: logrus.StandardLogger(),
+			Config: configuration.TelemetrySettings{DisableTelemetry: true},
+		}),
 	})
 	maxPods := int64(32)
 
@@ -152,8 +163,12 @@ func TestReconcileDeletingNode(t *testing.T) {
 		DNCClient:      &syncdncclient.MockSynchronousDNCClient{},
 		Namespace:      namespace,
 		InitialIPCount: 8,
-		Logger:         logger,
+		Logger:         logrus.StandardLogger(),
 		Recorder:       &record.FakeRecorder{},
+		MetricsClient: appinsights.NewMetricsClient(appinsights.MetricsClientOptions{
+			Logger: logrus.StandardLogger(),
+			Config: configuration.TelemetrySettings{DisableTelemetry: true},
+		}),
 	})
 
 	node := corev1.Node{
@@ -216,8 +231,12 @@ func TestReconcileDeletedNode(t *testing.T) {
 		DNCClient:      &syncdncclient.MockSynchronousDNCClient{},
 		Namespace:      namespace,
 		InitialIPCount: 8,
-		Logger:         logger,
+		Logger:         logrus.StandardLogger(),
 		Recorder:       &record.FakeRecorder{},
+		MetricsClient: appinsights.NewMetricsClient(appinsights.MetricsClientOptions{
+			Logger: logrus.StandardLogger(),
+			Config: configuration.TelemetrySettings{DisableTelemetry: true},
+		}),
 	})
 
 	nnc := acnv1alpha.NodeNetworkConfig{

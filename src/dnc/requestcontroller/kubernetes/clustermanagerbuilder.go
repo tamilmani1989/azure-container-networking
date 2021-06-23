@@ -19,6 +19,7 @@ type ClusterManagerBuilder struct {
 	SyncDNCClient      requestcontroller.SynchronousDNCClient
 	Logger             logrus.FieldLogger
 	SubnetInfoProvider requestcontroller.SubnetInfoProvider
+	MetricsClient      requestcontroller.MetricsClient
 }
 
 func (c *ClusterManagerBuilder) Build(opts requestcontroller.ClusterManagerBuilderOptions) (*requestcontroller.ClusterManager, error) {
@@ -80,6 +81,7 @@ func (c *ClusterManagerBuilder) Build(opts requestcontroller.ClusterManagerBuild
 		InitialIPCount:   c.Config.RequestScalerConfig.BatchSize,
 		K8sClientTimeout: k8sClientTimeout,
 		Logger:           c.Logger,
+		MetricsClient:    c.MetricsClient,
 		Recorder:         ctrlRuntimeMgr.GetEventRecorderFor("dnc-rc/node-reconciler"),
 	})
 
@@ -105,6 +107,7 @@ func (c *ClusterManagerBuilder) Build(opts requestcontroller.ClusterManagerBuild
 		ScalerConfig:                c.Config.RequestScalerConfig,
 		SubnetInfoProvider:          c.SubnetInfoProvider,
 		Logger:                      c.Logger,
+		MetricsClient:               c.MetricsClient,
 		ReconcileTimeout:            dncClientRequestTimeout,
 		ProcessedNNCMetricsDuration: nncReconcilerMetricPublishInterval,
 		OrchestratorID:              opts.OrchestratorID,
@@ -134,11 +137,11 @@ func (c *ClusterManagerBuilder) Build(opts requestcontroller.ClusterManagerBuild
 			crdClient:                  crdClient,
 			syncDNCClient:              c.SyncDNCClient,
 			logger:                     c.Logger.WithField("orchestratorID", opts.OrchestratorID),
-			metricsPublishers:          nodeNetworkConfigReconciler.getMetricsPublishers(),
 			nncNamespace:               c.Config.KubernetesConfig.Namespace,
 			initialIPCount:             c.Config.RequestScalerConfig.BatchSize,
 			enableStartupNodeReconcile: c.Config.FeatureFlags.EnableStartupNodeReconcile,
 			nodeSet:                    nodeSet,
+			metricsClient:              c.MetricsClient,
 		},
 		OrchestratorID: opts.OrchestratorID,
 	}, nil

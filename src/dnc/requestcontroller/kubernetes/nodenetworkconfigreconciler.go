@@ -4,7 +4,6 @@ package kubernetes
 
 import (
 	"context"
-	"dnc/aiwrapper"
 	"dnc/api"
 	"dnc/requestcontroller"
 	"errors"
@@ -16,7 +15,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Azure/azure-container-networking/aitelemetry"
 	"github.com/Azure/azure-container-networking/cns"
 	acnv1alpha "github.com/Azure/azure-container-networking/nodenetworkconfig/api/v1alpha"
 	"github.com/google/uuid"
@@ -31,8 +29,11 @@ import (
 )
 
 const (
-	processedNNCCountMetricName = "ProcessedNNCCount"
-	orchestratorIDDimensionName = "OrchestratorID"
+	nncReconilerSuccessMetricName  = "NNCReconcilerSuccess"
+	nncReconcilerFailureMetricName = "NNCReconcilerFailure"
+	errorMessageDimensionName      = "ErrorMessage"
+	objectDimensionName            = "Object"
+	orchestratorIDDimensionName    = "OrchestratorID"
 )
 
 // NodeNetworkConfigReconciler is a controller-runtime/pkg/reconcile Reconciler for NodeNetworkConfigs
@@ -53,9 +54,9 @@ type NodeNetworkConfigReconciler struct {
 	registerSubnetMutex      sync.Mutex
 	orchestratorID           string // used for publishing metrics
 	skipSubnetJoin           bool
-	metricsPublishers        []requestcontroller.MetricsPublisher
 	recorder                 record.EventRecorder
 	nodeSet                  string
+	metricsClient            requestcontroller.MetricsClient
 }
 
 // NodeNetworkConfigReconcilerOptions options to create NNC Reconciler
@@ -71,6 +72,7 @@ type NodeNetworkConfigReconcilerOptions struct {
 	SkipSubnetJoin              bool
 	Recorder                    record.EventRecorder
 	NodeSet                     string
+	MetricsClient               requestcontroller.MetricsClient
 }
 
 type ncDetails struct {
@@ -112,20 +114,11 @@ func NewNodeNetworkConfigReconciler(opts NodeNetworkConfigReconcilerOptions) *No
 		reconcileTimeout:         opts.ReconcileTimeout,
 		orchestratorID:           opts.OrchestratorID,
 		skipSubnetJoin:           opts.SkipSubnetJoin,
-		metricsPublishers: []requestcontroller.MetricsPublisher{
-			&processedNNCMetricPublisher{
-				registeredNodes: dncNodeNameToNodeInfo,
-				orchestratorID:  opts.OrchestratorID,
-				duration:        opts.ProcessedNNCMetricsDuration,
-				logger:          logger,
-			},
-		},
-		recorder: opts.Recorder,
-		nodeSet:  opts.NodeSet,
+		recorder:                 opts.Recorder,
+		nodeSet:                  opts.NodeSet,
+		metricsClient:            opts.MetricsClient,
 	}
 }
-
-var _ reconcile.Reconciler = &NodeNetworkConfigReconciler{}
 
 // Reconcile is called by controller-runtime when there is an add/update/delete event for a NodeNetworkConfig resource
 func (n *NodeNetworkConfigReconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
@@ -147,8 +140,24 @@ func (n *NodeNetworkConfigReconciler) Reconcile(request reconcile.Request) (reco
 	err := n.reconcile(ctx, request)
 	if err != nil {
 		logger.WithError(err).Infof("Reconcile %s failed with error: %v", name, err)
+		n.metricsClient.SendMetric(requestcontroller.Metric{
+			Name:  nncReconcilerFailureMetricName,
+			Value: 1,
+			CustomDimensions: map[string]string{
+				objectDimensionName:         name,
+				orchestratorIDDimensionName: n.orchestratorID,
+			},
+		})
 	} else {
 		logger.Infof("Reconcile %s completed", name)
+		n.metricsClient.SendMetric(requestcontroller.Metric{
+			Name:  nncReconilerSuccessMetricName,
+			Value: 1,
+			CustomDimensions: map[string]string{
+				objectDimensionName:         name,
+				orchestratorIDDimensionName: n.orchestratorID,
+			},
+		})
 	}
 
 	return reconcile.Result{}, err
@@ -739,40 +748,4 @@ func (n *NodeNetworkConfigReconciler) getBatchSize(node corev1.Node) int64 {
 	}
 
 	return batchSize
-}
-
-// Return all metrics publishers for this reconciler
-func (n *NodeNetworkConfigReconciler) getMetricsPublishers() []requestcontroller.MetricsPublisher {
-	return n.metricsPublishers
-}
-
-type processedNNCMetricPublisher struct {
-	registeredNodes *cache.Cache
-	orchestratorID  string
-	duration        time.Duration
-	logger          logrus.FieldLogger
-}
-
-// This is mainly a copy/paste of dnc's sendDatastoreMetric. When we revamp metrics, this should not use global, and should use contexts
-func (p *processedNNCMetricPublisher) SendMetric() {
-	registeredNodesCount := p.registeredNodes.ItemCount()
-
-	p.logger.WithFields(logrus.Fields{
-		"MetricName":     processedNNCCountMetricName,
-		"Value":          fmt.Sprintf("%d", registeredNodesCount),
-		"OrchestratorID": p.orchestratorID,
-	}).Infof("Sending metric to AI")
-
-	metric := aitelemetry.Metric{
-		Name:             processedNNCCountMetricName,
-		Value:            float64(p.registeredNodes.ItemCount()),
-		CustomDimensions: make(map[string]string),
-	}
-
-	metric.CustomDimensions[orchestratorIDDimensionName] = p.orchestratorID
-	go aiwrapper.SendMetric(metric)
-}
-
-func (p *processedNNCMetricPublisher) GetDuration() time.Duration {
-	return p.duration
 }

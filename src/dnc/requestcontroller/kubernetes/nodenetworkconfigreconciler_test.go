@@ -4,7 +4,9 @@ package kubernetes
 
 import (
 	"context"
+	"dnc/configuration"
 	"dnc/requestcontroller"
+	"dnc/requestcontroller/appinsights"
 	syncdncclient "dnc/requestcontroller/dncclient"
 	"fmt"
 	"strconv"
@@ -21,9 +23,6 @@ import (
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
-
-//TODO: don't use a global here
-var logger logrus.FieldLogger = logrus.New()
 
 type mockSubnetInfoProvider struct {
 	subnetInfo map[string]map[string]requestcontroller.SubnetInfo // delegatedSubnetID -> {subnetName -> SubnetInfo, subnetName -> SubnetInfo}
@@ -77,10 +76,14 @@ func TestReconcileNewNNC(t *testing.T) {
 				},
 			},
 		},
-		Logger:         logger,
+		Logger:         logrus.StandardLogger(),
 		Recorder:       &record.FakeRecorder{},
 		OrchestratorID: orchestratorID,
 		NodeSet:        orchestratorID,
+		MetricsClient: appinsights.NewMetricsClient(appinsights.MetricsClientOptions{
+			Logger: logrus.StandardLogger(),
+			Config: configuration.TelemetrySettings{DisableTelemetry: true},
+		}),
 	})
 
 	nnc := acnv1alpha.NodeNetworkConfig{
@@ -195,9 +198,13 @@ func TestReconcileNNCWithLegacyNodeName(t *testing.T) {
 				},
 			},
 		},
-		Logger:         logger,
+		Logger:         logrus.StandardLogger(),
 		Recorder:       &record.FakeRecorder{},
 		OrchestratorID: orchestratorID,
+		MetricsClient: appinsights.NewMetricsClient(appinsights.MetricsClientOptions{
+			Logger: logrus.StandardLogger(),
+			Config: configuration.TelemetrySettings{DisableTelemetry: true},
+		}),
 	})
 
 	nnc := acnv1alpha.NodeNetworkConfig{
@@ -275,9 +282,13 @@ func TestNodeExistsOnDNC(t *testing.T) {
 	}
 
 	nncReconciler := NewNodeNetworkConfigReconciler(NodeNetworkConfigReconcilerOptions{
-		Logger:    logger,
+		Logger:    logrus.StandardLogger(),
 		Recorder:  &record.FakeRecorder{},
 		DNCClient: dncClient,
+		MetricsClient: appinsights.NewMetricsClient(appinsights.MetricsClientOptions{
+			Logger: logrus.StandardLogger(),
+			Config: configuration.TelemetrySettings{DisableTelemetry: true},
+		}),
 	})
 
 	exists, err := nncReconciler.nodeExistsOnDNC(context.Background(), "node1")
@@ -321,8 +332,12 @@ func TestGetBatchSizeWhenOverMaxIPCount(t *testing.T) {
 		ScalerConfig: requestcontroller.RequestScalerConfig{
 			BatchSize: int64(initialBatchSize),
 		},
-		Logger:   logger,
+		Logger:   logrus.StandardLogger(),
 		Recorder: &record.FakeRecorder{},
+		MetricsClient: appinsights.NewMetricsClient(appinsights.MetricsClientOptions{
+			Logger: logrus.StandardLogger(),
+			Config: configuration.TelemetrySettings{DisableTelemetry: true},
+		}),
 	})
 
 	outputBatchSize := nncReconciler.getBatchSize(node)

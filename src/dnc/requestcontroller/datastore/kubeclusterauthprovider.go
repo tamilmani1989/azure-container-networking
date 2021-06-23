@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"time"
 
 	"net/http"
@@ -20,6 +21,9 @@ const (
 	OrchestratorPropertiesPropertyName          = "Properties"
 	orchestratorTypePropertyName                = "OrchestratorType"
 	kubernetesOrchestratorType                  = "Kubernetes"
+	secretProviderFailureMetricName             = "DNCRCSecretProviderFailure"
+	datastoreFailureMetricName                  = "DNCRCDatastoreFailure"
+	datastoreErrorCodeDimension                 = "ErrorCode"
 )
 
 type OrchestratorProperties struct {
@@ -45,6 +49,7 @@ type KubeClusterAuthProvider struct {
 	azureEnvironment   string
 	clusterAuthConfigs map[string]requestcontroller.ClusterAuthConfig
 	tokenProvider      requestcontroller.TokenProvider
+	metricsClient      requestcontroller.MetricsClient
 }
 
 type KubeClusterAuthProviderOptions struct {
@@ -54,6 +59,7 @@ type KubeClusterAuthProviderOptions struct {
 	AzureEnvironment string
 	ManagedDNCGUID   string
 	TokenProvider    requestcontroller.TokenProvider
+	MetricsClient    requestcontroller.MetricsClient
 }
 
 func NewKubeClusterAuthProvider(opts KubeClusterAuthProviderOptions) (*KubeClusterAuthProvider, error) {
@@ -68,6 +74,7 @@ func NewKubeClusterAuthProvider(opts KubeClusterAuthProviderOptions) (*KubeClust
 		}),
 		clusterAuthConfigs: make(map[string]requestcontroller.ClusterAuthConfig),
 		tokenProvider:      opts.TokenProvider,
+		metricsClient:      opts.MetricsClient,
 	}
 
 	return &k, nil
@@ -85,10 +92,24 @@ func (k *KubeClusterAuthProvider) GetAllClusterAuthConfigs(ctx context.Context) 
 		result, moreData, nextPageToken, status, err := k.datastoreClient.QueryAllRowsInPartition(OrchestratorInstancesConfigurationTableName, k.managedDNCGUID, pageToken)
 		hasMoreData = moreData
 		if err != nil {
+			k.metricsClient.SendMetric(requestcontroller.Metric{
+				Name:  datastoreFailureMetricName,
+				Value: 1,
+				CustomDimensions: map[string]string{
+					datastoreErrorCodeDimension: strconv.Itoa(status),
+				},
+			})
 			return nil, fmt.Errorf("could not query datastore for table %s: %w", OrchestratorInstancesConfigurationTableName, err)
 		}
 
 		if status != http.StatusOK {
+			k.metricsClient.SendMetric(requestcontroller.Metric{
+				Name:  datastoreFailureMetricName,
+				Value: 1,
+				CustomDimensions: map[string]string{
+					datastoreErrorCodeDimension: strconv.Itoa(status),
+				},
+			})
 			return nil, fmt.Errorf("unexpected status %d returned by datastore", status)
 		}
 
@@ -105,6 +126,7 @@ func (k *KubeClusterAuthProvider) GetAllClusterAuthConfigs(ctx context.Context) 
 				// new row, so create a new clusterAuthConfig
 				clusterAuthConfig = &datastoreClusterAuthConfig{
 					logger:           k.logger.WithField("orchestratorID", entity.RowKey),
+					metricsClient:    k.metricsClient,
 					tokenProvider:    k.tokenProvider,
 					secretProvider:   k.secretProvider,
 					azureEnvironment: k.azureEnvironment,
@@ -170,6 +192,7 @@ func (k *KubeClusterAuthProvider) GetAllClusterAuthConfigs(ctx context.Context) 
 type datastoreClusterAuthConfig struct {
 	restConfig             *rest.Config
 	logger                 logrus.FieldLogger
+	metricsClient          requestcontroller.MetricsClient
 	mutex                  sync.RWMutex
 	orchestratorID         string
 	orchestratorProperties OrchestratorProperties
@@ -190,6 +213,7 @@ func (d *datastoreClusterAuthConfig) GetConfig() *rest.Config {
 func (d *datastoreClusterAuthConfig) RefreshForever(ctx context.Context) {
 	// refresh the rest.Config
 	if err := d.Refresh(ctx); err != nil {
+
 		d.logger.WithError(err).Error("unable to refresh rest.Config for the orchestrator")
 	}
 
@@ -230,6 +254,11 @@ func (d *datastoreClusterAuthConfig) Refresh(ctx context.Context) error {
 	// Get certificate from secretProvider
 	cert, err := d.secretProvider.GetLatestSecret(ctx, d.orchestratorProperties.ClientSecretName)
 	if err != nil {
+		// TODO: Wrap the keyvault client and move this to the wrapper instead of here
+		d.metricsClient.SendMetric(requestcontroller.Metric{
+			Name:  secretProviderFailureMetricName,
+			Value: 1,
+		})
 		return fmt.Errorf("could not fetch secret from secret provider: %w", err)
 	}
 
