@@ -5,6 +5,7 @@ import (
 	ad "dnc/activedirectory"
 	"dnc/configuration"
 	"dnc/datamodel"
+	"dnc/datastore/azurestorage"
 	"dnc/datastoreshim"
 	"dnc/dns"
 	"dnc/logger/loggershim"
@@ -308,25 +309,40 @@ func main() {
 		}
 	}
 
-	if config.DataStoreSettings.AzureStorageInfo.CosmosDBResourceID != "" {
-		spt, err := tokenFetcher.GetServicePrincipalToken(env.ResourceManagerEndpoint)
-		if err != nil {
-			log.Fatalln("Error getting service principal token. Error:", err)
-		}
+	if config.DataStoreSettings.AzureStorageInfo.CosmosDBResourceID == "" {
+		log.Fatalln("cosmos db id reqired")
+	}
+	spt, err := tokenFetcher.GetServicePrincipalToken(env.ResourceManagerEndpoint)
+	if err != nil {
+		log.Fatalln("Error getting service principal token. Error:", err)
+	}
 
-		token, err := ad.GetFreshToken(ctx, spt)
-		if err != nil {
-			log.Fatalln("Error getting ARM token. Error:", err)
-		}
+	token, err := ad.GetFreshToken(ctx, spt)
+	if err != nil {
+		log.Fatalln("Error getting ARM token. Error:", err)
+	}
 
-		// todo: discuss with team: what should be our workflow for key rotation?
-		keyFetcher := ad.CosmosKeyFetcher{ARMEndpoint: env.ResourceManagerEndpoint}
-		keys, err := keyFetcher.GetReadWriteKeys(ctx, token, config.DataStoreSettings.AzureStorageInfo.CosmosDBResourceID)
-		if err != nil {
-			log.Fatalln("Error getting Cosmos RW Keys. Error:", err)
-		}
+	// todo: discuss with team: what should be our workflow for key rotation?
+	keyFetcher := ad.CosmosKeyFetcher{ARMEndpoint: env.ResourceManagerEndpoint}
+	keys, err := keyFetcher.GetReadWriteKeys(ctx, token, config.DataStoreSettings.AzureStorageInfo.CosmosDBResourceID)
+	if err != nil {
+		log.Fatalln("Error getting Cosmos RW Keys. Error:", err)
+	}
 
-		config.DataStoreSettings.AzureStorageInfo.Key = keys.PrimaryMasterKey
+	config.DataStoreSettings.AzureStorageInfo.Key = keys.PrimaryMasterKey
+
+	loggershim.LS.Debugf("autoscaling tables")
+
+	azStorage, err := azurestorage.NewAzureStorageEx("dummy", true, azStorageClient, loggershim.LS, datamodel.TableToColumnMap,
+		config.DNCSettings.ThresholdForLoggingDataStoreOpLatencyMs, config.DataStoreSettings.MaxBatchSize)
+	if err != nil {
+		log.Fatalf("could not initialize azure storage: %v", err)
+	}
+
+	err = azStorage.EnsureAutoScaledTables(ctx, config.DataStoreSettings.AzureStorageInfo.CosmosDBResourceID, token,
+		env.ResourceManagerEndpoint, config.DataStoreSettings.AzureStorageInfo.AutoScaleMaxThroughput)
+	if err != nil {
+		log.Fatalln("Error Autoscaling Tables Error:", err)
 	}
 
 	// initialize Storage Client

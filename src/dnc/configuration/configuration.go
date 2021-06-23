@@ -23,6 +23,7 @@ type AzureStorageInfo struct {
 	Environment                     string
 	IsUsingCosmosDb                 bool
 	CosmosDBResourceID              string
+	AutoScaleMaxThroughput          int32
 }
 
 // TestPersistenceStoreInfo - Details to initialize testpersistencestore
@@ -367,6 +368,9 @@ func SetDncConfigDefaults(config *Configuration) {
 		if config.DataStoreSettings.MaxBatchSize > 1000 {
 			// For CosmosDB storage, MaxBatchSize should not exceed 1000
 			config.DataStoreSettings.MaxBatchSize = 1000
+		}
+		if config.DataStoreSettings.AzureStorageInfo.AutoScaleMaxThroughput == 0 {
+			config.DataStoreSettings.AzureStorageInfo.AutoScaleMaxThroughput = 4000
 		}
 	} else if config.DataStoreSettings.MaxBatchSize == 0 ||
 		config.DataStoreSettings.MaxBatchSize > 100 {

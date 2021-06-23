@@ -5,8 +5,8 @@ go 1.16
 require (
 	github.com/Azure/azure-container-networking v1.2.9-0.20210405165447-cf7d8a5ac31e
 	github.com/Azure/azure-sdk-for-go v51.3.0+incompatible
-	github.com/Azure/go-autorest/autorest v0.10.2
-	github.com/Azure/go-autorest/autorest/adal v0.9.2
+	github.com/Azure/go-autorest/autorest v0.11.19
+	github.com/Azure/go-autorest/autorest/adal v0.9.13
 	github.com/Azure/go-autorest/autorest/to v0.3.0 // indirect
 	github.com/Azure/go-autorest/autorest/validation v0.2.0 // indirect
 	github.com/dnaeon/go-vcr v1.0.1 // indirect
@@ -20,7 +20,7 @@ require (
 	github.com/spf13/cobra v1.0.0
 	github.com/stretchr/testify v1.7.0
 	go.opencensus.io v0.22.3 // indirect
-	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
+	golang.org/x/crypto v0.0.0-20201002170205-7f63de1d35b0
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d // indirect
 	google.golang.org/grpc v1.35.0
 	google.golang.org/protobuf v1.25.0

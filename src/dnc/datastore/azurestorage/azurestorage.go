@@ -1,18 +1,23 @@
 package azurestorage
 
 import (
+	"context"
 	"crypto/sha256"
+	"dnc/activedirectory"
 	"dnc/aiwrapper"
 	"dnc/configuration"
 	"dnc/logger/loggershim"
 	"dnc/utils"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/Azure/azure-container-networking/aitelemetry"
+	"github.com/Azure/azure-sdk-for-go/services/cosmos-db/mgmt/2021-01-15/documentdb"
 	"github.com/Azure/azure-sdk-for-go/storage"
+	"github.com/Azure/go-autorest/autorest"
 )
 
 const (
@@ -67,7 +72,7 @@ func NewAzureStorage(config configuration.AzureStorageInfo, logger loggershim.Lo
 	}
 
 	logger.Debugf("[Azure Storage] Ensuring table schema")
-	if err := azureStorage.ensureSchema(tableToColumnMap); err != nil {
+	if err := azureStorage.ensureSchema(); err != nil {
 		return nil, fmt.Errorf("Could not ensure table schema: %v", err)
 	}
 
@@ -102,9 +107,79 @@ func NewAzureStorageEx(
 	return &azureStorage, nil
 }
 
-func (a *AzureStorage) ensureSchema(tables map[string]string) error {
-	for tableName := range tables {
-		tblSvc := a.tableNameToTableClientMap[tableName]
+type dumbToken struct {
+	token string
+}
+
+func (d *dumbToken) OAuthToken() string { return d.token }
+
+func (a *AzureStorage) EnsureAutoScaledTables(ctx context.Context, resourceID, armtoken, armendpoint string, maxthroughput int32) error {
+	if err := a.ensureSchema(); err != nil {
+		return fmt.Errorf("Could not ensure table schema: %v", err)
+	}
+	//any more generic helper I can use?
+	comosdb, err := activedirectory.ParseResource(resourceID)
+	if err != nil {
+		return err
+	}
+	tblclient := documentdb.NewTableResourcesClientWithBaseURI(armendpoint, comosdb.SubscriptionID)
+	//https://github.com/Azure/azure-sdk-for-go/tree/v51.3.0#authentication
+	tblclient.Authorizer = autorest.NewBearerAuthorizer(&dumbToken{armtoken})
+
+	for tableName := range a.tableNameToTableClientMap {
+		tblthroughput, err := tblclient.GetTableThroughput(ctx, comosdb.ResourceGroupName, comosdb.ResourceName, tableName)
+		if err != nil {
+			return err
+		}
+		throughputjson, err := json.Marshal(tblthroughput.Resource)
+		if err != nil {
+			return err
+		}
+		a.logger.Debugf("Checking %s: %s", tableName, string(throughputjson))
+		if tblthroughput.Resource == nil || tblthroughput.Resource.AutoscaleSettings == nil {
+			a.logger.Debugf("migrating %s", tableName)
+			future, err := tblclient.MigrateTableToAutoscale(ctx, comosdb.ResourceGroupName, comosdb.ResourceName, tableName)
+			if err != nil {
+				return err
+			}
+			if err = future.FutureAPI.WaitForCompletionRef(ctx, tblclient.Client); err != nil {
+				return err
+			}
+			if tblthroughput, err = future.Result(tblclient); err != nil {
+				return err
+			}
+		}
+
+		if tblthroughput.Resource == nil || tblthroughput.Resource.AutoscaleSettings == nil {
+			return fmt.Errorf("Don't have autoscale settings after migration of %s", tableName)
+		}
+
+		if tblthroughput.Resource.AutoscaleSettings.MaxThroughput == nil || *tblthroughput.Resource.AutoscaleSettings.MaxThroughput < maxthroughput {
+			a.logger.Debugf("updating max througput %s", tableName)
+
+			throughputupdate := documentdb.ThroughputSettingsUpdateParameters{
+				ThroughputSettingsUpdateProperties: &documentdb.ThroughputSettingsUpdateProperties{
+					Resource: &documentdb.ThroughputSettingsResource{
+						AutoscaleSettings: &documentdb.AutoscaleSettingsResource{
+							MaxThroughput: &maxthroughput,
+						},
+					},
+				},
+			}
+			future, err := tblclient.UpdateTableThroughput(ctx, comosdb.ResourceGroupName, comosdb.ResourceName, tableName, throughputupdate)
+			if err != nil {
+				return err
+			}
+			if err = future.FutureAPI.WaitForCompletionRef(ctx, tblclient.Client); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (a *AzureStorage) ensureSchema() error {
+	for tableName, tblSvc := range a.tableNameToTableClientMap {
 		tbl := tblSvc.GetTableReference(tableName)
 		if err := tbl.Create(defaultTimeout, storage.EmptyPayload, nil); err != nil {
 			switch e := err.(type) {
