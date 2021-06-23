@@ -313,6 +313,9 @@ const (
 
 	// EntityMarkedForDeletion - Entity marked for deletion
 	EntityMarkedForDeletion
+
+	// NetworkContainerStateInvalid -  Network container state is invalid.
+	NetworkContainerStateInvalid
 )
 
 func (e ErrorCode) String() string {
@@ -613,6 +616,9 @@ func (e ErrorCode) String() string {
 
 	case EntityMarkedForDeletion:
 		return "EntityMarkedForDeletion"
+
+	case NetworkContainerStateInvalid:
+		return "NetworkContainerStateInvalid"
 	}
 
 	return "Unknown Status"

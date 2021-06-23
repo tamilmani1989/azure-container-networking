@@ -41,6 +41,7 @@ func (p *Preparer) PrepareNetworkContainerV2(repoNCData *datamodel.NetworkContai
 			return false, err
 		case existingRes.Configuration == nil: // reservation id previously assigned, but no reservation created
 			res = newReservation(repoNCData.Config)
+			p.Logger.Debugf("creating reservation for nc id %s, reservation id %s", repoNCData.Config.NetworkContainerID, repoNCData.Config.ReservationID)
 		default: // reservation previously created, this is preparing an update
 			p.Logger.Debugf("processing update for nc id %s, reservation id %s", repoNCData.Config.NetworkContainerID, existingRes.Configuration.ReservationID)
 			res, err = getUpdatedReservation(repoNCData.Config.RequestV2, *existingRes.Configuration)
@@ -59,17 +60,18 @@ func (p *Preparer) PrepareNetworkContainerV2(repoNCData *datamodel.NetworkContai
 	}
 
 	reservation := datamodel.ReservationRow{
-		RowKey: datamodel.GetReservationKey(repoNCData.Config.NetworkID, repoNCData.Config.ReservationID),
+		RowKey:        datamodel.GetReservationKey(repoNCData.Config.NetworkID, repoNCData.Config.ReservationID),
 		Configuration: &res,
-		SubnetKey: datamodel.GetSubnetKey(repoNCData.Config.NetworkID, repoNCData.Config.RequestV2.AllocationRequest.SubnetName),
-		SetKey: "",
+		SubnetKey:     datamodel.GetSubnetKey(repoNCData.Config.NetworkID, repoNCData.Config.RequestV2.AllocationRequest.SubnetName),
+		SetKey:        "",
 	}
 
 	if err := p.Reservations.PersistIPReservation(reservation); err != nil {
 		return false, api.InternalServerError(api.StatusInternalServerError, err.Error())
 	}
 
-	p.Logger.Debugf("successfully persisted reservation config: %+v for nc %s", res, repoNCData.Config.NetworkContainerID)
+	p.Logger.Debugf("successfully persisted reservation id %s, reservation config: %+v for nc %s", reservation.RowKey, res, repoNCData.Config.NetworkContainerID)
+
 	err := p.moveNCToReserveState(repoNCData)
 	return false, err
 }

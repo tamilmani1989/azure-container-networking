@@ -25,6 +25,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/Azure/azure-container-networking/aitelemetry"
 	"github.com/Azure/azure-container-networking/cns"
 	"github.com/Azure/azure-container-networking/cns/logger"
@@ -1865,6 +1867,7 @@ func createOrUpdateNCRequestV2(
 		Config: NCConfiguration{
 			NetworkID:           networkID,
 			NetworkContainerID:  ncID,
+			ReservationID:       uuid.New().String(),
 			RequestV2:           *ncRequestV2,
 			ImplicitReservation: true,
 			State:               Prepare,

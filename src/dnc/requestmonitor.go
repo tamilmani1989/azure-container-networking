@@ -957,6 +957,34 @@ func processNetworkContainerPurge(
 		}
 	}()
 
+	if nc.Config.ImplicitReservation &&
+		nc.Config.ReservationID != "" {
+		reservation, err := datamodel.TryQueryIPReservation(nc.Config.NetworkID, nc.Config.ReservationID)
+		if err != nil {
+			return false, err
+		}
+
+		if reservation.Configuration != nil {
+			logger.Debugf("[processNetworkContainerPurge] Associated implicit reservation record exists for NC id %s, reservation id %s, config %+v", nc.Config.NetworkContainerID, nc.Config.ReservationID, reservation.Configuration)
+			// Reservation record still exists (which was created in Prepare state). AllocatedSubnet
+			// must be null in that case. If not, then it is a bug as it must have been deleted in unreserve state
+			if reservation.Configuration.AllocatedSubnet != "" {
+				msg := fmt.Sprintf("Delete NC Key %s failed as associated Reservation is not deleted. reservation id %s, config %+v",
+					datamodel.GetNCKey(nc.Config.NetworkID, nc.Config.NetworkContainerID),
+					nc.Config.ReservationID,
+					reservation.Configuration)
+				return true, &api.JsonErr{
+					Code:       api.NetworkContainerStateInvalid,
+					Text:       msg,
+					HTTPStatus: http.StatusBadRequest}
+			}
+
+			if err := datamodel.IpReservationRepo.DeleteReservation(reservation.RowKey); err != nil {
+				return false, err
+			}
+		}
+	}
+
 	err = datamodel.PurgeNetworkContainerAssociations(nc, networkcontainer.ShouldUpdateVlan(nc.Config.GetAssociationInfo().ContainerType))
 	if err != nil {
 		return false, err
