@@ -284,12 +284,15 @@ func main() {
 	if pubSubCfg.EnablePubSubProxy {
 		// if a PubsubVipsString is not set, do a DNS lookup for PubsubVips instead
 		if pubSubCfg.PubsubVipsString == "" && pubSubCfg.PubsubConnectionEndpoint != "" {
-			pubsubvips, err := dns.PubsubVipsFromDNS(ctx, pubSubCfg.PubsubConnectionEndpoint)
+			log.Println("No PubsubVipsString given, using DNS to obtain PubSub VIPs.")
+			translatedEndpoint := dns.TranslateEndpoint(pubSubCfg.PubsubConnectionEndpoint)
+			pubsubvips, err := dns.PubsubVipsFromDNS(ctx, translatedEndpoint)
 			if err != nil {
-				log.Fatalf("Error obtaining PubsubVips from DNS using endpoint: %s, Error: %v", pubSubCfg.PubsubConnectionEndpoint, err)
+				log.Fatalf("Error obtaining PubsubVips from DNS using translated endpoint: %s, Error: %v", translatedEndpoint, err)
 			}
 			// TODO: allow overriding of the number of these based on a new config value (ie. PubsubVipsCount)
 			//       then cut off any extra we received from DNS
+			pubSubCfg.PubsubConnectionEndpoint = translatedEndpoint
 			pubSubCfg.PubsubVips = pubsubvips
 		}
 

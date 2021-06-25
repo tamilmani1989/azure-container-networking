@@ -153,23 +153,20 @@ var primaryRingAZCount = map[string]int{
 }
 
 const (
-	lookupTimeout = time.Second * 15
-	retryDuration = time.Second * 3
+	endpointSuffix = "-prod.sdnpubsub.core.windows.net"
+	lookupTimeout  = time.Second * 15
+	retryDuration  = time.Second * 3
 )
 
 // PubsubVipsFromDNS takes in a sdnpubsub endpoint (ie. <region>-prod.sdnpubsub.core.windows.net) and returns the corresponding
 // PubsubVips by performing a DNS lookup for each availability zone in that region
 func PubsubVipsFromDNS(ctx context.Context, connectionEndpoint string) ([]configuration.PubsubVips, error) {
-	// Get and translate the region from ARM -> DCMT format
 	endpoint := strings.SplitN(connectionEndpoint, "-", 2)
-	if len(endpoint) != 2 || len(endpoint[0]) == 0 || !strings.EqualFold(endpoint[1], "prod.sdnpubsub.core.windows.net") {
+	if len(endpoint) != 2 || len(endpoint[0]) == 0 || !strings.EqualFold("-"+endpoint[1], endpointSuffix) {
 		return nil, fmt.Errorf("invalid PubSub connection endpoint given: %s", connectionEndpoint)
 	}
-	region, ok := regionTranslations[endpoint[0]]
-	if !ok {
-		// assume it is already in DCMT format
-		region = endpoint[0]
-	}
+
+	region := endpoint[0]
 	azMax, ok := primaryRingAZCount[region]
 	if !ok {
 		// default to 1 for unknown (new) regions
@@ -191,13 +188,13 @@ func PubsubVipsFromDNS(ctx context.Context, connectionEndpoint string) ([]config
 
 		// If error received and it is not the stopping signal (IsNotFound), retry until successful or until timeout
 		var dnsError *net.DNSError
-		ips, err := net.LookupIP(region + azNumLeadingZero + "-" + endpoint[1])
+		ips, err := net.LookupIP(region + azNumLeadingZero + endpointSuffix)
 		for err != nil && !(errors.As(err, &dnsError) && dnsError.IsNotFound) {
 			select {
 			case <-dctx.Done():
 				return nil, dctx.Err()
 			case <-time.After(retryDuration):
-				ips, err = net.LookupIP(region + azNumLeadingZero + "-" + endpoint[1])
+				ips, err = net.LookupIP(region + azNumLeadingZero + endpointSuffix)
 			}
 		}
 
@@ -220,13 +217,13 @@ func PubsubVipsFromDNS(ctx context.Context, connectionEndpoint string) ([]config
 		dctx, cancel := context.WithTimeout(ctx, lookupTimeout)
 		defer cancel()
 
-		ips, err := net.LookupIP(region + "-" + endpoint[1])
+		ips, err := net.LookupIP(region + endpointSuffix)
 		for err != nil {
 			select {
 			case <-dctx.Done():
 				return nil, dctx.Err()
 			case <-time.After(retryDuration):
-				ips, err = net.LookupIP(region + "-" + endpoint[1])
+				ips, err = net.LookupIP(region + endpointSuffix)
 			}
 		}
 
@@ -239,4 +236,16 @@ func PubsubVipsFromDNS(ctx context.Context, connectionEndpoint string) ([]config
 	}
 
 	return pubsubvips, nil
+}
+
+// TranslateEndpoint gets and translate the regional endpoint from ARM -> DCMT format
+// ie. uswest2-prod.sdnpubsub.core.windows.net -> westus2-prod.sdnpubsub.core.windows.net
+// if no valid translation was found (possibly already in DCMT format) will return what was given
+func TranslateEndpoint(connectionEndpoint string) string {
+	region := strings.TrimSuffix(connectionEndpoint, endpointSuffix)
+	translated, ok := regionTranslations[region]
+	if !ok {
+		return connectionEndpoint
+	}
+	return translated + endpointSuffix
 }

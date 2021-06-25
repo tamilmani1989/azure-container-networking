@@ -34,7 +34,10 @@ func TestEndpointDNSLookup(t *testing.T) {
 		pubsubvip3,
 	}
 
-	pubsubvips, err := PubsubVipsFromDNS(context.Background(), endpoint)
+	translatedEndpoint := TranslateEndpoint(endpoint)
+	require.Equal(t, "useast-prod.sdnpubsub.core.windows.net", translatedEndpoint)
+
+	pubsubvips, err := PubsubVipsFromDNS(context.Background(), translatedEndpoint)
 	require.Nil(t, err)
 	require.NotNil(t, pubsubvips)
 	assert.Equal(t, len(pubsubvips), len(expectedPubsubVips))
@@ -65,7 +68,10 @@ func TestEndpointDNSLookupWithAlreadyTranslated(t *testing.T) {
 		pubsubvip3,
 	}
 
-	pubsubvips, err := PubsubVipsFromDNS(context.Background(), endpoint)
+	translatedEndpoint := TranslateEndpoint(endpoint)
+	require.Equal(t, "uswest2-prod.sdnpubsub.core.windows.net", translatedEndpoint)
+
+	pubsubvips, err := PubsubVipsFromDNS(context.Background(), translatedEndpoint)
 	require.Nil(t, err)
 	require.NotNil(t, pubsubvips)
 	assert.Equal(t, len(pubsubvips), len(expectedPubsubVips))
@@ -75,20 +81,22 @@ func TestEndpointDNSLookupWithAlreadyTranslated(t *testing.T) {
 	}
 }
 
-func TestEndpointDNSInvalidEndpoint(t *testing.T) {
-	endpoint := "westus2-incorrect.endpoint.net"
+func TestEndpointDNSInvalidEndpointLocation(t *testing.T) {
+	endpoint := "jupiter-prod.sdnpubsub.core.windows.net"
 
-	pubsubvips, err := PubsubVipsFromDNS(context.Background(), endpoint)
+	translatedEndpoint := TranslateEndpoint(endpoint)
+	require.Equal(t, "jupiter-prod.sdnpubsub.core.windows.net", translatedEndpoint)
+
+	pubsubvips, err := PubsubVipsFromDNS(context.Background(), translatedEndpoint)
 	require.NotNil(t, err)
 	require.Nil(t, pubsubvips)
 }
 
-func TestEndpointDNSInvalidEndpointLocation(t *testing.T) {
-	endpoint := "jupiter-prod.sdnpubsub.core.windows.net"
+func TestEndpointTranslation(t *testing.T) {
+	endpoint := "southcentralus-prod.sdnpubsub.core.windows.net"
 
-	pubsubvips, err := PubsubVipsFromDNS(context.Background(), endpoint)
-	require.NotNil(t, err)
-	require.Nil(t, pubsubvips)
+	translatedEndpoint := TranslateEndpoint(endpoint)
+	require.Equal(t, "ussouth-prod.sdnpubsub.core.windows.net", translatedEndpoint)
 }
 
 // Useful for getting every possible region's pubsubvips at once
@@ -100,7 +108,9 @@ type pubsubvipsHolder struct {
 func TestAllKnownEndpoints(t *testing.T) {
 	holder := make([]pubsubvipsHolder, 0)
 	for region := range regionTranslations {
-		pubsubvips, err := PubsubVipsFromDNS(context.Background(), region+"-prod.sdnpubsub.core.windows.net")
+		translatedEndpoint := TranslateEndpoint(region + "-prod.sdnpubsub.core.windows.net")
+
+		pubsubvips, err := PubsubVipsFromDNS(context.Background(), translatedEndpoint)
 		require.Nil(t, err)
 
 		holder = append(holder, pubsubvipsHolder{region: region, pubsubvips: pubsubvips})
