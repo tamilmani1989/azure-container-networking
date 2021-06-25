@@ -71,7 +71,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 {
                     DncFailureMessage errMsg = await ParseErrorResponse(response);
                     throw new ErrorResponseMessageException(
-                                           httpStatus: response.StatusCode,
+                                           httpStatus: HttpStatusCode.InternalServerError,
                                            errorCode: ErrorResponseCode.JoinSubnetFailed,
                                            errorMessage: $"DNC Putsubnet failed to this endpoint: " +
                                            $"{dncEndpoint}, , response content: {errMsg.ToString()}");

@@ -45,7 +45,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 {
                     new DimensionValue() { Name = DimensionNames.Subscription, Value = subscriptionId },
                     new DimensionValue() { Name = DimensionNames.ResourceGroup, Value = resourceGroupName }
-                });
+                },
+                1);
         }
 
         /// <summary>
@@ -55,6 +56,23 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         [HttpPut]
         public async Task<ContentResult> PutDncResource(string subscriptionId, string resourceGroupName, string resourceName)
         {
+            return await this.ExecuteWithRetryAsync(
+                subscriptionId,
+                () => ExecutePutDncResource(subscriptionId, resourceGroupName, resourceName),
+                HttpMethod.Put,
+                MetricNames.PutController,
+                new List<DimensionValue>()
+                {
+                    new DimensionValue() { Name = DimensionNames.Subscription, Value = subscriptionId },
+                    new DimensionValue() { Name = DimensionNames.ResourceGroup, Value = resourceGroupName }
+                });
+        }
+
+        private async Task<Controller> ExecutePutDncResource (
+            string subscriptionId,
+            string resourceGroupName,
+            string resourceName)
+        { 
             if (HttpContext.Request.Body == null)
             {
                 throw new EmptyRequestBody("Empty request body");
@@ -71,16 +89,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 
             ValidateRequestParameters(request);
 
-            return await this.ExecuteWithRetryAsync(
-                subscriptionId,
-                () => this.tableOperations.ControllerConfiguration.InsertOrReplaceDncControllerAsync(subscriptionId, resourceGroupName, resourceName, request),
-                HttpMethod.Put,
-                MetricNames.PutController,
-                new List<DimensionValue>()
-                {
-                    new DimensionValue() { Name = DimensionNames.Subscription, Value = subscriptionId },
-                    new DimensionValue() { Name = DimensionNames.ResourceGroup, Value = resourceGroupName }
-                });
+            return await this.tableOperations.ControllerConfiguration.InsertOrReplaceDncControllerAsync(subscriptionId, resourceGroupName, resourceName, request);
         }
 
         /// <summary>
@@ -112,11 +121,32 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         [HttpDelete]
         public async Task<ContentResult> DeleteDncResource(string subscriptionId, string resourceGroupName, string resourceName)
         {
+
+            return await this.ExecuteWithRetryAsync(
+                 subscriptionId,
+                 () => ExecuteDeleteDncResource(subscriptionId, resourceGroupName, resourceName),
+                 HttpMethod.Delete,
+                 MetricNames.DeleteController,
+                 new List<DimensionValue>()
+                 {
+                    new DimensionValue() { Name = DimensionNames.Subscription, Value = subscriptionId },
+                    new DimensionValue() { Name = DimensionNames.ResourceGroup, Value = resourceGroupName }
+                 });
+        }
+
+        private async Task<Controller> ExecuteDeleteDncResource(string subscriptionId, string resourceGroupName, string resourceName)
+        { 
             Controller controller = await this.tableOperations.ControllerConfiguration.GetDncControllerAsync(
                 subscriptionId,
                 resourceGroupName,
                 resourceName);
+            if (controller.Error != null)
+            {
+                this.logger.LogInformation("Controller resource {0} already removed", resourceName);
+                return new Controller();
+            }
 
+            // Get delegated subnet resources referencing controller
             List<DelegateSubnet> delegatedSubnetsList = await this.tableOperations.ControllerConfiguration.GetDelegatedSubnetResourcesByControllerId(controller.Id);
             if (delegatedSubnetsList.Count > 0)
             {
@@ -127,12 +157,12 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 }
 
                 throw new ErrorResponseMessageException(
-                        httpStatus: HttpStatusCode.Conflict,
+                        httpStatus: HttpStatusCode.BadRequest,
                         errorCode: ErrorResponseCode.DependentResourceExists,
                         errorMessage: $"Dependent delegated subnet resource exists:{dsResources}");
             }
 
-
+            // Get orchestrator resources referencing controller
             List<Orchestrator> orchestratorsList = await this.tableOperations.ControllerConfiguration.GetOrchestratorResourcesByControllerId(controller.Id);
             if (orchestratorsList.Count > 0)
             {
@@ -143,28 +173,19 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 }
 
                 throw new ErrorResponseMessageException(
-                        httpStatus: HttpStatusCode.Conflict,
+                        httpStatus: HttpStatusCode.BadRequest,
                         errorCode: ErrorResponseCode.DependentResourceExists,
                         errorMessage: $"Dependent orchestrator resource exists.{orchResources}");
             }
 
-            return await this.ExecuteWithRetryAsync(
-                subscriptionId,
-                () => this.tableOperations.ControllerConfiguration.DeleteDncControllerAsync(subscriptionId, resourceGroupName, resourceName),
-                HttpMethod.Delete,
-                MetricNames.DeleteController,
-                new List<DimensionValue>()
-                {
-                    new DimensionValue() { Name = DimensionNames.Subscription, Value = subscriptionId },
-                    new DimensionValue() { Name = DimensionNames.ResourceGroup, Value = resourceGroupName }
-                });
+            return await tableOperations.ControllerConfiguration.DeleteDncControllerAsync(subscriptionId, resourceGroupName, resourceName);
         }
 
         public void ValidateRequestParameters(ControllerRequest request)
         {
             if (string.IsNullOrEmpty(request.Location))
             {
-                throw new ErrorResponseMessageException(HttpStatusCode.BadRequest, ErrorResponseCode.None, "location parameter not present");
+                throw new ErrorResponseMessageException(HttpStatusCode.BadRequest, ErrorResponseCode.InvalidRequestBody, "location parameter not present");
             }
         }
     }

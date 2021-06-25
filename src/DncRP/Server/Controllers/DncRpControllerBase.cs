@@ -48,7 +48,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             Func<Task<TResouce>> action,
             HttpMethod method,
             string methodNameForLogging,
-            IEnumerable<DimensionValue> metricDimentions = null) where TResouce : TopLevelResource
+            IEnumerable<DimensionValue> metricDimentions = null,
+            int retryCount=3) where TResouce : TopLevelResource
         {
             TResouce response = null;
 
@@ -59,7 +60,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                     await tableOperations.SubscriptionOperation.ValidateSubscriptionRegistrationAsync(subscriptionId);
                     return (TResouce)await action();
                 },
-                3, TimeSpan.FromSeconds(10), TimeSpan.FromMinutes(5), (e) => e is HttpRequestException).ConfigureAwait(false);
+                retryCount, TimeSpan.FromSeconds(10), TimeSpan.FromMinutes(5), (e) => e is HttpRequestException).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -73,7 +74,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                     message += errorException.Message + $"InternalErrorCode: {errorException.ErrorCode}";
                     ((List<DimensionValue>)metricDimentions).Add(new DimensionValue() { Name = DimensionNames.InternalErrorCode, Value = Convert.ToString(errorException.ErrorCode) });
                 }
-                ((List<DimensionValue>)metricDimentions).Add(new DimensionValue() { Name = DimensionNames.InternalErrorCode, Value = Convert.ToString(statusCode) });
+                ((List<DimensionValue>)metricDimentions).Add(new DimensionValue() { Name = DimensionNames.HttpStatusCode, Value = Convert.ToString(statusCode) });
 
                 // only return error message in response (instead stack trace) since this is public API
                 string externalMessage = $"{message}. {ex.Message}";
@@ -239,7 +240,6 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             {
                 throw new Exception($"Error in identity headers. {sb.ToString()}");
             }
-
             return identity;
         }
     }

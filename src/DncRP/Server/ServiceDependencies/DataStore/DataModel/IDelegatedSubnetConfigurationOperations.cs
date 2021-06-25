@@ -32,6 +32,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             string delegatedSubnetGuid,
             string vnetResourceGuid,
             string subnetJoinState,
+            ProvisioningState state,
             DelegateSubnetRequest delegateSubnetRequest);
 
         /// <summary>

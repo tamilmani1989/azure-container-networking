@@ -7,6 +7,7 @@
 
 namespace Microsoft.Azure.ContainerNetworking.DncRP
 {
+    using System.Collections.Generic;
     using System.Threading.Tasks;
 
     public interface IOrchestratorOperations
@@ -29,7 +30,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <param name="orchestratorRequest"></param>
         /// <returns></returns>
         Task<Orchestrator> InsertOrReplaceOrchestratorAsync(
-            string subId, string resourceGroup, string resourceName, string privateEndpointName, string resourceGuid, MSIIdentity identity, OrchestratorRequest orchestratorRequest);
+            string subId, string resourceGroup, string resourceName, string privateEndpointName, string resourceGuid,
+            MSIIdentity identity, OrchestratorRequest orchestratorRequest);
 
         /// <summary>
         /// Modify an existing Orchestrator
@@ -50,5 +52,24 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <param name="resourceName"></param>
         /// <returns></returns>
         Task<Orchestrator> DeleteOrchestratorAsync(string subId, string resourceGroup, string resourceName);
+
+        /// <summary>
+        /// Create a new OrchestratorInstance Config or replace one
+        /// </summary>
+        /// <param name="mdncId"></param>
+        /// <param name="orchestratorResourceGuid"></param>
+        /// <param name="privateEndpointName"></param>
+        /// <param name="type"></param>
+        /// <param name="orchRequestProperties"></param>
+        /// <param name="orchIdentity"></param>
+        /// <returns></returns>
+        Task<int> InsertOrReplaceOrchestratorConfigAsync(string mdncId, string orchestratorResourceGuid, string privateEndpointName, 
+            string type, OrchestratorPropertiesInternal orchRequestProperties, MSIIdentity orchIdentity);
+
+        /// <summary>
+        /// Get OrchestratorConfig List
+        /// </summary>
+        /// <returns></returns>
+        Task<List<OrchestratorConfigEntity>> GetAllOrchestratorsConfig();
     }
 }

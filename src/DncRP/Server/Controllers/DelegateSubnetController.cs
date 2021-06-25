@@ -48,8 +48,24 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <param name="resourceGroup">resource group name</param>
         /// <param name="resourceName">resourceName name</param>
         /// <returns></returns>
+
         [HttpGet]
-        public async Task<ContentResult> GetDelegateSubnet(
+        public async Task<ContentResult> GetDelegateSubnet(string subscriptionId, string resourceGroup, string resourceName)
+        {
+            return await this.ExecuteWithRetryAsync(
+                subscriptionId,
+                () => ExecuteGetDelegateSubnet(subscriptionId, resourceGroup, resourceName),
+                HttpMethod.Get,
+                MetricNames.GetDelegateSubnet,
+                new List<DimensionValue>()
+                {
+                    new DimensionValue() { Name = DimensionNames.Subscription, Value = subscriptionId },
+                    new DimensionValue() { Name = DimensionNames.ResourceGroup, Value = resourceGroup }
+                },
+                1);
+        }
+        
+        public async Task<DelegateSubnet> ExecuteGetDelegateSubnet(
             string subscriptionId,
             string resourceGroup,
             string resourceName)
@@ -57,63 +73,24 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             this.logger.CLogInformation($"GetDelegateSubnet URI: {HttpContext.Request.GetDisplayUrl()}");
 
             // TODO Validate arguments
-            IEnumerable<DimensionValue> metricDimensions = new List<DimensionValue>()
+
+            // Check if SubnetConfiguration is already defined
+            await tableOperations.SubscriptionOperation.ValidateSubscriptionRegistrationAsync(subscriptionId);
+            // Check if DelegatedSubnetConfiguration exists
+            DelegateSubnet delegatedSubnet = await tableOperations.DelegatedSubnetConfigurationOperations.TryGetDelegatedSubnetConfigurationAsync(
+                subscriptionId,
+                resourceGroup,
+                resourceName);
+
+            if (delegatedSubnet == null)
             {
-                new DimensionValue() { Name = DimensionNames.Subscription, Value = subscriptionId },
-                new DimensionValue() { Name = DimensionNames.ResourceGroup, Value = resourceGroup }
-            };
-            try
-            {
-                // Check if SubnetConfiguration is already defined
-                await tableOperations.SubscriptionOperation.ValidateSubscriptionRegistrationAsync(subscriptionId);
-                // Check if DelegatedSubnetConfiguration exists
-                DelegateSubnet delegatedSubnet = await tableOperations.DelegatedSubnetConfigurationOperations.TryGetDelegatedSubnetConfigurationAsync(
-                    subscriptionId,
-                    resourceGroup,
-                    resourceName);
-
-                if (delegatedSubnet == null)
-                {
-                    throw new ErrorResponseMessageException(
-                        httpStatus: HttpStatusCode.NotFound,
-                        errorCode: ErrorResponseCode.DelegatedSubnetResourceNotFound,
-                        errorMessage: $"ResourceId: {HttpContext.Request.GetDisplayUrl()} not found");
-                }
-
-                ContentResult result = new ContentResult
-                {
-                    StatusCode = (int)HttpStatusCode.OK,
-                    Content = JsonUtility.Serialize(delegatedSubnet),
-                    ContentType = "application/json"
-                };
-
-                metricsProvider.IncrementCounter($"{MetricNames.GetDelegateSubnet}{MetricSuffix.success}", metricDimensions);
-
-                return result;
+                throw new ErrorResponseMessageException(
+                    httpStatus: HttpStatusCode.NotFound,
+                    errorCode: ErrorResponseCode.DelegatedSubnetResourceNotFound,
+                    errorMessage: $"ResourceId: {HttpContext.Request.GetDisplayUrl()} not found");
             }
-            catch (Exception ex)
-            {
-                string message = $"Failed to process GetDelegateSubnet call.";
-                int statusCode = (int)HttpStatusCode.InternalServerError;
 
-                ErrorResponseMessageException errorException = ex as ErrorResponseMessageException;
-                if (errorException != null)
-                {
-                    statusCode = (int)errorException.HttpStatus;
-                    message += errorException.Message + $"InternalErrorCode: {errorException.ErrorCode}";
-                    ((List<DimensionValue>)metricDimensions).Add(new DimensionValue() { Name = DimensionNames.InternalErrorCode, Value = Convert.ToString(errorException.ErrorCode) });
-                }
-                ((List<DimensionValue>)metricDimensions).Add(new DimensionValue() { Name = DimensionNames.HttpStatusCode, Value = Convert.ToString(statusCode) });
-
-                // only return error message in response (instead stack trace) since this is public API
-                string externalMessage = $"{message}. {ex.Message}";
-                message += $"InternalException: {ex}";
-
-                this.logger.CLogError($"{message}, StatusCode: {statusCode}");
-                metricsProvider.IncrementCounter($"{MetricNames.GetDelegateSubnet}{MetricSuffix.failure}", metricDimensions);
-
-                return ConvertToExceptionResult(externalMessage, statusCode);
-            }
+            return delegatedSubnet;        
         }
 
         /// <summary>
@@ -129,18 +106,11 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             string resourceGroup,
             string resourceName)
         {
-            this.logger.CLogInformation($"PutDelegateSubnet URI: {HttpContext.Request.GetDisplayUrl()}");
-
-            DelegateSubnetRequest delegateSubnetRequest = await GetRequestAsync<DelegateSubnetRequest>(HttpContext.Request.Body, "PutDelegateSubnet");
-
-            ValidateRequestParameters(delegateSubnetRequest);
-
             return await this.ExecuteWithRetryAsync(subscriptionId, () =>
                 ExecuteDelegateSubnetAsync(
                        subscriptionId,
                        resourceGroup,
-                       resourceName,
-                       delegateSubnetRequest),
+                       resourceName),
                 HttpMethod.Put,
                 MetricNames.PutDelegateSubnet,
                 new List<DimensionValue>()
@@ -168,68 +138,6 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         }
 
         /// <summary>
-        /// DeleteDelegatedSubnet 
-        /// </summary>
-        /// <param name="subscriptionId">subscription id</param>
-        /// <param name="resourceGroup">resource group name</param>
-        /// <param name="resourceName">resourceName name</param>
-        /// <returns></returns>
-        [HttpDelete]
-        public async Task<ContentResult> DeleteDelegateSubnet(
-            string subscriptionId,
-            string resourceGroup,
-            string resourceName)
-        {
-            this.logger.CLogInformation($"DeleteDelegateSubnet URI: {HttpContext.Request.GetDisplayUrl()}");
-
-            // TODO Validate arguments
-            IEnumerable<DimensionValue> metricDimensions = new List<DimensionValue>()
-            {
-                new DimensionValue() { Name = DimensionNames.Subscription, Value = subscriptionId },
-                new DimensionValue() { Name = DimensionNames.ResourceGroup, Value = resourceGroup }
-            };
-            try
-            {
-                await tableOperations.SubscriptionOperation.ValidateSubscriptionRegistrationAsync(subscriptionId);
-                await ExecuteDeleteDelegateSubnetAsync(subscriptionId, resourceGroup, resourceName);
-
-                ContentResult result = new ContentResult
-                {
-                    StatusCode = (int)HttpStatusCode.OK,
-                    Content = null,
-                    ContentType = "application/json"
-                };
-
-                metricsProvider.IncrementCounter($"{MetricNames.DeleteDelegateSubnet}{MetricSuffix.success}", metricDimensions);
-
-                return result;
-            }
-            catch (Exception ex)
-            {
-                string message = $"Failed to process DeleteDelegateSubnet call.";
-                int statusCode = (int)HttpStatusCode.InternalServerError;
-
-                ErrorResponseMessageException errorException = ex as ErrorResponseMessageException;
-                if (errorException != null)
-                {
-                    statusCode = (int)errorException.HttpStatus;
-                    message += errorException.Message + $"InternalErrorCode: {errorException.ErrorCode}.";
-                    ((List<DimensionValue>)metricDimensions).Add(new DimensionValue() { Name = DimensionNames.InternalErrorCode, Value = Convert.ToString(errorException.ErrorCode) });
-                }
-                ((List<DimensionValue>)metricDimensions).Add(new DimensionValue() { Name = DimensionNames.HttpStatusCode, Value = Convert.ToString(statusCode) });
-
-                // only return error message in response (instead stack trace) since this is public API
-                string externalMessage = $"{message} {ex.Message}";
-                message += $"InternalException: {ex}";
-
-                this.logger.CLogError($"{message}, StatusCode: {statusCode}");
-                metricsProvider.IncrementCounter($"{MetricNames.DeleteDelegateSubnet}{MetricSuffix.failure}", metricDimensions);
-
-                return ConvertToExceptionResult(externalMessage, statusCode);
-            }
-        }
-
-        /// <summary>
         /// Asynchronously Delegate a subnet and generate subnet token if not 
         /// generated.
         /// </summary>
@@ -241,15 +149,22 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         private async Task<DelegateSubnet> ExecuteDelegateSubnetAsync(
             string subscriptionId,
             string resourceGroup,
-            string resourceName,
-            DelegateSubnetRequest requestBody)
+            string resourceName)
         {
-            string associatedSubnetId = requestBody.Properties.SubnetDetails.Id;
-            string controllerId = requestBody.Properties.ControllerDetails.Id;
             string subnetSubId;
             string subnetResourceGroupId;
             string vnetName;
             string subnetName;
+
+            await tableOperations.SubscriptionOperation.ValidateSubscriptionRegistrationAsync(subscriptionId);
+
+            this.logger.CLogInformation($"PutDelegateSubnet URI: {HttpContext.Request.GetDisplayUrl()}");
+
+            DelegateSubnetRequest requestBody = await GetRequestAsync<DelegateSubnetRequest>(HttpContext.Request.Body, "PutDelegateSubnet");
+            string associatedSubnetId = requestBody.Properties.SubnetDetails.Id;
+            string controllerId = requestBody.Properties.ControllerDetails.Id;
+
+            ValidateRequestParameters(requestBody);
 
             ValidateAndGetSubnet(associatedSubnetId, out subnetSubId, out subnetResourceGroupId, out vnetName, out subnetName);
 
@@ -287,8 +202,9 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                     resourceGroup,
                     resourceName,
                     delegatedSubnetGuid,
-                    virtualNetwork.ResourceGuid,
+                    virtualNetwork.ResourceGuid,                    
                     DncSubnetStatus.New,
+                    ProvisioningState.Provisioning,
                     requestBody);
 
                 string authToken = await CreateSubnetTokenAsync(
@@ -300,7 +216,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                     associatedSubnetId);
 
                 // call dnc gateway for join subnet
-                await DncJoinSubnetAsync(
+                delegateSubnet = await DncJoinSubnetAsync(
                      subscriptionId,
                      resourceGroup,
                      resourceName,
@@ -338,7 +254,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 {
                     logger.CLogInformation("Put call. Token and delegated subnet resource exists. Dnc subnet join status:{0} for subnet:{1}", delegateSubnet.SubnetJoinStatus, subnetName);
                     // call dnc gateway for join subnet
-                    await DncJoinSubnetAsync(
+                    delegateSubnet = await DncJoinSubnetAsync(
                          subscriptionId,
                          resourceGroup,
                          resourceName,
@@ -354,7 +270,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             return delegateSubnet;
         }
 
-        private async Task DncJoinSubnetAsync(
+        private async Task<DelegateSubnet> DncJoinSubnetAsync(
             string subscriptionId,
             string resourceGroup,
             string resourceName,
@@ -382,6 +298,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                                  delegatedSubnetGuid,
                                  vnetId,
                                  DncSubnetStatus.Pending,
+                                 ProvisioningState.Provisioning,
                                  dsRequest);
 
             // do dnc get subnet to check if join completed
@@ -389,13 +306,14 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             logger.CLogInformation("Dncsettings timeout: RC:{0} RI:{1} RT:{2}", dncSettings.RetryCount, dncSettings.RetryIntervalInSeconds, dncSettings.RetryTimeoutInSeconds);
             await AsyncRetry.Retry(() => CheckIfSubnetJoined(dncClient, vnetId, subnetName), dncSettings.RetryCount,
                 TimeSpan.FromSeconds(dncSettings.RetryIntervalInSeconds), TimeSpan.FromSeconds(dncSettings.RetryTimeoutInSeconds));
-            await tableOperations.DelegatedSubnetConfigurationOperations.InsertOrUpdateAsync(
+            return await tableOperations.DelegatedSubnetConfigurationOperations.InsertOrUpdateAsync(
                       subscriptionId,
                       resourceGroup,
                       resourceName,
                       delegatedSubnetGuid,
                       vnetId,
                       DncSubnetStatus.Completed,
+                      ProvisioningState.Succeeded,
                       dsRequest);
         }
 
@@ -434,7 +352,10 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             if (!exists)
             {
                 logger.CLogError("Invalid Subnet resourceid {0}", subnetResourceId);
-                throw new Exception($"Invalid subnet resourceId {subnetResourceId}");
+                throw new ErrorResponseMessageException(
+                    httpStatus: HttpStatusCode.BadRequest,
+                    errorCode: ErrorResponseCode.InvalidRequestBody,
+                    $"Invalid subnet resource id:{subnetResourceId}");
             }
             logger.CLogInformation("Subnet subid:{0} subnet rg:{1}", subnetSubId, subnetRg);
 
@@ -449,9 +370,20 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                     subnetSubId,
                     VNetResourceId);
 
-            // Create the SAL and generate the token
-            ServiceAssociationLinkDetail salDetail = await azVnetBroker.GetOrCreateServiceAssociationLinkAsync(
-                tenantId, vnetResourceGuid.ToString(), subnetResourceId);
+            ServiceAssociationLinkDetail salDetail = null;
+            try
+            {
+                // Create the SAL and generate the token
+                salDetail = await azVnetBroker.GetOrCreateServiceAssociationLinkAsync(
+                    tenantId, vnetResourceGuid.ToString(), subnetResourceId);
+            }
+            catch(Exception e)
+            {
+                throw new ErrorResponseMessageException(
+                    httpStatus: HttpStatusCode.InternalServerError,
+                    errorCode: ErrorResponseCode.ServiceAssociationLinkFailed,
+                    $"SAL creation failed:{e.ToString()}");
+            }
 
             await tableOperations.SubnetTokenMapOperations.InsertOrUpdateAsync(
                     delegatedSubnetGuid,
@@ -518,11 +450,14 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                    errorMessage: $"ResourceId: {VNetResourceId} is created in a different location: {virtualNetwork.Location}, Expected Location: {CurrentContext.AzureRegion}");
             }
 
-            foreach (var subnet in virtualNetwork.Subnets)
+            if (virtualNetwork.Subnets != null)
             {
-                if (subnet.Name.Equals(subnetName))
+                foreach (var subnet in virtualNetwork.Subnets)
                 {
-                    return;
+                    if (subnet.Name.Equals(subnetName))
+                    {
+                        return;
+                    }
                 }
             }
 
@@ -539,6 +474,22 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             //}
         }
 
+        [HttpDelete]
+        public async Task<ContentResult> DeleteDelegateSubnet(string subscriptionId, string resourceGroup, string resourceName)
+        {
+            // Get orchestrator
+            return await this.ExecuteWithRetryAsync(
+                subscriptionId,
+                () => ExecuteDeleteDelegateSubnetAsync(subscriptionId, resourceGroup, resourceName),
+                HttpMethod.Delete,
+                MetricNames.DeleteDelegateSubnet,
+                new List<DimensionValue>()
+                {
+                    new DimensionValue() { Name = DimensionNames.Subscription, Value = subscriptionId },
+                    new DimensionValue() { Name = DimensionNames.ResourceGroup, Value = resourceGroup }
+                },
+                1);
+        }
         /// <summary>
         /// Asynchronously delete a DelegateSubnet
         /// </summary>
@@ -547,11 +498,14 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <param name="resourceName"></param>
         /// <param name="requestBody"></param>
         /// <returns></returns>
-        private async Task ExecuteDeleteDelegateSubnetAsync(
+        private async Task<DelegateSubnet> ExecuteDeleteDelegateSubnetAsync(
             string subscriptionId,
             string resourceGroup,
             string resourceName)
         {
+            this.logger.CLogInformation($"DeleteDelegateSubnet URI: {HttpContext.Request.GetDisplayUrl()}");
+            await tableOperations.SubscriptionOperation.ValidateSubscriptionRegistrationAsync(subscriptionId);
+
             // Check if DelegatedSubnetConfiguration exists
             DelegateSubnet delegateSubnet = await tableOperations.DelegatedSubnetConfigurationOperations.TryGetDelegatedSubnetConfigurationAsync(
                 subscriptionId,
@@ -561,7 +515,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             if (delegateSubnet == null)
             {
                 logger.CLogInformation($"DelegateSubnet, Resource {HttpContext.Request.GetDisplayUrl()} is already deleted");
-                return;
+                return new DelegateSubnet();
             }
 
             // Remove the SAL in NRP
@@ -589,9 +543,28 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 delegateSubnet);
 
             logger.CLogInformation("Deleting ServiceAssociationLink for {0}", associatedSubnetId);
+            HttpResponseMessage response = null;
             // Delete the SAL
-            HttpResponseMessage response = await azVnetBroker.DeleteServiceAssociationLinkAsync(tenantId, associatedSubnetId);
-            response.EnsureSuccessStatusCode();
+            try
+            {
+                response = await azVnetBroker.DeleteServiceAssociationLinkAsync(tenantId, associatedSubnetId);
+            }
+            catch (Exception e)
+            {
+                throw new ErrorResponseMessageException(
+                    httpStatus: HttpStatusCode.InternalServerError,
+                    errorCode: ErrorResponseCode.ServiceAssociationLinkDeleteFailed,
+                    errorMessage: $"SAL delete failed: {e.ToString()}");
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new ErrorResponseMessageException(
+                    httpStatus: HttpStatusCode.InternalServerError,
+                    errorCode: ErrorResponseCode.ServiceAssociationLinkDeleteFailed,
+                    errorMessage: $"SAL delete failed with httpstatus: {response.StatusCode}");
+            }
+
 
             // TODO handle deletion of Resourceownership if no other subnet has SAL created.
 
@@ -601,6 +574,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 
             // Delete the DelegateSubnetConfiguration
             await tableOperations.DelegatedSubnetConfigurationOperations.DeleteAsync(subscriptionId, resourceGroup, resourceName);
+            return delegateSubnet;
         }
 
         private async Task DncDeleteSubnetAsync(
@@ -668,32 +642,32 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             string errorMessage = "{0} parameter not present";
             if (string.IsNullOrEmpty(request.Location))
             {
-                throw new ErrorResponseMessageException(HttpStatusCode.BadRequest, ErrorResponseCode.None,
+                throw new ErrorResponseMessageException(HttpStatusCode.BadRequest, ErrorResponseCode.InvalidRequestBody,
                     string.Format(errorMessage, "location"));
             }
             if (request.Properties == null)
             {
-                throw new ErrorResponseMessageException(HttpStatusCode.BadRequest, ErrorResponseCode.None,
+                throw new ErrorResponseMessageException(HttpStatusCode.BadRequest, ErrorResponseCode.InvalidRequestBody,
                     string.Format(errorMessage, "properties"));
             }
             if (request.Properties.ControllerDetails == null)
             {
-                throw new ErrorResponseMessageException(HttpStatusCode.BadRequest, ErrorResponseCode.None,
+                throw new ErrorResponseMessageException(HttpStatusCode.BadRequest, ErrorResponseCode.InvalidRequestBody,
                     string.Format(errorMessage, "properties.controllerDetails"));
             }
             if (request.Properties.SubnetDetails == null)
             {
-                throw new ErrorResponseMessageException(HttpStatusCode.BadRequest, ErrorResponseCode.None,
+                throw new ErrorResponseMessageException(HttpStatusCode.BadRequest, ErrorResponseCode.InvalidRequestBody,
                     string.Format(errorMessage, "properties.subnetDetails"));
             }
             if (string.IsNullOrEmpty(request.Properties.ControllerDetails.Id))
             {
-                throw new ErrorResponseMessageException(HttpStatusCode.BadRequest, ErrorResponseCode.None,
+                throw new ErrorResponseMessageException(HttpStatusCode.BadRequest, ErrorResponseCode.InvalidRequestBody,
                     string.Format(errorMessage, "properties.controllerDetails.Id"));
             }
             if (string.IsNullOrEmpty(request.Properties.SubnetDetails.Id))
             {
-                throw new ErrorResponseMessageException(HttpStatusCode.BadRequest, ErrorResponseCode.None,
+                throw new ErrorResponseMessageException(HttpStatusCode.BadRequest, ErrorResponseCode.InvalidRequestBody,
                     string.Format(errorMessage, "properties.subnetDetails.Id"));
             }
         }

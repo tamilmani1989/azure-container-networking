@@ -60,7 +60,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
                 KeyVaultUrl = this.testConfig.KeyVaultUrl
             };
 
-            string azEnvName = this.testConfig.ClientIdentityCertificate.AzureEnvironment;
+            string azEnvName = this.testConfig.AzureEnvironment;
             IAzureAD azureAD = new AzureAD();
             string token = await azureAD.GetAccessTokenForArm(
                 kvIdentity, azADIdentity, this.testConfig.ClientIdentityCertificate.TenantId, azEnvName);

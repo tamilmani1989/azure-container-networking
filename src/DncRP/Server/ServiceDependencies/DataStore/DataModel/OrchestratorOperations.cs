@@ -8,6 +8,7 @@
 namespace Microsoft.Azure.ContainerNetworking.DncRP
 {
     using System;
+    using System.Collections.Generic;
     using System.Net;
     using System.Threading.Tasks;
     using global::Azure.Security.KeyVault.Secrets;
@@ -126,7 +127,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             resourceEntity.ResouceGuid = resourceGuid;
             resourceEntity.OrchestratorType = orchestratorType.ToString();
             resourceEntity.Properties = propJson;
-            resourceEntity.State = ProvisioningState.Succeeded.ToString();
+            resourceEntity.State = orchestratorRequest.Properties.State.ToString();
             resourceEntity.CreatedDateUtc = createdDate;
             resourceEntity.ControllerId = controllerArmResouceId;
             resourceEntity.Location = orchestratorRequest.Location;
@@ -143,8 +144,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             resourceEntity = result.Result as OrchestratorResourceEntity;
 
             // insert entity into controller config table
-            int httpCode = await this.InsertOrReplaceOchestratorConfigAsync(
-                controller.Properties.ResourceGuid, resourceGuid, privateEndpointName, orchestratorType, orchProps, identity);
+            int httpCode = await this.InsertOrReplaceOrchestratorConfigAsync(
+                controller.Properties.ResourceGuid, resourceGuid, privateEndpointName, orchestratorType.ToString(), orchProps.ToPropertiesInternal(), identity);
             if (!HttpStatusCodeCheck.IsSuccess(httpCode))
             {
                 return Orchestrator.CreateErrorResponse("Error in put orchestrator config", httpCode);
@@ -196,7 +197,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             ControllerProperties controllerProps = JsonUtility.Deserialize<ControllerProperties>(resourceEntity.ControllerProperties);
 
             // First delete entry in config table
-            int statusCode = await this.DeleteOchestratorConfigAsync(controllerProps.ResourceGuid, resourceEntity.ResouceGuid);
+            int statusCode = await this.DeleteOrchestratorConfigAsync(controllerProps.ResourceGuid, resourceEntity.ResouceGuid);
             if (!HttpStatusCodeCheck.IsSuccess(statusCode))
             {
                 return Orchestrator.CreateErrorResponse("Error in delete orchestrator config", result.HttpStatusCode);
@@ -212,6 +213,21 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             return resourceEntity.ToOrchestrator();
         }
 
+        public async Task<List<OrchestratorConfigEntity>> GetAllOrchestratorsConfig()
+        {
+            TableQuery<OrchestratorConfigEntity> tableQuery = new TableQuery<OrchestratorConfigEntity>();
+            ICollection<OrchestratorConfigEntity> resourceEntities = await dataStore.GetEntitiesAsync(configTableName, tableQuery);
+            logger.CLogInformation("orch config table count:{0}", resourceEntities.Count);
+
+            List<OrchestratorConfigEntity> configEntityList = new List<OrchestratorConfigEntity>();
+            foreach (OrchestratorConfigEntity entity in resourceEntities)
+            {
+                configEntityList.Add(entity);
+            }
+
+            return configEntityList;
+        }
+
         /// <summary>
         /// Insert or replace an entity in Controller config table
         /// </summary>
@@ -222,16 +238,15 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <param name="newOrchResouce">
         /// </param>
         /// <returns></returns>
-        private async Task<int> InsertOrReplaceOchestratorConfigAsync(
+        public async Task<int> InsertOrReplaceOrchestratorConfigAsync(
             string mdncId,
             string orchestratorResourceGuid,
             string privateEndpointName,
-            OrchestratorKind type,
-            OrchestratorProperties orchRequestProperties,
+            string type,
+            OrchestratorPropertiesInternal orchProperties,
             MSIIdentity orchIdentity)
         {
             string clientsecret = null, identityProps = null;
-            OrchestratorPropertiesInternal orchProperties = orchRequestProperties.ToPropertiesInternal();
 
             TableResult result = await this.dataStore.GetEntityAsync<OrchestratorConfigEntity>(
                 configTableName, mdncId, orchestratorResourceGuid);
@@ -248,7 +263,6 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                     orchProperties.ClientSecretName = orchestratorResourceGuid;
                     clientsecret = orchIdentity.ClientSecret;
                     orchIdentity.ClientSecret = null; // We don't want to store client secret in Cosmos. It will be stored in KV
-                    identityProps = JsonUtility.Serialize<MSIIdentity>(orchIdentity);
                 }
             }
             else if (!HttpStatusCodeCheck.IsSuccess(result.HttpStatusCode))
@@ -263,18 +277,20 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 orchProperties.ClientId = props.ClientId;
                 orchProperties.ClientSecretName = props.ClientSecretName;
                 orchProperties.PrivateEndpointName = privateEndpointName;
-                identityProps = configEntity.IdentityProperties;
+                clientsecret = orchIdentity.ClientSecret;
+                orchIdentity.ClientSecret = null;
             }
 
             OrchestratorConfigEntity entity = new OrchestratorConfigEntity(mdncId, orchestratorResourceGuid);
-            entity.OrchestratorType = type.ToString();
+            entity.OrchestratorType = type;
             entity.Properties = JsonUtility.Serialize<OrchestratorPropertiesInternal>(orchProperties);
+            identityProps = JsonUtility.Serialize<MSIIdentity>(orchIdentity);
             entity.IdentityProperties = identityProps;
 
             result = await this.dataStore.InsertOrReplaceEntityAsync(configTableName, entity);
             if (!HttpStatusCodeCheck.IsSuccess(result.HttpStatusCode))
             {
-                this.logger.CLogError("InsertOrReplaceOchestratorConfigAsync: Error in PUT Orchestrator config. StatusCode:{0}", result.HttpStatusCode);
+                this.logger.CLogError("InsertOrReplaceOrchestratorConfigAsync: Error in PUT Orchestrator config. StatusCode:{0}", result.HttpStatusCode);
                 return result.HttpStatusCode;
             }
 
@@ -282,8 +298,23 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             // secret is persisted before we mark Ochestrator PUT as success
             if (!string.IsNullOrWhiteSpace(clientsecret))
             {
-                this.keyVaultUtility.SetSecret(
-                    CurrentContext.KeyVaultUrl, CurrentContext.ManagedIdentity, orchProperties.ClientSecretName, clientsecret);
+                KeyVaultSecret getKvSecret = null;
+                bool createSecretFirstTime = false;
+                try
+                {
+                    getKvSecret = this.keyVaultUtility.GetSecret(
+                        CurrentContext.KeyVaultUrl, CurrentContext.ManagedIdentity, orchProperties.ClientSecretName, null);
+                }
+                catch (Exception e)
+                {
+                    logger.CLogInformation("Get secret not found. Create new secret");
+                    createSecretFirstTime = true;
+                }
+                if (createSecretFirstTime || getKvSecret.Value != clientsecret)
+                {
+                    this.keyVaultUtility.SetSecret(
+                        CurrentContext.KeyVaultUrl, CurrentContext.ManagedIdentity, orchProperties.ClientSecretName, clientsecret);
+                }
             }
 
             return result.HttpStatusCode;
@@ -297,7 +328,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <param name="type"></param>
         /// <param name="propertiesJson"></param>
         /// <returns></returns>
-        private async Task<int> DeleteOchestratorConfigAsync(
+        private async Task<int> DeleteOrchestratorConfigAsync(
             string mdncId, string orchestratorResourceGuid)
         {
             TableResult result = await this.dataStore.GetEntityAsync<OrchestratorConfigEntity>(
@@ -318,9 +349,16 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 
             if (!string.IsNullOrEmpty(props.ClientSecretName))
             {
-                // Delete secret from key vault
-                DeleteSecretOperation secret = this.keyVaultUtility.DeleteSecret(
-                    CurrentContext.KeyVaultUrl, CurrentContext.ManagedIdentity, props.ClientSecretName);
+                try
+                {
+                    // Delete secret from key vault
+                    this.keyVaultUtility.DeleteSecret(
+                        CurrentContext.KeyVaultUrl, CurrentContext.ManagedIdentity, props.ClientSecretName);
+                } 
+                catch (Exception  e) 
+                {
+                    logger.CLogError("Error while removing latest secret:{0} exception:{1}", props.ClientSecretName, e);
+                }
             }
 
             entity.ETag = "*";

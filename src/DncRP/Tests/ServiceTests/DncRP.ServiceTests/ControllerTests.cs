@@ -234,6 +234,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
                 Guid.NewGuid().ToString(),
                 Guid.NewGuid().ToString(),
                 DncSubnetStatus.Completed,
+                ProvisioningState.Succeeded,
                 dsRequest);
 
             // delete controller resource and it should fail
@@ -250,7 +251,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
                     statusCode = (int)errorException.HttpStatus;
                 }
                 Assert.False(HttpStatusCodeCheck.IsSuccess((int)statusCode), "DeleteDncResource should fail");
-                Assert.True(statusCode == (int)HttpStatusCode.Conflict, "DeleteDncResource should fail with conflict");
+                Assert.True(statusCode == (int)HttpStatusCode.BadRequest, "DeleteDncResource should fail with BadRequest");
             }
 
             // delete delegatedsubnet resource
@@ -316,7 +317,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
                     statusCode = (int)errorException.HttpStatus;
                 }
                 Assert.False(HttpStatusCodeCheck.IsSuccess((int)statusCode), "DeleteDncResource should fail");
-                Assert.True(statusCode == (int)HttpStatusCode.Conflict, "DeleteDncResource should fail with conflict");
+                Assert.True(statusCode == (int)HttpStatusCode.BadRequest, "DeleteDncResource should fail with BadRequest");
             }
 
             // delete orchestrator resource

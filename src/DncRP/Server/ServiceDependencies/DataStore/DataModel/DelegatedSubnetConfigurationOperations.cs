@@ -56,6 +56,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             string delegatedSubnetGuid,
             string vnetResourceGuid,
             string subnetJoinStatus,
+            ProvisioningState state,
             DelegateSubnetRequest delegateSubnetRequest)
         {
             // Cant add with invalid delegatedSubnetId
@@ -119,7 +120,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 
             // todo - Add this field
             resourceEntity.SubnetJoinStatus = subnetJoinStatus;
-            resourceEntity.State = ProvisioningState.Succeeded.ToString();
+            resourceEntity.State = state.ToString();
             resourceEntity.Location = delegateSubnetRequest.Location;
 
             TableResult result = await dataStore.InsertOrMergeEntityAsync(tableName, resourceEntity);

@@ -31,6 +31,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
     public class OrchestratorTests
     {
         private IHttpUtility httpUtility;
+        private IHttpUtility testHttpUtility;
         private IHttpUtilityFactory httpUtilityFactory;
         private IKeyVaultUtility keyVaultUtility;
         private TestConfig testConfig;
@@ -47,8 +48,10 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
         public OrchestratorTests()
         {
             this.httpUtility = new HttpUtility(new HttpClient());
+            this.testHttpUtility = new TestHttpUtility();
             this.httpUtilityFactory = new HttpUtilityFactory();
             this.httpUtilityFactory.Register(Constants.HttpUtility, httpUtility);
+            this.httpUtilityFactory.Register(Constants.DncHttpUtility, testHttpUtility);
             this.keyVaultUtility = new KeyVaultUtility();
             var builder = new ConfigurationBuilder()
               .SetBasePath(Directory.GetCurrentDirectory())
@@ -214,7 +217,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
             ErrorDetails errorDetails = JsonUtility.Deserialize<ErrorDetails>(result.Content);
             Assert.True(errorDetails.ErrorResponse.Error.Code == badRequest.ToString());
             Assert.True(errorDetails.ErrorResponse.Error.Message.Contains(
-                ErrorResponseCode.ControllerIdInvalidFormat.ToString(), StringComparison.OrdinalIgnoreCase));
+                ErrorResponseCode.ControllerIdNotFound.ToString(), StringComparison.OrdinalIgnoreCase));
         }
 
         [Fact]
@@ -366,7 +369,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
             controller.ControllerContext = new ControllerContext();
             controller.ControllerContext.HttpContext = new DefaultHttpContext();
             controller.ControllerContext.HttpContext.Request.Host = new HostString($"localhost:5002");
-            controller.ControllerContext.HttpContext.Request.Path = new PathString($"/subscriptions/{subId}/resourceGroups/{resourceGroup}/providers/Microsoft.DelegatedNetwork/orchestratorInstances/{resourceName}");
+            controller.ControllerContext.HttpContext.Request.Path = new PathString($"/subscriptions/{subId}/resourceGroups/{resourceGroup}/providers/Microsoft.DelegatedNetwork/orchestrators/{resourceName}");
             controller.ControllerContext.HttpContext.Request.Method = method.ToString();
             controller.ControllerContext.HttpContext.Request.PathBase = "";
             controller.ControllerContext.HttpContext.Request.Scheme = "https";

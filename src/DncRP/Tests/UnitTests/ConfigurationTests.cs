@@ -7,6 +7,7 @@
 
 namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
 {
+    using System;
     using System.Collections.Generic;
     using System.IO;
     using System.Text;
@@ -21,9 +22,9 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
         {
             var config = new ConfigurationBuilder()
               .SetBasePath(Directory.GetCurrentDirectory())
-              .AddJsonFile(Path.Combine(Directory.GetCurrentDirectory(), "Properties", "launchSettings.json"), optional: false)
+              .AddJsonFile(Path.Combine(Directory.GetCurrentDirectory(), "launchSettings.json"), optional: false)
               .Build();
-
+            
             StringBuilder sb = new StringBuilder();
             IEnumerable<IConfigurationSection> envVars = config.GetSection("profiles:DncRP:environmentVariables").GetChildren();
             foreach (IConfigurationSection ev in envVars)

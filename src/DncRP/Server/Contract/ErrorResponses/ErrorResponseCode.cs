@@ -68,6 +68,11 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         ServiceAssociationLinkFailed,
 
         /// <summary>
+        /// Failed to Delete SAL token
+        /// </summary>
+        ServiceAssociationLinkDeleteFailed,
+
+        /// <summary>
         /// Controller ARM ID is not in correct format
         /// </summary>
         ControllerIdInvalidFormat,
@@ -130,7 +135,26 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <summary>
         /// NodesetDeleteFailed
         /// </summary>
-        NodesetDeleteFailed
+        NodesetDeleteFailed,
 
+        /// <summary>
+        /// InvalidRequestBody
+        /// </summary>
+        InvalidRequestBody,
+
+        /// <summary>
+        /// PrivateEndpointDeleteFailed
+        /// </summary>
+        PrivateEndpointCreateFailed,
+
+        /// <summary>
+        /// PrivateEndpointDeleteFailed
+        /// </summary>
+        PrivateEndpointDeleteFailed,
+
+        /// <summary>
+        /// MSIRetrievalFailed
+        /// </summary>
+        MSIRetrievalFailed
     }
 }

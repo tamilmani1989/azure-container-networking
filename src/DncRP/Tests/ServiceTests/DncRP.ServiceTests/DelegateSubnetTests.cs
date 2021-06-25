@@ -132,7 +132,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
             Guid testGuid = Guid.NewGuid();
             string resourceGroup = $"testRG_{testGuid}";
             string vnetName = $"testvnet_{testGuid}";
-            string subnetName = $"testsubnet_{testGuid}";
+            string subnetName = $"testsubnet";
             string resourceName = $"testresource_{testGuid}";
             string controllerName = $"testcontroller_{testGuid}";
             string location = "CentralUSEuap";
@@ -170,7 +170,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
                  subnetName,
                  resourceName,
                  controllerName + "bad",
-                 HttpStatusCode.NotFound);
+                 HttpStatusCode.BadRequest);
 
             await delegateSubnetController.DeleteDelegateSubnet(
                  subscriptionId,

@@ -83,6 +83,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
                     name: "testName",
                     location: CurrentContext.AzureRegion,
                     resourceGuid: Guid.NewGuid().ToString(),
+                    subnets: new List<NetworkModel.Subnet>{ new NetworkModel.Subnet(name: "testsubnet") },
                     provisioningState: NetworkModel.ProvisioningState.Succeeded.ToString());
 
                 return (T)virtualNetworkResponse;
@@ -276,7 +277,18 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
                 return await httpUtility.SendAsync(message);
             };
 
-            if (message.RequestUri.ToString().Contains("dnc.azure.com"))
+            if (message.RequestUri.ToString().Contains("dnc.azure.com") && message.RequestUri.ToString().Contains("/nodesets"))
+            {
+                if (message.Method == HttpMethod.Get || message.Method == HttpMethod.Delete)
+                {
+                    httpResponseMessage.StatusCode = System.Net.HttpStatusCode.NotFound;
+                }
+                else if (message.Method == HttpMethod.Post)
+                {
+                    httpResponseMessage.StatusCode = System.Net.HttpStatusCode.OK;
+                }
+            }
+            if (message.RequestUri.ToString().Contains("dnc.azure.com") && message.RequestUri.ToString().Contains("/subnets"))
             {
                 if (message.Method == HttpMethod.Get)
                 {

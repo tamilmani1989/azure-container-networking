@@ -61,7 +61,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 {
                     new DimensionValue() { Name = DimensionNames.Subscription, Value = subscriptionId },
                     new DimensionValue() { Name = DimensionNames.ResourceGroup, Value = resourceGroupName }
-                });
+                },
+                1);
         }
 
         /// <summary>
@@ -71,35 +72,48 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         [HttpPut]
         public async Task<ContentResult> PutOrchestratorResource(string subscriptionId, string resourceGroupName, string resourceName)
         {
+            return await this.ExecuteWithRetryAsync(subscriptionId, () =>
+                 ExecutePutOrchestratorAsync(
+                   subscriptionId,
+                   resourceGroupName,
+                   resourceName),
+                 HttpMethod.Put,
+                 MetricNames.PutOrchestrator,
+                 new List<DimensionValue>()
+                 {
+                    new DimensionValue() { Name = DimensionNames.Subscription, Value = subscriptionId },
+                    new DimensionValue() { Name = DimensionNames.ResourceGroup, Value = resourceGroupName }
+                 },
+                1);
+        }
+
+        private async Task<Orchestrator> ExecutePutOrchestratorAsync(
+            string subscriptionId,
+            string resourceGroupName,
+            string resourceName)
+        {
             if (HttpContext.Request.Body == null)
             {
-                throw new EmptyRequestBody("Empty request body");
+                throw new ErrorResponseMessageException(
+                    httpStatus: HttpStatusCode.BadRequest,
+                    errorCode: ErrorResponseCode.InvalidRequestBody,
+                    errorMessage: "Empty request body");
             }
 
+            // deserialize request body to orchestrator request
             OrchestratorRequest request = null;
             using (StreamReader stream = new StreamReader(HttpContext.Request.Body))
             {
                 string jsonBody = await stream.ReadToEndAsync();
                 this.logger.CLogInformation("PutOrchestratorResource body: {0}", jsonBody);
-
                 request = JsonUtility.Deserialize<OrchestratorRequest>(jsonBody);
             }
 
-            request.Identity = this.GetIdentityFromRequestHeaders(HttpContext.Request, request);
-            MSIIdentity orchIdentity = await this.GetOrchestratorIdentity(request.Identity);
-            if (orchIdentity == null)
-            {
-                throw new ErrorResponseMessageException(
-                    httpStatus: HttpStatusCode.BadRequest,
-                    errorCode: ErrorResponseCode.InvalidOrchestratorRequest,
-                    errorMessage: $"Failed to get orchestrator identity");
-            }
-
+            // validate orchestrator request parameters
             ValidateRequestParameters(request);
 
-            OrchestratorProperties orchProps = request.Properties;
-
             // Get controller
+            OrchestratorProperties orchProps = request.Properties;
             Controller controller = await tableOperations.ControllerConfiguration.GetDncControllerAsync(
                 orchProps.ControllerDetails.Id);
             if (controller.Error != null)
@@ -110,17 +124,44 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                        errorMessage: controller.Error.Error);
             }
 
-            // create private endpoint
+            // Get MSI
+            MSIIdentity orchIdentity = null;
+            try
+            {
+                request.Identity = this.GetIdentityFromRequestHeaders(HttpContext.Request, request);
+                orchIdentity = await ExtensionMethods.GetMSIIdentity(httpUtility, request.Identity);
+            }
+            catch(Exception  e)
+            {
+                throw new ErrorResponseMessageException(
+                    httpStatus: HttpStatusCode.BadRequest,
+                    errorCode: ErrorResponseCode.MSIRetrievalFailed,
+                    errorMessage: $"Failed to get orchestrator identity: {e.ToString()}");
+            }
+
+
+            // create private endpoint if privatelinkId specified
             string peName = "";
             if (orchProps.PrivateLinkId != null && orchProps.PrivateLinkId != "")
             {
                 UInt32 hashCode = (UInt32)ExtensionMethods.GetDeterministicHashCode(orchProps.PrivateLinkId);
                 peName = GetPrivateEndpointName(hashCode);
+                string privateEndpointIP = null;
+                try
+                {
+                    NetworkModel.PrivateEndpoint privateEndpoint = await azVnetBroker.GetOrCreatePrivateEndpoint(
+                        orchProps.PrivateLinkId, peName);
 
-                NetworkModel.PrivateEndpoint privateEndpoint = await azVnetBroker.GetOrCreatePrivateEndpoint(
-                    orchProps.PrivateLinkId, peName);
+                    privateEndpointIP = await azVnetBroker.GetPrivateEndpointIP(privateEndpoint);
+                }
+                catch (Exception e)
+                {
+                    throw new ErrorResponseMessageException(
+                        httpStatus: HttpStatusCode.InternalServerError,
+                        errorCode: ErrorResponseCode.PrivateEndpointCreateFailed,
+                        errorMessage: $"Private endpoint creation failed: {e.ToString()}");
+                }
 
-                string privateEndpointIP = await azVnetBroker.GetPrivateEndpointIP(privateEndpoint);
                 this.logger.CLogInformation("Private Endpoint IP: {0}", privateEndpointIP);
                 orchProps.ApiServerEndpoint = "https://" + privateEndpointIP;
             }
@@ -146,25 +187,19 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 resourceGuid = Guid.NewGuid().ToString();
             }
 
-            // insert entry in cosmos
-            ContentResult result = await this.ExecuteWithRetryAsync(
-                subscriptionId,
-                () => this.tableOperations.OrchestratorOperations.InsertOrReplaceOrchestratorAsync(subscriptionId, resourceGroupName, resourceName, peName, resourceGuid, orchIdentity, request),
-                HttpMethod.Put,
-                MetricNames.PutOrchestrator,
-                new List<DimensionValue>()
-                {
-                    new DimensionValue() { Name = DimensionNames.Subscription, Value = subscriptionId },
-                    new DimensionValue() { Name = DimensionNames.ResourceGroup, Value = resourceGroupName }
-                });
-
+            // set state to provisioning
+            request.Properties.State = ProvisioningState.Provisioning;
+            await this.tableOperations.OrchestratorOperations.InsertOrReplaceOrchestratorAsync(subscriptionId, resourceGroupName, resourceName, peName, resourceGuid, orchIdentity, request);
+            
             //call dnc put nodeset
             ControllerProperties controllerProperties = (ControllerProperties)controller.Properties;
             DncClient dncClient = new DncClient(this.dncHttpUtility, this.logger, controllerProperties.PropertiesList.DncEndpoint);
             logger.CLogInformation("Calling dnc putnodeset for orchestrator id: {0}", resourceGuid);
             await dncClient.PutNodesetAsync(resourceGuid);
 
-            return result;
+            // set state to succeeded
+            request.Properties.State = ProvisioningState.Succeeded;
+            return await this.tableOperations.OrchestratorOperations.InsertOrReplaceOrchestratorAsync(subscriptionId, resourceGroupName, resourceName, peName, resourceGuid, orchIdentity, request);
         }
 
         /// <summary>
@@ -187,15 +222,26 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         public async Task<ContentResult> DeleteOrchestratorResource(string subscriptionId, string resourceGroupName, string resourceName)
         {
             // Get orchestrator
+            return await this.ExecuteWithRetryAsync(
+                subscriptionId,
+                () => ExecuteDeleteOrchestratorAsync(subscriptionId, resourceGroupName, resourceName),
+                HttpMethod.Delete,
+                MetricNames.DeleteOrchestrator,
+                new List<DimensionValue>()
+                {
+                    new DimensionValue() { Name = DimensionNames.Subscription, Value = subscriptionId },
+                    new DimensionValue() { Name = DimensionNames.ResourceGroup, Value = resourceGroupName }
+                },
+                1);
+        }
+
+        private async Task<Orchestrator> ExecuteDeleteOrchestratorAsync(string subscriptionId, string resourceGroupName, string resourceName)
+        {
             Orchestrator orch = await this.tableOperations.OrchestratorOperations.GetOrchestratorAsync(subscriptionId, resourceGroupName, resourceName);
-            if (orch == null)
+            if (orch.Error != null)
             {
                 this.logger.LogInformation("Orchestrator resource {0} already removed", resourceName);
-                return new ContentResult
-                {
-                    ContentType = "application/json",
-                    StatusCode = 200
-                };
+                return new Orchestrator();
             }
 
             OrchestratorProperties orchProps = (OrchestratorProperties)orch.Properties;
@@ -222,9 +268,12 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 {
                     this.logger.LogWarning("PrivateEndpoint resource {0} already removed", privateEndpointName);
                 }
-                else
+                else if (!response.IsSuccessStatusCode)
                 {
-                    response.EnsureSuccessStatusCode();
+                    throw new ErrorResponseMessageException(
+                        httpStatus: HttpStatusCode.InternalServerError,
+                        errorCode: ErrorResponseCode.PrivateEndpointDeleteFailed,
+                        errorMessage: $"private endpoint delete failed with code {response.StatusCode} content: {response.Content.ToString()}");
                 }
             }
 
@@ -241,16 +290,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                         TimeSpan.FromSeconds(dncSettings.RetryIntervalInSeconds), TimeSpan.FromSeconds(dncSettings.RetryTimeoutInSeconds));
 
             // remove entries from db
-            return await this.ExecuteWithRetryAsync(
-                subscriptionId,
-                () => this.tableOperations.OrchestratorOperations.DeleteOrchestratorAsync(subscriptionId, resourceGroupName, resourceName),
-                HttpMethod.Delete,
-                MetricNames.DeleteOrchestrator,
-                new List<DimensionValue>()
-                {
-                    new DimensionValue() { Name = DimensionNames.Subscription, Value = subscriptionId },
-                    new DimensionValue() { Name = DimensionNames.ResourceGroup, Value = resourceGroupName }
-                });
+            return await this.tableOperations.OrchestratorOperations.DeleteOrchestratorAsync(subscriptionId, resourceGroupName, resourceName);
         }
 
         private async Task CheckIfNodesetDeleted(
@@ -273,62 +313,6 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             return string.Format(privateEndpointName, hashCode);
         }
 
-        private async Task<MSIIdentity> GetOrchestratorIdentity(MSIIdentityMetadata identity)
-        {
-            HttpRequestMessage requestMessage = new HttpRequestMessage
-            {
-                Method = HttpMethod.Get,
-                RequestUri = new Uri(identity.Url),
-            };
-
-            HttpResponseMessage response = await this.httpUtility.SendRequestAndGetHttpResponseAsync(
-                requestMessage, HttpCompletionOption.ResponseHeadersRead, CancellationToken.None);
-
-            if (response.StatusCode == HttpStatusCode.Unauthorized)
-            {
-                var authenticateHeaders = response.Headers.WwwAuthenticate;
-
-                foreach (var authenticateHeader in authenticateHeaders)
-                {
-                    // Sample authentication header - Bearer authorization = "https://login.windows-ppe.net/5D929AE3-B37C-46AA-A3C8-C1558902F101"
-                    // This check basically checks that header starts with keyword Bearer
-                    if (HttpBearerChallenge.IsBearerChallenge(authenticateHeader.ToString()))
-                    {
-                        var challenge = new HttpBearerChallenge(requestMessage.RequestUri, authenticateHeader.ToString());
-                        this.logger.CLogInformation("AuthorizationServer: {0}", challenge.AuthorizationServer);
-                        this.logger.CLogInformation("Resource: {0}", challenge.Resource);
-                        this.logger.CLogInformation("Scope: {0}", challenge.Scope);
-
-                        string resource = $"{challenge.Resource}/.default";
-                        IAzureAD azureAD = new AzureAD();
-                        string token = await azureAD.GetAccessToken(
-                            CurrentContext.ManagedIdentity,
-                            CurrentContext.ArmAccessIdentity,
-                            resource,
-                            challenge.AuthorizationServer,
-                            CurrentContext.AzureEnvironment).ConfigureAwait(false);
-
-                        requestMessage = new HttpRequestMessage
-                        {
-                            Method = HttpMethod.Get,
-                            RequestUri = new Uri($"{identity.Url}?{ResourceConstants.IdentityUrlApiVersion}"),
-                        };
-                        requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-
-                        return await this.httpUtility.SendRequestAndGetJsonAsync<MSIIdentity>(
-                            requestMessage, HttpCompletionOption.ResponseHeadersRead, CancellationToken.None);
-                    }
-                }
-            }
-
-            string msg = string.Format("GetOrchestratorIdentity: Unexpected response code: {0}. {1}",
-                response.StatusCode,
-                response.Content != null ? response.Content.ToString() : string.Empty);
-            this.logger.CLogError(msg);
-
-            throw new Exception(msg);
-        }
-
         public void ValidateRequestParameters(OrchestratorRequest request)
         {
             string errorMessage = "{0} parameter not present";
@@ -339,37 +323,37 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             }
             if (string.IsNullOrEmpty(request.Kind.ToString()) || request.Kind == OrchestratorKind.Unknown)
             {
-                throw new ErrorResponseMessageException(HttpStatusCode.BadRequest, ErrorResponseCode.None,
+                throw new ErrorResponseMessageException(HttpStatusCode.BadRequest, ErrorResponseCode.InvalidRequestBody,
                     string.Format(errorMessage, "kind"));
             }
             if (request.Properties == null)
             {
-                throw new ErrorResponseMessageException(HttpStatusCode.BadRequest, ErrorResponseCode.None,
+                throw new ErrorResponseMessageException(HttpStatusCode.BadRequest, ErrorResponseCode.InvalidRequestBody,
                     string.Format(errorMessage, "properties"));
             }
             if (string.IsNullOrEmpty(request.Properties.AppId))
             {
-                throw new ErrorResponseMessageException(HttpStatusCode.BadRequest, ErrorResponseCode.None,
+                throw new ErrorResponseMessageException(HttpStatusCode.BadRequest, ErrorResponseCode.InvalidRequestBody,
                     string.Format(errorMessage, "properties.orchestratorAppId"));
             }
             if (string.IsNullOrEmpty(request.Properties.ClusterRootCA))
             {
-                throw new ErrorResponseMessageException(HttpStatusCode.BadRequest, ErrorResponseCode.None,
+                throw new ErrorResponseMessageException(HttpStatusCode.BadRequest, ErrorResponseCode.InvalidRequestBody,
                     string.Format(errorMessage, "properties.clusterRootCA"));
             }
             if (string.IsNullOrEmpty(request.Properties.TenantId))
             {
-                throw new ErrorResponseMessageException(HttpStatusCode.BadRequest, ErrorResponseCode.None,
+                throw new ErrorResponseMessageException(HttpStatusCode.BadRequest, ErrorResponseCode.InvalidRequestBody,
                     string.Format(errorMessage, "properties.orchestratorTenantId"));
             }
             if (request.Properties.ControllerDetails == null)
             {
-                throw new ErrorResponseMessageException(HttpStatusCode.BadRequest, ErrorResponseCode.None,
+                throw new ErrorResponseMessageException(HttpStatusCode.BadRequest, ErrorResponseCode.InvalidRequestBody,
                     string.Format(errorMessage, "properties.controllerDetails"));
             }
             if (string.IsNullOrEmpty(request.Properties.ControllerDetails.Id))
             {
-                throw new ErrorResponseMessageException(HttpStatusCode.BadRequest, ErrorResponseCode.None,
+                throw new ErrorResponseMessageException(HttpStatusCode.BadRequest, ErrorResponseCode.InvalidRequestBody,
                     string.Format(errorMessage, "properties.controllerDetails.Id"));
             }
         }
