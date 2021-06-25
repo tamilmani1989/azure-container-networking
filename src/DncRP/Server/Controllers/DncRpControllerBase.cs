@@ -48,10 +48,11 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             Func<Task<TResouce>> action,
             HttpMethod method,
             string methodNameForLogging,
-            IEnumerable<DimensionValue> metricDimentions = null,
+            List<DimensionValue> metricDimensions = null,
             int retryCount=3) where TResouce : TopLevelResource
         {
             TResouce response = null;
+            metricDimensions ??= new List<DimensionValue>();
 
             try
             {
@@ -72,20 +73,23 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 {
                     statusCode = (int)errorException.HttpStatus;
                     message += errorException.Message + $"InternalErrorCode: {errorException.ErrorCode}";
-                    ((List<DimensionValue>)metricDimentions).Add(new DimensionValue() { Name = DimensionNames.InternalErrorCode, Value = Convert.ToString(errorException.ErrorCode) });
+                    metricDimensions.Add(new DimensionValue() { Name = DimensionNames.InternalErrorCode, Value = Convert.ToString(errorException.ErrorCode) });
                 }
-                ((List<DimensionValue>)metricDimentions).Add(new DimensionValue() { Name = DimensionNames.HttpStatusCode, Value = Convert.ToString(statusCode) });
+                metricDimensions.Add(new DimensionValue() { Name = DimensionNames.HttpStatusCode, Value = Convert.ToString(statusCode) });
+                metricDimensions.Add(new DimensionValue() { Name = DimensionNames.Result, Value = MetricResult.Failure });
+
 
                 // only return error message in response (instead stack trace) since this is public API
                 string externalMessage = $"{message}. {ex.Message}";
                 message += $"InternalException: {ex}";
 
                 logger.CLogError(message);
-                metricsProvider.IncrementCounter($"{methodNameForLogging}{MetricSuffix.failure}", metricDimentions);
+                metricsProvider.EmitMetric($"{methodNameForLogging}", 1.0, metricDimensions);
                 return ConvertToExceptionResult(externalMessage, statusCode);
             }
 
-            metricsProvider.IncrementCounter($"{methodNameForLogging}{MetricSuffix.success}", metricDimentions);
+            metricDimensions.Add(new DimensionValue() { Name = DimensionNames.Result, Value = MetricResult.Success });
+            metricsProvider.EmitMetric($"{methodNameForLogging}", 1.0, metricDimensions);
             return this.ConvertToContentResult(response, method, methodNameForLogging);
         }
 

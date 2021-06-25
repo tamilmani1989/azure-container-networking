@@ -33,11 +33,12 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         public const string ResourceGroup = "ResourceGroup";
         public const string HttpStatusCode = "HttpStatusCode";
         public const string InternalErrorCode = "InternalErrorCode";
+        public const string Result = "Result";
     }
 
-    public struct MetricSuffix
+    public struct MetricResult
     {
-        public const string success = ".success";
-        public const string failure = ".failure";
+        public const string Success = "Success";
+        public const string Failure = "Failure";
     }
 }
