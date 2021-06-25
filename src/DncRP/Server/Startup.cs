@@ -222,7 +222,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             {
                 MSIIdentity identity = JsonUtility.Deserialize<MSIIdentity>(entity.IdentityProperties);
                 OrchestratorPropertiesInternal props = JsonUtility.Deserialize<OrchestratorPropertiesInternal>(entity.Properties);
-                if (identity.RenewAfter < currentTime)
+                if (props != null && identity != null && identity.RenewAfter < currentTime)
                 {
                     Console.WriteLine("[DNC RP] Renew date {0} after past current date {1}. renew cert for orchestrator id:{2}", identity.RenewAfter.ToString(),
                        currentTime.ToString(), entity.RowKey);
