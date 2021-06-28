@@ -14,18 +14,18 @@ import (
 	"time"
 )
 
-/*
-  todo:
-    - dnctl obfuscates transport or other errors unrelated to api (they are returned as 202 for some reason).
-      this makes it difficult for client code to correctly check on certain errors.
-      - error interface (not *api.JsonErr) should be returned by all methods. Actual api.JsonErrs can still be returned,
-        client just needs to type assert for them.
-      - errors returned should be nil if no issue.
-    - http client not be global and should be overridable by clients.
-    - function signatures need to change very time request parameter changes. they should just accept the actual
-      request structs.
-    - address linting warnings.
-*/
+//todo:
+//  - dnctl obfuscates transport or other errors unrelated to api (they are returned as 202 for some reason).
+//    this makes it difficult for client code to correctly check on certain errors.
+//    - error interface (not *api.JsonErr) should be returned by all methods. Actual api.JsonErrs can still be returned,
+//      client just needs to type assert for them.
+//    - errors returned should be nil if no issue.
+//  - all http calls must fully consume any response body (whether success or error), otherwise tcp connections cannot be
+//    reused efficiently.
+//  - http client not be global and should be overridable by clients.
+//  - function signatures need to change very time request parameter changes. they should just accept the actual
+//    request structs.
+//  - address linting warnings.
 
 // DNC API fmt
 const (
@@ -448,6 +448,44 @@ func (c *DncClient) GetNodes(nodeSet string) (*api.NodesResponse, *api.JsonErr) 
 	}
 
 	return &nodes, respErr
+}
+
+type NodesQueryParams struct {
+	NodeSet string
+}
+
+// todo: pass context for cancellation, have robust url building if more parameters
+func (c *DncClient) GetNodesExt(queryParams NodesQueryParams) (api.NodesResponse, error) {
+	nodeURL := fmt.Sprintf("%s/nodes/"+apiVersion, c.DncEP)
+	if queryParams.NodeSet != "" {
+		nodeURL += "&node-set=" + queryParams.NodeSet
+	}
+
+	resp, err := httpc.Get(nodeURL)
+	if err != nil {
+		return api.NodesResponse{}, err
+	}
+	defer resp.Body.Close()
+
+	bs, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return api.NodesResponse{}, err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		var apiErr api.JsonErr
+		if err := json.Unmarshal(bs, &apiErr); err != nil {
+			return api.NodesResponse{}, fmt.Errorf("could not unmarshal %d http response from API: %v. body: %v", resp.StatusCode, err, string(bs))
+		}
+		return api.NodesResponse{}, &apiErr
+	}
+
+	var nodesResp api.NodesResponse
+	if err := json.Unmarshal(bs, &nodesResp); err != nil {
+		return api.NodesResponse{}, fmt.Errorf("could not unmarshal %d http response from API: %v. body: %v", resp.StatusCode, err, string(bs))
+	}
+
+	return nodesResp, nil
 }
 
 func (c *DncClient) GetNetworkConfiguration(networkId string) (networkCfg *api.NetworkConfigurationResponse, respErr *api.JsonErr) {

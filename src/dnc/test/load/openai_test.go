@@ -140,26 +140,30 @@ func TestOpenAI(t *testing.T) {
 	require.NoError(t, err)
 
 	var (
-		timesToProgram         []time.Duration
-		timesToReserveComplete []time.Duration
+		totalProcessingTimes   []time.Duration // from nc creation to program complete
+		timesToReserveComplete []time.Duration // from nc creation to reserve complete
+		allocationTimes        []time.Duration // from prepare complete to reserve complete (time spent in stage)
 		programmedNCs          []benchmark.NCResponse
 	)
 
 	for _, stats := range allStats {
-		if timeToProgram, ok := stats.StateDurations[datamodel.Program.String()]; ok {
-			timesToProgram = append(timesToProgram, timeToProgram)
+		if stats.TotalProcessingTime != 0 {
+			totalProcessingTimes = append(totalProcessingTimes, stats.TotalProcessingTime)
 			programmedNCs = append(programmedNCs, stats)
 		}
 
-		if timeToReserveComplete, ok := stats.StateDurations[datamodel.Reserve.String()]; ok {
-			timesToReserveComplete = append(timesToReserveComplete, timeToReserveComplete)
+		reserve, ok := stats.StateTransitions[datamodel.Reserve.String()]
+		if ok {
+			timesToReserveComplete = append(timesToReserveComplete, reserve.CompletedOn.Sub(stats.NCResponse.CreatedDateTime))
+			allocationTimes = append(allocationTimes, reserve.Duration)
 		}
 	}
 
 	logStats(t, nodeCreationTimes, "create node", defaultPercentiles)
 	logStats(t, ncCreationTimes, "create (not process) NC", defaultPercentiles)
-	logStats(t, timesToProgram, "reach NC Program Complete state", defaultPercentiles)
-	logStats(t, timesToReserveComplete, "allocate all IPs", defaultPercentiles)
+	logStats(t, totalProcessingTimes, "reach NC Program Complete state", defaultPercentiles)
+	logStats(t, timesToReserveComplete, "allocate all IPs on each NC (from NC creation)", defaultPercentiles)
+	logStats(t, allocationTimes, "allocate all IPs on each NC (reservation time only)", defaultPercentiles)
 
 	createNodeTestCases := assertStats(t, "create node", nodeCreationTimes, []percentileAssertion{
 		{percentile: 0.5, below: 5 * time.Second},
@@ -171,7 +175,7 @@ func TestOpenAI(t *testing.T) {
 
 	openAISuite.AddTestCases(createNodeTestCases)
 
-	reachProgramTestCases := assertStats(t, "reach NC Program Complete state", timesToProgram, []percentileAssertion{
+	reachProgramTestCases := assertStats(t, "reach NC Program Complete state", totalProcessingTimes, []percentileAssertion{
 		{percentile: 0.5, below: 1*time.Minute + 30*time.Second},
 		{percentile: 0.9, below: 2*time.Minute + 30*time.Second},
 		{percentile: 0.95, below: 3 * time.Minute},
@@ -181,23 +185,27 @@ func TestOpenAI(t *testing.T) {
 
 	openAISuite.AddTestCases(reachProgramTestCases)
 
-	allocateIPTestCases := assertStats(t, "allocate 32 secondary IPs per NC", nodeCreationTimes, []percentileAssertion{
-		{percentile: 0.5, below: 10 * time.Second},
-		{percentile: 0.9, below: 20 * time.Second},
-		{percentile: 0.95, below: 30 * time.Second},
-		{percentile: 0.99, below: 1 * time.Minute},
-		{percentile: 0.999, below: 2 * time.Minute},
+	allocateIPTestCases := assertStats(t, "allocate secondary IPs on NC", allocationTimes, []percentileAssertion{
+		{percentile: 0.5, below: 20 * time.Second},
+		{percentile: 0.9, below: 30 * time.Second},
+		{percentile: 0.95, below: 40 * time.Second},
+		{percentile: 0.99, below: 50 * time.Second},
+		{percentile: 0.999, below: 1 * time.Minute},
 	})
 
 	openAISuite.AddTestCases(allocateIPTestCases)
 
 	sort.Slice(programmedNCs, func(i, j int) bool {
-		return programmedNCs[i].StateDurations[datamodel.Program.String()] < programmedNCs[j].StateDurations[datamodel.Program.String()]
+		return programmedNCs[i].TotalProcessingTime < programmedNCs[j].TotalProcessingTime
 	})
 	tailNC := programmedNCs[len(programmedNCs)-1]
 
-	bs, _ := json.MarshalIndent(tailNC, "", "  ")
-	t.Logf("tail program time: nc id %s:\n%v", tailNC.NCResponse.NcID, string(bs))
+	bs, _ := json.MarshalIndent(tailNC.NCResponse, "", "  ")
+	t.Logf("tail program time: nc id %s, total processing time %v", tailNC.NCResponse.NcID, tailNC.TotalProcessingTime.String())
+	for k, v := range tailNC.StateTransitions {
+		t.Logf("%v: took %v, completed on %v", k, v.Duration.String(), v.CompletedOn.String())
+	}
+	t.Log(string(bs))
 
 	defer func() {
 		openAISuite.Time = junit.FmtDuration(time.Since(start))
@@ -213,14 +221,9 @@ func TestOpenAI(t *testing.T) {
 
 	cleanupRetrier := retry.Retrier{Attempts: 100, Delay: time.Second * 5}
 	err = cleanupRetrier.Do(ctx, func() error {
-		resp, apiErr := dncClient.GetNodes(orchestratorID)
-		if apiErr != nil && apiErr.HTTPStatus != http.StatusOK {
-			t.Logf("could not get nodes: %v", apiErr)
-			return apiErr
-		}
-
-		if resp == nil {
-			return errors.New("no response body")
+		resp, err := dncClient.GetNodesExt(client.NodesQueryParams{NodeSet: orchestratorID})
+		if err != nil {
+			return err
 		}
 
 		if len(resp.Nodes) > 0 {
