@@ -6,10 +6,11 @@ const (
 
 const (
 	// Metrics
-	NCProcessTimeMetric          = "NCProcessTimeMs"
-	NCCreationReqCountMetric     = "NCCreationRequestCount"
-	DataStoreOperationTimeMetric = "DataStoreOperationTimeMs"
-	LeakedNCEventMetric          = "LeakedNCEvent"
+	NCProcessTimeMetric                = "NCProcessTimeMs"
+	NCCreationReqCountMetric           = "NCCreationRequestCount"
+	SubnetAllocationsProcessTimeMetric = "SubnetAllocationProcessTimeMs"
+	DataStoreOperationTimeMetric       = "DataStoreOperationTimeMs"
+	LeakedNCEventMetric                = "LeakedNCEvent"
 
 	// Dimensions
 	NetworkContainerIDStr       = "NetworkContainerID"
@@ -17,7 +18,6 @@ const (
 	ContainerTypeStr            = "ContainerType"
 	OrchestratorStr             = "Orchestrator"
 	NodeIDStr                   = "NodeID"
-	RegionStr                   = "Region"
 	DNCVersionStr               = "DNCVersion"
 	StatusStr                   = "Status"
 	NCStateStr                  = "NCState"
@@ -28,6 +28,10 @@ const (
 	AzIdorNameStr               = "AzId"
 	AznmAPINameStr              = "AznmAPIName"
 	AznmAPIResultStr            = "AznmAPIResult"
+	AllocationsPersistedStr     = "AllocationsPersisted"
+	AllocationsRemovedStr       = "AllocationsRemoved"
+	SubnetSizeStr               = "SubnetSize"
+	SubnetAllocationOpStr       = "SubnetAllocationOperation"
 
 	// DataStore operation dimensions
 	OperationStr = "DataStoreOperation"

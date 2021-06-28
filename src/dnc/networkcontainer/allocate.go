@@ -2,6 +2,7 @@ package networkcontainer
 
 import (
 	"context"
+	"dnc/aiwrapper"
 	"dnc/allocationhelper"
 	"dnc/api"
 	"dnc/datamodel"
@@ -11,9 +12,12 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/Azure/azure-container-networking/aitelemetry"
 
 	"github.com/Azure/azure-container-networking/cns"
 )
@@ -21,6 +25,8 @@ import (
 const (
 	reservedAddress  = "Azure Reserved Address"
 	slash16HostCount = 256 * 256
+	prepopulateOp    = "Prepopulate"
+	depopulateOp     = "Depopulate"
 )
 
 // TODO: we should rename this as ReserveIpManager or something else instead of just IpAllocator
@@ -598,21 +604,28 @@ func (a *IPAllocator) PrepopulateSubnet(vnetID, subnetName, subnetCIDR string) *
 		return api.InternalServerErrorf(api.StatusInternalServerError, "vnet ID %s subnet %s: could not parse subnet CIDR: %v", vnetID, subnetName, err)
 	}
 
+	subnetSize, _ := subnet.Mask.Size()
+
 	allAllocs := GenerateIPAllocationEntitiesForSubnet(subnet)
 	logger.Debugf("persisting %d rows for cidr %s", len(allAllocs), subnetCIDR)
 	ch := a.rowBatchProducer(allAllocs)
 
-	if err := a.rowBatchConsumer(ch, vnetID, subnetName, prepopulateDefaultWorkerCount); err != nil {
+	start := time.Now()
+	rowsPersisted, err := a.rowBatchConsumer(ch, vnetID, subnetName, prepopulateDefaultWorkerCount)
+	took := time.Since(start)
+	if err != nil {
+		go sendSubnetPrepopulationMetric(vnetID, subnetName, subnetSize, aiwrapper.Failed, took, rowsPersisted)
 		return api.InternalServerError(api.StatusInternalServerError, err.Error())
 	}
 
+	go sendSubnetPrepopulationMetric(vnetID, subnetName, subnetSize, aiwrapper.Succeeded, took, rowsPersisted)
 	return nil
 }
 
 func (a *IPAllocator) InsertAllocations(vnetID, subnetName string, allocations []datamodel.IPAllocationEntity, workerCount int) *api.JsonErr {
 	ch := a.rowBatchProducer(allocations)
 
-	if err := a.rowBatchConsumer(ch, vnetID, subnetName, workerCount); err != nil {
+	if _, err := a.rowBatchConsumer(ch, vnetID, subnetName, workerCount); err != nil {
 		return api.InternalServerErrorf(api.StatusInternalServerError, "vnet ID %s subnet %s: could not persist subnet rows: %v", vnetID, subnetName, err)
 	}
 
@@ -647,13 +660,17 @@ var cosmosThrottleRetrier = retry.Retrier{
 	ExpBackoff: true,
 }
 
-func (a *IPAllocator) rowBatchConsumer(in chan []datamodel.IPAllocationEntity, vnetID, subnetName string, workerCount int) error {
+func (a *IPAllocator) rowBatchConsumer(in chan []datamodel.IPAllocationEntity, vnetID, subnetName string, workerCount int) (int, error) {
 	var g sync.WaitGroup
 	g.Add(workerCount)
 
 	logger := loggershim.WithPrefixf(a.Logger, "[prepopulate subnet] vnet %s subnet %s", vnetID, subnetName)
 
-	var batchError rowBatchError
+	var (
+		batchError    rowBatchError
+		rowsPersisted int64
+	)
+
 	for i := 0; i < workerCount; i++ {
 		go func() {
 			defer g.Done()
@@ -683,6 +700,7 @@ func (a *IPAllocator) rowBatchConsumer(in chan []datamodel.IPAllocationEntity, v
 						return err
 					}
 
+					atomic.AddInt64(&rowsPersisted, int64(len(entities)))
 					logger.Debugf("batch starting with key %s successfully persisted", firstKey)
 					return nil
 				}
@@ -698,10 +716,10 @@ func (a *IPAllocator) rowBatchConsumer(in chan []datamodel.IPAllocationEntity, v
 	g.Wait()
 
 	if len(batchError.keys) > 0 {
-		return &batchError
+		return int(rowsPersisted), &batchError
 	}
 
-	return nil
+	return int(rowsPersisted), nil
 }
 
 type rowBatchError struct {
@@ -757,6 +775,7 @@ func GenerateIPAllocationEntitiesForSubnet(subnet *net.IPNet) []datamodel.IPAllo
 func (a *IPAllocator) DepopulateSubnet(vnetID, subnetName string) *api.JsonErr {
 	logger := loggershim.WithPrefixf(a.Logger, "[depopulate subnet] vnet %s subnet %s", vnetID, subnetName)
 
+	start := time.Now()
 	// todo: consider processing each page of results as soon as fetched, since this function call can be slow for large subnets
 	remainingAllocs, err := a.Allocations.TryQueryAllIPAllocations(vnetID, subnetName)
 	if err != nil {
@@ -773,8 +792,9 @@ func (a *IPAllocator) DepopulateSubnet(vnetID, subnetName string) *api.JsonErr {
 	inputCh := a.rowBatchProducer(remainingAllocs)
 
 	var (
-		errCount int64
-		wg       sync.WaitGroup
+		errCount    int64
+		wg          sync.WaitGroup
+		deletedRows int64
 	)
 
 	workerCount := 5
@@ -793,18 +813,22 @@ func (a *IPAllocator) DepopulateSubnet(vnetID, subnetName string) *api.JsonErr {
 					continue
 				}
 
+				atomic.AddInt64(&deletedRows, int64(lenKeys))
 				logger.Debugf("deleted batch size %d", lenKeys)
 			}
 		}()
 	}
 
 	wg.Wait()
+	took := time.Since(start)
 
 	if errCount > 0 {
 		msg := fmt.Sprintf("could not delete %d out of %d allocations remaining in vnet %s subnet %s", errCount, len(remainingAllocs), vnetID, subnetName)
+		go sendSubnetDepopulationMetric(vnetID, subnetName, aiwrapper.Failed, took, int(deletedRows))
 		return api.InternalServerError(api.StatusInternalServerError, msg)
 	}
 
+	go sendSubnetDepopulationMetric(vnetID, subnetName, aiwrapper.Succeeded, took, int(deletedRows))
 	return nil
 }
 
@@ -954,4 +978,35 @@ func (a *IPAllocator) CreateIpCleanupRequest(networkId, subnetName, ncId string)
 	}
 
 	return nil
+}
+
+// todo: these metrics are not representative of total processing time as seen by client. once they become
+//  background tasks, multiple retries can be taken into account.
+func sendSubnetPrepopulationMetric(vnetID, subnetName string, maskSize int, status string, duration time.Duration, persisted int) {
+	metric := baseSubnetAllocMetric(vnetID, subnetName, status, duration)
+	metric.CustomDimensions[aiwrapper.SubnetAllocationOpStr] = prepopulateOp
+	metric.CustomDimensions[aiwrapper.AllocationsPersistedStr] = strconv.Itoa(persisted)
+	metric.CustomDimensions[aiwrapper.SubnetSizeStr] = strconv.Itoa(maskSize)
+
+	aiwrapper.SendMetric(metric)
+}
+
+func sendSubnetDepopulationMetric(vnetID, subnetName string, status string, duration time.Duration, removed int) {
+	metric := baseSubnetAllocMetric(vnetID, subnetName, status, duration)
+	metric.CustomDimensions[aiwrapper.SubnetAllocationOpStr] = depopulateOp
+	metric.CustomDimensions[aiwrapper.AllocationsRemovedStr] = strconv.Itoa(removed)
+
+	aiwrapper.SendMetric(metric)
+}
+
+func baseSubnetAllocMetric(vnetID, subnetName string, status string, duration time.Duration) aitelemetry.Metric {
+	return aitelemetry.Metric{
+		Name:  aiwrapper.SubnetAllocationsProcessTimeMetric,
+		Value: float64(duration.Milliseconds()),
+		CustomDimensions: map[string]string{
+			aiwrapper.NetworkIDStr: vnetID,
+			aiwrapper.SubNetStr:    subnetName,
+			aiwrapper.StatusStr:    status,
+		},
+	}
 }
