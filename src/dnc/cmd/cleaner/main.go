@@ -315,6 +315,7 @@ func main() {
 	if config.DataStoreSettings.AzureStorageInfo.CosmosDBResourceID == "" {
 		log.Fatalln("cosmos db id reqired")
 	}
+
 	spt, err := tokenFetcher.GetServicePrincipalToken(env.ResourceManagerEndpoint)
 	if err != nil {
 		log.Fatalln("Error getting service principal token. Error:", err)
@@ -324,7 +325,6 @@ func main() {
 	if err != nil {
 		log.Fatalln("Error getting ARM token. Error:", err)
 	}
-
 	// todo: discuss with team: what should be our workflow for key rotation?
 	keyFetcher := ad.CosmosKeyFetcher{ARMEndpoint: env.ResourceManagerEndpoint}
 	keys, err := keyFetcher.GetReadWriteKeys(ctx, token, config.DataStoreSettings.AzureStorageInfo.CosmosDBResourceID)
@@ -335,6 +335,17 @@ func main() {
 	config.DataStoreSettings.AzureStorageInfo.Key = keys.PrimaryMasterKey
 
 	loggershim.LS.Debugf("autoscaling tables")
+
+	// initialize Storage Client
+	configStorageInfo := config.DataStoreSettings.AzureStorageInfo
+	azStorageClient, err = utils.GetStorageClient(
+		configStorageInfo.AccountName,
+		configStorageInfo.Key,
+		configStorageInfo.Environment,
+		configStorageInfo.IsUsingCosmosDb)
+	if err != nil {
+		log.Fatalf("Create storage client failed: %v", err)
+	}
 
 	azStorage, err := azurestorage.NewAzureStorageEx("dummy", true, azStorageClient, loggershim.LS, datamodel.TableToColumnMap,
 		config.DNCSettings.ThresholdForLoggingDataStoreOpLatencyMs, config.DataStoreSettings.MaxBatchSize)
@@ -348,17 +359,6 @@ func main() {
 		log.Fatalln("Error Autoscaling Tables Error:", err)
 	}
 
-	// initialize Storage Client
-	configStorageInfo := config.DataStoreSettings.AzureStorageInfo
-	azStorageClient, err = utils.GetStorageClient(
-		configStorageInfo.AccountName,
-		configStorageInfo.Key,
-		configStorageInfo.Environment,
-		configStorageInfo.IsUsingCosmosDb)
-	if err != nil {
-		log.Fatalf("Create storage client failed: %v", err)
-	}
-
 	router := mux.NewRouter().StrictSlash(true)
 	router.Methods(http.MethodDelete).
 		Path("/clean/{partition}").
@@ -370,7 +370,6 @@ func main() {
 	loggershim.LS.Debugf("Serving on port 9000")
 	r := handlers.LoggingHandler(jsonlogger, panicHandler{router})
 	http.ListenAndServe(":9000", r)
-
 }
 
 type panicHandler struct {

@@ -90,6 +90,9 @@ func NewAzureStorageEx(
 	latencyThresholdMs int,
 	maxBatchSize int) (*AzureStorage, error) {
 	logger.Debugf("[Azure Storage] NewAzureStorageEx PartitionKey %s, isUsingCosmosDB %s", partitionKey, isUsingCosmosDB)
+	if storageClient.HTTPClient == nil {
+		return nil, fmt.Errorf("empty storage client provided")
+	}
 
 	tblCl := storageClient.GetTableService()
 
@@ -541,7 +544,7 @@ func (a *AzureStorage) WipePartition(tableName string) error {
 	entities, err := a.queryFilter(tableName, storage.NoMetadata, filter)
 	if err != nil {
 		storageErr, ok := err.(storage.AzureStorageServiceError)
-		if ok && (storageErr.StatusCode == http.StatusNotFound || storageErr.StatusCode == http.StatusGone)  {
+		if ok && (storageErr.StatusCode == http.StatusNotFound || storageErr.StatusCode == http.StatusGone) {
 			return nil
 		}
 
