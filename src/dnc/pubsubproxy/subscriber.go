@@ -440,6 +440,7 @@ func createOrUpdateSubscriber(
 		}
 
 		logErrorf("Subscriber %s failed to connect to VIP: %s due to error code: %v", subscriber.pubsubAzId, vip, errorCode)
+		go emitPubsubConnectionFailureMetric("Subscriber", subscriber.pubsubAzId, vip, subscriberContext.pubsubCertName, errorCode)
 	}
 
 	return fmt.Errorf("Failed to create subscriber: %s", subscriber.pubsubAzId)

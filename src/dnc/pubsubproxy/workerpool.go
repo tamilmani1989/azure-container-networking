@@ -412,6 +412,7 @@ func (job *ncJob) process() error {
 	)
 
 	logDebugf("Process Job-%s: %s", jobContext.jobType.String(), jobContext.id)
+	startTime := time.Now()
 
 	if jobContext.jobType == NetworkContainerPublish {
 		err = publishData(jobContext.pubsubAzId, jobContext.partitionKey, jobContext.relativePath, job.nc)
@@ -444,6 +445,18 @@ func (job *ncJob) process() error {
 		if statusError != nil {
 			err = statusError
 		}
+	}
+
+	// Emit the PubsubOpFailure metric if the pubsub operation fails. Emitting this metric for every success will overload the quota.
+	if err != nil {
+		go emitPubsubOpFailureMetric(path, jobContext.jobType.String(), jobContext.id, jobContext.pubsubAzId)
+	}
+
+	// Emit the PubsubOpLatency metric if the latency is higher than the set threshold. Emitting this metrics for all the latency
+	// values is not advisable.
+	timeElapsedMs := time.Since(startTime).Milliseconds()
+	if timeElapsedMs > int64(alertingThresholdForPubsubOpLatencyMs) {
+		go emitPubsubOpLatencyMetric(float64(timeElapsedMs), path, jobContext.jobType.String(), jobContext.id, jobContext.pubsubAzId)
 	}
 
 	ncPendingPublishContextKey := datamodel.GetNcPendingPublishContextKey(job.vnetId, job.ncId, jobContext.pubsubAzId)
@@ -633,29 +646,51 @@ func (job *vnetJob) processVnetUpdate() error {
 }
 
 func (job *vnetJob) processVnetRegister() error {
-	var (
-		err      error
-		vnetPath = vnetPartitionKeyPrefix + job.vnetId + vnetConfigRelativePath
-	)
+	vnetPath := vnetPartitionKeyPrefix + job.vnetId + vnetConfigRelativePath
+	startTime := time.Now()
+	jobContext := job.getContext()
 
-	if err = getActiveSubscriber().subscribe(
-		vnetPartitionKeyPrefix+job.vnetId, vnetConfigRelativePath); err != nil {
-		return err
+	err := getActiveSubscriber().subscribe(vnetPartitionKeyPrefix+job.vnetId, vnetConfigRelativePath)
+	if err == nil {
+		err = getActiveSubscriber().getSubscribeStatusError(vnetPath)
 	}
 
-	return getActiveSubscriber().getSubscribeStatusError(vnetPath)
+	// Emit the PubsubOpLatency metric if the latency is higher than the set threshold. Emitting this metrics for all the latency
+	// values is not advisable.
+	timeElapsedMs := time.Since(startTime).Milliseconds()
+	if timeElapsedMs > int64(alertingThresholdForPubsubOpLatencyMs) {
+		go emitPubsubOpLatencyMetric(float64(timeElapsedMs), vnetPath, jobContext.jobType.String(), jobContext.id, jobContext.pubsubAzId)
+	}
+
+	// Emit the PubsubOpFailure metric if the pubsub operation fails. Emitting this metric for every success will overload the quota.
+	if err != nil {
+		go emitPubsubOpFailureMetric(vnetPath, jobContext.jobType.String(), jobContext.id, jobContext.pubsubAzId)
+	}
+
+	return err
 }
 
 func (job *vnetJob) processVnetUnregister() error {
-	var err error
+	jobContext := job.getContext()
+	vnetPath := vnetPartitionKeyPrefix + job.vnetId + vnetConfigRelativePath
+	startTime := time.Now()
 	getActiveSubscriber().deleteCachedVnetConfig(job.vnetId)
 
-	if err = getActiveSubscriber().unsubscribe(
-		vnetPartitionKeyPrefix+job.vnetId, vnetConfigRelativePath); err != nil {
-		return err
+	err := getActiveSubscriber().unsubscribe(vnetPartitionKeyPrefix+job.vnetId, vnetConfigRelativePath)
+
+	// Emit the PubsubOpLatency metric if the latency is higher than the set threshold. Emitting this metrics for all the latency
+	// values is not advisable.
+	timeElapsedMs := time.Since(startTime).Milliseconds()
+	if timeElapsedMs > int64(alertingThresholdForPubsubOpLatencyMs) {
+		go emitPubsubOpLatencyMetric(float64(timeElapsedMs), vnetPath, jobContext.jobType.String(), jobContext.id, jobContext.pubsubAzId)
 	}
 
-	return nil
+	// Emit the PubsubOpFailure metric if the pubsub operation fails. Emitting this metric for every success will overload the quota.
+	if err != nil {
+		go emitPubsubOpFailureMetric(vnetPath, jobContext.jobType.String(), jobContext.id, jobContext.pubsubAzId)
+	}
+
+	return err
 }
 
 func (job *subnetJob) process() error {
@@ -713,27 +748,55 @@ func (job *subnetJob) processSubnetRegister() error {
 		vnetPath = getActiveSubscriber().getSubnetPartitionKey(job.vnetId, job.subnetId)
 		subnetPath = getActiveSubscriber().getSubnetRelativePath(job.vnetId, job.subnetId)
 		fullPath = fmt.Sprintf("%s%s", vnetPath, subnetPath)
+		jobContext = job.getContext()
 	)
 
-	if err := getActiveSubscriber().subscribe(vnetPath, subnetPath); err != nil {
-		return err
+	startTime := time.Now()
+
+	err := getActiveSubscriber().subscribe(vnetPath, subnetPath)
+	if err == nil {
+		err = getActiveSubscriber().getSubscribeStatusError(fullPath)
 	}
 
-	return getActiveSubscriber().getSubscribeStatusError(fullPath)
+	// Emit the PubsubOpLatency metric if the latency is higher than the set threshold. Emitting this metrics for all the latency
+	// values is not advisable.
+	timeElapsedMs := time.Since(startTime).Milliseconds()
+	if timeElapsedMs > int64(alertingThresholdForPubsubOpLatencyMs) {
+		go emitPubsubOpLatencyMetric(float64(timeElapsedMs), subnetPath, jobContext.jobType.String(), jobContext.id, jobContext.pubsubAzId)
+	}
+
+	// Emit the PubsubOpFailure metric if the pubsub operation fails. Emitting this metric for every success will overload the quota.
+	if err != nil {
+		go emitPubsubOpFailureMetric(subnetPath, jobContext.jobType.String(), jobContext.id, jobContext.pubsubAzId)
+	}
+
+	return err
 }
 
 func (job *subnetJob) processSubnetUnregister() error {
 	var (
 		vnetPath = getActiveSubscriber().getSubnetPartitionKey(job.vnetId, job.subnetId)
 		subnetPath = getActiveSubscriber().getSubnetRelativePath(job.vnetId, job.subnetId)
+		jobContext = job.getContext()
+		startTime = time.Now()
 	)
 
 	getActiveSubscriber().deleteCachedSubnetConfig(job.vnetId, job.subnetId)
-	if err := getActiveSubscriber().unsubscribe(vnetPath, subnetPath); err != nil {
-		return err
+	err := getActiveSubscriber().unsubscribe(vnetPath, subnetPath)
+
+	// Emit the PubsubOpLatency metric if the latency is higher than the set threshold. Emitting this metrics for all the latency
+	// values is not advisable.
+	timeElapsedMs := time.Since(startTime).Milliseconds()
+	if timeElapsedMs > int64(alertingThresholdForPubsubOpLatencyMs) {
+		go emitPubsubOpLatencyMetric(float64(timeElapsedMs), subnetPath, jobContext.jobType.String(), jobContext.id, jobContext.pubsubAzId)
 	}
 
-	return nil
+	// Emit the PubsubOpFailure metric if the pubsub operation fails. Emitting this metric for every success will overload the quota.
+	if err != nil {
+		go emitPubsubOpFailureMetric(subnetPath, jobContext.jobType.String(), jobContext.id, jobContext.pubsubAzId)
+	}
+
+	return err
 }
 
 func (job *subnetJob) processSubnetUpdate() error {

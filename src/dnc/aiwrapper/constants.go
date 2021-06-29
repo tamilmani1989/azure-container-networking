@@ -12,6 +12,21 @@ const (
 	DataStoreOperationTimeMetric       = "DataStoreOperationTimeMs"
 	LeakedNCEventMetric                = "LeakedNCEvent"
 
+	// DNC-PubSub metric
+	PubsubOpFailureMetric         = "PubsubOpFailure"
+	PubsubConnectionFailureMetric = "PubsubConnectionFailure"
+	PubsubOpLatencyMetric         = "PubsubOpLatency"
+
+	PubsubPathStr                = "PubsubPath"
+	PubsubOperationStr           = "PubsubOperation"
+	PubsubJobIdStr               = "PubsubJobId"
+	PubsubAzIdStr                = "PubsubAzId"
+	PubsubAzVipStr               = "PubsubAzVip"
+	PubsubConnectionStringStr    = "PubsubConnectionEp"
+	PubsubConnectionTypeStr      = "PubsubConnectionType"
+	PubsubCertNameStr            = "PubsubCertName"
+	PubsubConnectionErrorCodeStr = "PubsubConnectionErrorCode"
+
 	// Dimensions
 	NetworkContainerIDStr       = "NetworkContainerID"
 	NetworkIDStr                = "VnetID"

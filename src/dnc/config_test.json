@@ -114,6 +114,7 @@
     "MaxConcurrentRequests": 1000,
     "RequestRetryBaseInterval": 1000,
     "MaxRequestBackoffInterval": 16000,
+    "AlertingThresholdForPubsubOpLatencyMs": 30000,
     "PublisherPort": "18605",
     "SubscriberPort": "18600",
     "PubsubCertName": "",

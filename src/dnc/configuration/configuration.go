@@ -276,6 +276,8 @@ type PubSubProxySettings struct {
 	PubsubVips []PubsubVips
 	// String to represent PubSub VIPs
 	PubsubVipsString string
+	// Max time latency allowed for pubsub operations before recording the operation latency in metrics.
+	AlertingThresholdForPubsubOpLatencyMs int
 }
 
 type AznmSettings struct {
@@ -535,6 +537,11 @@ func setPubSubProxySettings(pubsubProxySettings *PubSubProxySettings) {
 		pubsubProxySettings.MaxRequestBackoffInterval = 16000
 	}
 
+	if pubsubProxySettings.AlertingThresholdForPubsubOpLatencyMs == 0 {
+		// Set default to 30 seconds
+		pubsubProxySettings.AlertingThresholdForPubsubOpLatencyMs = 30000
+	}
+
 }
 
 func setAzureEnvironment(azureEnv *AzureEnvironment) {
@@ -741,5 +748,10 @@ func OverrideConfigFromEnv(config *Configuration) {
 
 	if disableReservationMapInSubnetConfig := os.Getenv("DisableReservationMapInSubnetConfig"); len(disableReservationMapInSubnetConfig) != 0 {
 		config.DNCSettings.DisableReservationMapInSubnetConfig = ParseBool(disableReservationMapInSubnetConfig)
+	}
+
+	if alertingThresholdForPubsubOpLatencyMs :=
+		os.Getenv("AlertingThresholdForPubsubOpLatencyMs"); len(alertingThresholdForPubsubOpLatencyMs) != 0 {
+		config.PubSubProxySettings.AlertingThresholdForPubsubOpLatencyMs = ParseInt(alertingThresholdForPubsubOpLatencyMs)
 	}
 }

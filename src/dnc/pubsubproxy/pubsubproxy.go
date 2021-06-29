@@ -55,6 +55,7 @@ import "C"
 
 import (
 	"context"
+	"dnc/aiwrapper"
 	"dnc/api"
 	"dnc/aznm"
 	"dnc/configuration"
@@ -69,6 +70,7 @@ import (
 	"strings"
 	"time"
 	"unsafe"
+	"github.com/Azure/azure-container-networking/aitelemetry"
 )
 
 const (
@@ -172,20 +174,23 @@ type AznmClient interface {
 	DeleteContainer(ctx context.Context, req aznm.AznmRequest, logicalId, physicalId string) error
 }
 
+//todo: remove package level variables
 var (
-	maxConcurrentRequests              int
-	baseRetryInterval                  time.Duration
-	maxRetryBackoffInterval            time.Duration
-	sessionManager                     *utils.SessionManager
-	replicaInstance                    *replica.Replica
-	logger                             loggershim.LoggerInterface
-	ncPendingPublishRequestContextRepo repo.NcPendingPublishRequestContextRepo
-	networkRepo                        repo.NetworkRepo
-	subnetRepo                         repo.SubnetRepo
-	azureEnvironmentName               string
-	aznmClient                         AznmClient
-	aznmSettings                       configuration.AznmSettings
-	verboseLogging                     bool
+	maxConcurrentRequests                 int
+	baseRetryInterval                     time.Duration
+	maxRetryBackoffInterval               time.Duration
+	sessionManager                        *utils.SessionManager
+	replicaInstance                       *replica.Replica
+	logger                                loggershim.LoggerInterface
+	ncPendingPublishRequestContextRepo    repo.NcPendingPublishRequestContextRepo
+	networkRepo                           repo.NetworkRepo
+	subnetRepo                            repo.SubnetRepo
+	azureEnvironmentName                  string
+	aznmClient                            AznmClient
+	aznmSettings                          configuration.AznmSettings
+	verboseLogging                        bool
+	alertingThresholdForPubsubOpLatencyMs int
+	pubsubConnectionEp                    string
 )
 
 func logDebugf(format string, args ...interface{}) {
@@ -212,7 +217,7 @@ func serializeNetworkContainerPublishData(
 	var (
 		networkContainerVersion uint64
 		err                     error
-		nc                  C.struct_NC_DATA
+		nc                      C.struct_NC_DATA
 		ncDataSize              C.size_t
 		serializedNcData        unsafe.Pointer
 	)
@@ -537,6 +542,8 @@ func Init(
 	aznmClient = client
 	aznmSettings = aznmConfigSettings
 	verboseLogging = configSettings.EnableVerboseLogging
+	alertingThresholdForPubsubOpLatencyMs = configSettings.AlertingThresholdForPubsubOpLatencyMs
+	pubsubConnectionEp = configSettings.PubsubConnectionEndpoint
 
 	pubsubSettings := pubsubSettings{
 		pubsubVips:         configSettings.PubsubVips,
@@ -571,4 +578,53 @@ func Deinit() {
 	deinitPublishers()
 	deinitSubscriber()
 	logDebugf("Successfully de-initialized all publishers and subscriber")
+}
+
+func emitPubsubOpLatencyMetric(latency float64, path, operation, jobID, pubsubAzId string) {
+	metric := aitelemetry.Metric{
+		Name:             aiwrapper.PubsubOpLatencyMetric,
+		Value:            latency,
+		CustomDimensions: make(map[string]string),
+	}
+
+	metric.CustomDimensions[aiwrapper.PubsubPathStr] = path
+	metric.CustomDimensions[aiwrapper.PubsubOperationStr] = operation
+	metric.CustomDimensions[aiwrapper.PubsubJobIdStr] = jobID
+	metric.CustomDimensions[aiwrapper.PubsubAzIdStr] = pubsubAzId
+	metric.CustomDimensions[aiwrapper.PubsubConnectionStringStr] = pubsubConnectionEp
+
+	aiwrapper.SendMetric(metric)
+}
+
+func emitPubsubOpFailureMetric(path, operation, jobID, pubsubAzId string) {
+	metric := aitelemetry.Metric{
+		Name:             aiwrapper.PubsubOpFailureMetric,
+		Value:            1.0,
+		CustomDimensions: make(map[string]string),
+	}
+
+	metric.CustomDimensions[aiwrapper.PubsubPathStr] = path
+	metric.CustomDimensions[aiwrapper.PubsubOperationStr] = operation
+	metric.CustomDimensions[aiwrapper.PubsubJobIdStr] = jobID
+	metric.CustomDimensions[aiwrapper.PubsubAzIdStr] = pubsubAzId
+	metric.CustomDimensions[aiwrapper.PubsubConnectionStringStr] = pubsubConnectionEp
+
+	aiwrapper.SendMetric(metric)
+}
+
+func emitPubsubConnectionFailureMetric(connectionType, pubsubAzId, vip, certName string, errorCode int) {
+	metric := aitelemetry.Metric{
+		Name:             aiwrapper.PubsubConnectionFailureMetric,
+		Value:            1.0,
+		CustomDimensions: make(map[string]string),
+	}
+
+	metric.CustomDimensions[aiwrapper.PubsubConnectionTypeStr] = connectionType
+	metric.CustomDimensions[aiwrapper.PubsubAzIdStr] = pubsubAzId
+	metric.CustomDimensions[aiwrapper.PubsubAzVipStr] = vip
+	metric.CustomDimensions[aiwrapper.PubsubCertNameStr] = certName
+	metric.CustomDimensions[aiwrapper.PubsubConnectionErrorCodeStr] = strconv.Itoa(errorCode)
+	metric.CustomDimensions[aiwrapper.PubsubConnectionStringStr] = pubsubConnectionEp
+
+	aiwrapper.SendMetric(metric)
 }

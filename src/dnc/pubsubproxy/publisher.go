@@ -565,7 +565,6 @@ func (callback publisherCallback) OnSessionTerminationReceived() {
 
 			logErrorf("OnSessionTerminationReceived: createOrUpdatePublisher failed for pubsubAzId: %s. Error: %v", publisher.pubsubAzId, err)
 			time.Sleep(time.Second * 1)
-			//TODO: This calls for a sev2
 		}
 	}
 }
@@ -628,6 +627,7 @@ func createOrUpdatePublisher(
 		}
 
 		logErrorf("Publisher %s failed to connect to VIP: %s due to error code: %v", publisher.pubsubAzId, vip, errorCode)
+		go emitPubsubConnectionFailureMetric("Publisher", publisher.pubsubAzId, vip, publisherContext.pubsubCertName, errorCode)
 	}
 
 	return fmt.Errorf("Failed to create publisher: %s", publisher.pubsubAzId)
