@@ -143,7 +143,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         InvalidRequestBody,
 
         /// <summary>
-        /// PrivateEndpointDeleteFailed
+        /// PrivateEndpointCreateFailed
         /// </summary>
         PrivateEndpointCreateFailed,
 

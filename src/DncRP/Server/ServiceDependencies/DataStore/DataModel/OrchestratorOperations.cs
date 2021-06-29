@@ -312,6 +312,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 }
                 if (createSecretFirstTime || getKvSecret.Value != clientsecret)
                 {
+                    logger.CLogInformation("Set msi secret for orchestrator id: {0}", orchestratorResourceGuid);
                     this.keyVaultUtility.SetSecret(
                         CurrentContext.KeyVaultUrl, CurrentContext.ManagedIdentity, orchProperties.ClientSecretName, clientsecret);
                 }

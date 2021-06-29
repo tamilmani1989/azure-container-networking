@@ -222,28 +222,35 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             {
                 MSIIdentity identity = JsonUtility.Deserialize<MSIIdentity>(entity.IdentityProperties);
                 OrchestratorPropertiesInternal props = JsonUtility.Deserialize<OrchestratorPropertiesInternal>(entity.Properties);
-                if (props != null && identity != null && identity.RenewAfter < currentTime)
+                if (props != null && identity != null)
                 {
-                    Console.WriteLine("[DNC RP] Renew date {0} after past current date {1}. renew cert for orchestrator id:{2}", identity.RenewAfter.ToString(),
-                       currentTime.ToString(), entity.RowKey);
-
-                    MSIIdentity newIdentity= await getNewCert(httpUtility, identity);
-                    if (newIdentity != null)
+                    if (identity.RenewAfter < currentTime)
                     {
-                        Console.WriteLine("[DNC RP] Got new renewed identity for orchestrator id: {0}, client id: {1} newmsi:{2}  renew after:{3}", entity.RowKey, identity.ClientId, newIdentity.ClientId, newIdentity.RenewAfter.ToString());
+                        Console.WriteLine("[DNC RP] Renew date {0} after past current date {1}. renew cert for orchestrator id:{2}", identity.RenewAfter.ToString(),
+                           currentTime.ToString(), entity.RowKey);
 
-                        int httpStatusCode = await tableOperations.OrchestratorOperations.InsertOrReplaceOrchestratorConfigAsync(entity.PartitionKey, entity.RowKey, props.PrivateEndpointName,
-                            entity.OrchestratorType, props, newIdentity);
-                        if (!HttpStatusCodeCheck.IsSuccess(httpStatusCode))
+                        MSIIdentity newIdentity = await getNewCert(httpUtility, identity, entity.RowKey);
+                        if (newIdentity != null)
                         {
-                            Console.WriteLine("[DNC RP] Insert to orchestratorconfig failed with http code:{0}", httpStatusCode);
+                            Console.WriteLine("[DNC RP] Got new renewed identity for orchestrator id: {0}, client id: {1} newmsi:{2}  renew after:{3}", entity.RowKey, identity.ClientId, newIdentity.ClientId, newIdentity.RenewAfter.ToString());
+
+                            int httpStatusCode = await tableOperations.OrchestratorOperations.InsertOrReplaceOrchestratorConfigAsync(entity.PartitionKey, entity.RowKey, props.PrivateEndpointName,
+                                entity.OrchestratorType, props, newIdentity);
+                            if (!HttpStatusCodeCheck.IsSuccess(httpStatusCode))
+                            {
+                                Console.WriteLine("[DNC RP] Insert to orchestratorconfig failed for orchestrator id {0} with http code:{1}", entity.RowKey, httpStatusCode);
+                            }
                         }
+                    }
+                    else
+                    {
+                        Console.WriteLine("[DNC RP] Skipping MSI renewal as cert renewal date {0} not past yet for orchestratorid:{1}", identity.RenewAfter.ToString(), entity.RowKey);
                     }
                 }
             }
         }
 
-        private async Task<MSIIdentity> getNewCert(IHttpUtility httpUtility, MSIIdentity identity)
+        private async Task<MSIIdentity> getNewCert(IHttpUtility httpUtility, MSIIdentity identity, string orchestratorId)
         {
             MSIIdentityMetadata identityMetadata = new MSIIdentityMetadata();
             identityMetadata.Url = identity.ClientSecretUrl;
@@ -253,7 +260,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             }
             catch (Exception ex)
             {
-                Console.WriteLine("[DNC RP] Exception caught while getting newcert {0}", ex);
+                Console.WriteLine("[DNC RP] Exception caught while getting newcert for orchestratorId {0}: {1}", orchestratorId, ex.ToString());
                 return null;
             }
             
