@@ -70,21 +70,7 @@ function cleanup_happy_path() {
 		nnc_count=$(kubectl --kubeconfig kubeconfig.json get nnc -n kube-system -ojsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | wc -l)
 	done
 
-	az keyvault secret delete -n "$kubeconfig_secret" --vault-name mdncnightlytestkv
-	set +e
-	for i in $(seq 10); do
-		sleep 30s
-		az keyvault secret purge -n "$kubeconfig_secret" --vault-name mdncnightlytestkv
-		if [[ $? -eq 0 ]]; then
-			deleted="true"
-			break
-		fi
-	done
-	set -e
-	if [[ "$deleted" != "true" ]]; then
-		echo "unable to purge secret from keyvault"
-		return 1
-	fi
+	delete_keyvault_secret "$kubeconfig_secret"
 
 	point_az_to_region --subscription "$4" --service-principal "$6" --password "$7" --tenant "$5" --region "$3"
                 
@@ -113,11 +99,26 @@ function cleanup_forced() {
 	echo "Deleting customer cluster"
 	az group delete -g "$2" --yes
 	kubeconfig_secret="$(get_kubeconfig_secret_name "$2")"
-	az keyvault secret delete -n "$kubeconfig_secret" --vault-name mdncnightlytestkv
+	delete_keyvault_secret "$kubeconfig_secret"
+}
+
+function delete_keyvault_secret() {
+	set +e
+	res=$(2>&1 az keyvault secret show -n $1 --vault-name mdncnightlytestkv)
+	if [[ "$?" -ne 0 ]]; then
+		if $(echo $res | grep SecretNotFound); then
+			not_found="true"
+		fi
+	fi
+	set -e
+	if [[ "$not_found" == "true" ]]; then
+		return
+	fi
+	az keyvault secret delete -n "$1" --vault-name mdncnightlytestkv
 	set +e
 	for i in $(seq 10); do
 		sleep 30s
-		az keyvault secret purge -n "$kubeconfig_secret" --vault-name mdncnightlytestkv
+		az keyvault secret purge -n "$1" --vault-name mdncnightlytestkv
 		if [[ $? -eq 0 ]]; then
 			deleted="true"
 			break
