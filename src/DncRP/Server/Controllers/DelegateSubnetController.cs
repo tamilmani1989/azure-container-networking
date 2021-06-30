@@ -290,7 +290,10 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             DncClient dncClient = new DncClient(this.dncHttpUtility, this.logger, controllerProperties.PropertiesList.DncEndpoint);
 
             // call dnc join subnet
-            await dncClient.PutSubnetAsync(vnetId, subnetName, authToken);
+            DncSettings dncSettings = CurrentContext.DncSettings;
+            await AsyncRetry.Retry(() => dncClient.PutSubnetAsync(vnetId, subnetName, authToken), dncSettings.RetryCount,
+               TimeSpan.FromSeconds(dncSettings.RetryIntervalInSeconds), TimeSpan.FromSeconds(dncSettings.RetryTimeoutInSeconds));
+
             await tableOperations.DelegatedSubnetConfigurationOperations.InsertOrUpdateAsync(
                                  subscriptionId,
                                  resourceGroup,
@@ -302,7 +305,6 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                                  dsRequest);
 
             // do dnc get subnet to check if join completed
-            DncSettings dncSettings = CurrentContext.DncSettings;
             logger.CLogInformation("Dncsettings timeout: RC:{0} RI:{1} RT:{2}", dncSettings.RetryCount, dncSettings.RetryIntervalInSeconds, dncSettings.RetryTimeoutInSeconds);
             await AsyncRetry.Retry(() => CheckIfSubnetJoined(dncClient, vnetId, subnetName), dncSettings.RetryCount,
                 TimeSpan.FromSeconds(dncSettings.RetryIntervalInSeconds), TimeSpan.FromSeconds(dncSettings.RetryTimeoutInSeconds));
@@ -613,9 +615,12 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             // call dnc delete subnet
             logger.CLogInformation("Going to call dnc delete subnet for subnetname {0} vnet id {1} to dnc ep {2} forceDelete{3}",
                 subnetName, vnetId, controllerProperties.PropertiesList.DncEndpoint, forceDelete);
-            await dncClient.DeleteSubnetAsync(vnetId, subnetName, forceDelete);
 
             DncSettings dncSettings = CurrentContext.DncSettings;
+
+            await AsyncRetry.Retry(() => dncClient.DeleteSubnetAsync(vnetId, subnetName, forceDelete), dncSettings.RetryCount,
+                TimeSpan.FromSeconds(dncSettings.RetryIntervalInSeconds), TimeSpan.FromSeconds(dncSettings.RetryTimeoutInSeconds));
+
             // call dnc get subnet to check if subnet is deleted
             await AsyncRetry.Retry(() => CheckIfSubnetDeleted(dncClient, vnetId, subnetName), dncSettings.RetryCount,
                 TimeSpan.FromSeconds(dncSettings.RetryIntervalInSeconds), TimeSpan.FromSeconds(dncSettings.RetryTimeoutInSeconds));

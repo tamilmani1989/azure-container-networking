@@ -195,7 +195,9 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             ControllerProperties controllerProperties = (ControllerProperties)controller.Properties;
             DncClient dncClient = new DncClient(this.dncHttpUtility, this.logger, controllerProperties.PropertiesList.DncEndpoint);
             logger.CLogInformation("Calling dnc putnodeset for orchestrator id: {0}", resourceGuid);
-            await dncClient.PutNodesetAsync(resourceGuid);
+            DncSettings dncSettings = CurrentContext.DncSettings;
+            await AsyncRetry.Retry(() => dncClient.PutNodesetAsync(resourceGuid), dncSettings.RetryCount,
+                TimeSpan.FromSeconds(dncSettings.RetryIntervalInSeconds), TimeSpan.FromSeconds(dncSettings.RetryTimeoutInSeconds));
 
             // set state to succeeded
             request.Properties.State = ProvisioningState.Succeeded;
@@ -282,10 +284,12 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             ControllerProperties controllerProperties = (ControllerProperties)controller.Properties;
             DncClient dncClient = new DncClient(this.dncHttpUtility, this.logger, controllerProperties.PropertiesList.DncEndpoint);
             logger.CLogInformation("Calling dnc deletenodeset for orchestrator id: {0}, forceDelete:{1}", orch.Properties.ResourceGuid, forceDelete);
-            await dncClient.DeleteNodesetAsync(orch.Properties.ResourceGuid, forceDelete);
+            
+            DncSettings dncSettings = CurrentContext.DncSettings;
+            await AsyncRetry.Retry(() => dncClient.DeleteNodesetAsync(orch.Properties.ResourceGuid, forceDelete), dncSettings.RetryCount,
+                        TimeSpan.FromSeconds(dncSettings.RetryIntervalInSeconds), TimeSpan.FromSeconds(dncSettings.RetryTimeoutInSeconds));
 
             // get dnc nodeset should return 404
-            DncSettings dncSettings = CurrentContext.DncSettings;
             await AsyncRetry.Retry(() => CheckIfNodesetDeleted(dncClient, orch.Properties.ResourceGuid), dncSettings.RetryCount,
                         TimeSpan.FromSeconds(dncSettings.RetryIntervalInSeconds), TimeSpan.FromSeconds(dncSettings.RetryTimeoutInSeconds));
 
