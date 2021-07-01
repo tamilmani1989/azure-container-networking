@@ -17,6 +17,7 @@ const (
 	startingMAC        = "001111AAAA"
 	allocateMacRoute   = "/macallocator/allocate"
 	deallocateMacRoute = "/macallocator/deallocate"
+	healthRoute        = "/macallocator/health"
 )
 
 type macAllocatorResponse struct {
@@ -25,6 +26,10 @@ type macAllocatorResponse struct {
 	IsSuccess    bool   `json:"IsSuccess"`
 	ErrorMessage string `json:"ErrorMessage"`
 	ShouldRetry  bool   `json:"ShouldRetry"`
+}
+
+type healthResponse struct {
+	Status string `json:"Status"`
 }
 
 type macAllocatorRequest struct {
@@ -76,6 +81,7 @@ func (s *Server) Close() error {
 func (s *Server) registerRoutes(r *mux.Router) {
 	r.HandleFunc(allocateMacRoute, s.allocate).Methods(http.MethodPost)
 	r.HandleFunc(deallocateMacRoute, s.deallocate).Methods(http.MethodPost)
+	r.HandleFunc(healthRoute, s.health).Methods(http.MethodGet)
 }
 
 func (s *Server) validateMACRequest(w http.ResponseWriter, r *http.Request) (macAllocatorRequest, bool) {
@@ -121,6 +127,17 @@ func (s *Server) validateMACRequest(w http.ResponseWriter, r *http.Request) (mac
 
 	return macRequest, true
 }
+
+func (s *Server) health(w http.ResponseWriter, r *http.Request) {
+	resp := healthResponse{Status: "healthy"}
+	w.Header().Add(contentTypeHeader, jsonContentType)
+	w.WriteHeader(http.StatusOK)
+	logrus.Infof("Health check api")
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		logrus.Errorf("could not encode type %T: %v", resp, err)
+	}
+}
+
 func (s *Server) allocate(w http.ResponseWriter, r *http.Request) {
 	macRequest, validRequest := s.validateMACRequest(w, r)
 	//if request is invalid response was already returned in validateMACRequest
