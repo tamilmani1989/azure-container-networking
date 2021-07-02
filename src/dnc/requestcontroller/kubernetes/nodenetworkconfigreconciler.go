@@ -204,30 +204,36 @@ func (n *NodeNetworkConfigReconciler) reconcile(ctx context.Context, request rec
 
 	// If the corresponding Node isn't found or is being deleted, clean up this NNC
 	if nodeNotFound || !node.DeletionTimestamp.IsZero() {
+		n.logger.Infof("cleaning up nnc because node not found or deleting: %s", request.NamespacedName)
 		if err := n.cleanUpNNC(ctx, &nodeNetworkConfig, dncNodeName); err != nil {
 			err = fmt.Errorf("error while cleaning up NNC: %w", err)
 			n.recorder.Event(&nodeNetworkConfig, corev1.EventTypeWarning, "ReconcileError", err.Error())
 			return err
 		}
+		return nil
 	}
 
 	// Handle a create/update event
 	if nodeNetworkConfig.DeletionTimestamp.IsZero() {
+		n.logger.Infof("handling creation event for %s", request.NamespacedName)
 		// A zero deletionTimestamp means create/update event
 		if err := n.publishCreateOrUpdateNC(ctx, &nodeNetworkConfig, &node, dncNodeName); err != nil {
 			err = fmt.Errorf("publishCreateOrUpdateNC error: %w", err)
 			n.recorder.Event(&nodeNetworkConfig, corev1.EventTypeWarning, "ReconcileError", err.Error())
 			return err
 		}
+		return nil
 	}
 
 	// Handle a deletion event
 	if !nodeNetworkConfig.DeletionTimestamp.IsZero() {
+		n.logger.Infof("handling deletion event for %s because deletion timestamp is nonzero", request.NamespacedName)
 		// If we get to this point, the k8s Node still exists, so we should let this NNC delete and then re-create it
 		if err := n.mustRecreateNNC(ctx, &nodeNetworkConfig, &node, dncNodeName); err != nil {
 			n.recorder.Event(&nodeNetworkConfig, corev1.EventTypeWarning, "ReconcileError", err.Error())
 			return fmt.Errorf("recreate NNC error: %w", err)
 		}
+		return nil
 	}
 
 	return nil
@@ -262,6 +268,9 @@ func (n *NodeNetworkConfigReconciler) cleanUpNNC(ctx context.Context, nodeNetwor
 		// Error deleting Node, so requeue
 		return err
 	}
+
+	// Remove node from cache
+	n.dncNodeNameToNodeInfo.Delete(dncNodeName)
 
 	// - remove finalizer since we're done with DNC operations for this NNC
 	if finalizers, removedFinalizer := removeStringFromSlice(nodeNetworkConfig.Finalizers, NNCFinalizerName); removedFinalizer {
@@ -624,20 +633,23 @@ func (n *NodeNetworkConfigReconciler) getNCDetailsFromDNCNodeName(ctx context.Co
 
 func (n *NodeNetworkConfigReconciler) getNewNNCFromNCResponse(nc *api.NetworkContainerResponse, name, namespace string, node *corev1.Node) *acnv1alpha.NodeNetworkConfig {
 	// Start with the standard empty NNC
-	return &acnv1alpha.NodeNetworkConfig{
+	newNNC := &acnv1alpha.NodeNetworkConfig{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
-			Labels: map[string]string{
-				DelegatedSubnetIDLabel: nc.IPConfiguration.NetworkID, // TODO: will this always be the case?
-				SubnetNameLabel:        nc.IPConfiguration.SubnetName,
-			},
 		},
 		Spec: acnv1alpha.NodeNetworkConfigSpec{
 			RequestedIPCount: n.getBatchSize(*node),
 		},
-		Status: n.getNNCStatusFromNCResponse(nc, node),
 	}
+
+	if nc != nil {
+		newNNC.Status = n.getNNCStatusFromNCResponse(nc, node)
+	} else {
+		n.logger.Infof("node %s had no NCs, so use empty NNC", name)
+	}
+
+	return newNNC
 }
 
 // getNNCStatusFromNCResponse returns a NNC Status representing the NC response
