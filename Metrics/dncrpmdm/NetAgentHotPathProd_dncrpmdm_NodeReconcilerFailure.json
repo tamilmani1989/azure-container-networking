@@ -163,6 +163,7 @@
       "displayName": "Total",
       "distinctCountColumns": [],
       "doNotUseCacheServer": true,
+      "effectiveTimeInUtc": "2021-07-02T17:01:58.5073438Z",
       "isFilterBased": false,
       "isMStoreAggregated": true,
       "minMaxMetricsEnabled": false,
@@ -178,6 +179,25 @@
       ],
       "disabledTimeInUtc": "",
       "displayName": "By-OrchestratorID",
+      "distinctCountColumns": [],
+      "doNotUseCacheServer": true,
+      "effectiveTimeInUtc": "2021-07-02T17:01:58.5073438Z",
+      "isFilterBased": false,
+      "isMStoreAggregated": true,
+      "minMaxMetricsEnabled": false,
+      "percentileMetricsEnabled": false,
+      "preaggregateThrottled": false,
+      "rollupsEnabled": false,
+      "standardDeviationMetricsEnabled": false,
+      "useMetricsStore": true
+    },
+    {
+      "dimensions": [
+        "Region",
+        "SubscriptionID"
+      ],
+      "disabledTimeInUtc": "",
+      "displayName": "Region-SubscriptionID",
       "distinctCountColumns": [],
       "doNotUseCacheServer": true,
       "effectiveTimeInUtc": "",
