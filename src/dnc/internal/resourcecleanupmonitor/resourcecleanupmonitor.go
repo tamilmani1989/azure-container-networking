@@ -17,6 +17,7 @@ type ResourceCleanupMonitor struct {
 	Logger             loggershim.LoggerInterface
 	IsPrimary          bool
 	IpAllocator        *networkcontainer.IPAllocator
+	MacAllocator       *networkcontainer.MacAllocator
 }
 
 const maxJobs = 50
@@ -69,39 +70,64 @@ func (m *ResourceCleanupMonitor) ProcessPendingResourcesCleanup() *api.JsonErr {
 }
 
 func (m *ResourceCleanupMonitor) processResourceCleanup(cleanupResourceRow datamodel.PendingResourceCleanupEntity) *api.JsonErr {
-	if cleanupResourceRow.CleanupContext.Type == datamodel.IPCleanup {
-		m.Logger.Debugf("%s Starting Processing ResourceCleanup", logPrefix(cleanupResourceRow))
+	m.Logger.Debugf("%s Starting Processing ResourceCleanup", logPrefix(cleanupResourceRow))
 
-		// only fetch pending jobs that belong to a specific NC
-		networkid, err := datamodel.GetNetworkIDFromPendingResourceCleanupKey(cleanupResourceRow.RowKey)
+	// only fetch pending jobs that belong to a specific NC
+	networkid, err := datamodel.GetNetworkIDFromPendingResourceCleanupKey(cleanupResourceRow.RowKey)
+	if err != nil {
+		return err
+	}
+
+	ncid, err := datamodel.GetNetworkContainerIDFromPendingResourceCleanupKey(cleanupResourceRow.RowKey)
+	if err != nil {
+		return err
+	}
+
+	ncPendingPublish, err := pubsubproxy.GetPendingNCJobContexts(networkid, ncid)
+	if err != nil && err.Code != api.NcPendingPublishEntryNotFound {
+		return err
+	}
+
+	// check if there's a scheduled pubsub job matching the same NCID
+	if len(ncPendingPublish) == 0 {
+
+		if cleanupResourceRow.CleanupContext.Type == datamodel.IPCleanup {
+			err = m.processIPCleanup(cleanupResourceRow, ncid, networkid)
+		} else if cleanupResourceRow.CleanupContext.Type == datamodel.MACCleanup {
+			err = m.processMACCleanup(cleanupResourceRow, ncid, networkid)
+		}
+
 		if err != nil {
 			return err
 		}
 
-		ncid, err := datamodel.GetNetworkContainerIDFromPendingResourceCleanupKey(cleanupResourceRow.RowKey)
+		m.Logger.Debugf("%s Deleting CleanupRequest", logPrefix(cleanupResourceRow))
+		err = m.PendingCleanupRepo.DeleteCleanupRequest(cleanupResourceRow.RowKey, cleanupResourceRow.Etag)
 		if err != nil {
-			return err
+			return api.InternalServerError(api.StatusInternalServerError, fmt.Sprintf("%s Failed to delete PendingResourceCleanup object with error: %v", logPrefix(cleanupResourceRow), err))
 		}
+	}
 
-		ncPendingPublish, err := pubsubproxy.GetPendingNCJobContexts(networkid, ncid)
-		if err != nil && err.Code != api.NcPendingPublishEntryNotFound {
-			return err
-		}
+	return nil
+}
 
-		// check if there's a scheduled pubsub job matching the same NCID
-		if len(ncPendingPublish) == 0 {
-			ncKey := datamodel.GetNCKey(networkid, ncid)
-			err := m.removeIPAllocations(ncKey, cleanupResourceRow)
-			if err != nil {
-				return api.InternalServerError(api.StatusInternalServerError, fmt.Sprintf("%s Failed to remove IP Allocations for NcKey %s, IpCount with error: %v", logPrefix(cleanupResourceRow), ncKey, err))
-			}
+func (m *ResourceCleanupMonitor) processMACCleanup(cleanupResourceRow datamodel.PendingResourceCleanupEntity, ncId, networkId string) *api.JsonErr {
+	allocationId := ncId + networkId
+	_, err := m.MacAllocator.MacManagerClient.DeallocateMac(allocationId)
+	if err != nil {
+		m.Logger.Debugf("%s deallocate mac failed: %v", logPrefix(cleanupResourceRow), err)
+		return err
+	}
 
-			m.Logger.Debugf("%s Deleting CleanupRequest", logPrefix(cleanupResourceRow))
-			err = m.PendingCleanupRepo.DeleteCleanupRequest(cleanupResourceRow.RowKey, cleanupResourceRow.Etag)
-			if err != nil {
-				return api.InternalServerError(api.StatusInternalServerError, fmt.Sprintf("%s Failed to delete PendingResourceCleanup object with error: %v", logPrefix(cleanupResourceRow), err))
-			}
-		}
+	m.Logger.Debugf("%s deallocate mac succeeded", logPrefix(cleanupResourceRow))
+	return nil
+}
+
+func (m *ResourceCleanupMonitor) processIPCleanup(cleanupResourceRow datamodel.PendingResourceCleanupEntity, ncId, networkId string) *api.JsonErr {
+	ncKey := datamodel.GetNCKey(networkId, ncId)
+	err := m.removeIPAllocations(ncKey, cleanupResourceRow)
+	if err != nil {
+		return api.InternalServerError(api.StatusInternalServerError, fmt.Sprintf("%s Failed to remove IP Allocations for NcKey %s, IpCount with error: %v", logPrefix(cleanupResourceRow), ncKey, err))
 	}
 
 	return nil

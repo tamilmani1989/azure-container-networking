@@ -940,7 +940,7 @@ func GetRevertState(ncState NetworkContainerState) (NetworkContainerState, *api.
 		return UnReserve, nil
 
 	case AllocateMAC:
-		return DeallocateMAC, nil
+		return UnReserve, nil
 
 	case Associate:
 		return DisAssociate, nil

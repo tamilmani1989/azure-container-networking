@@ -900,6 +900,18 @@ func processNetworkContainerBatchReserve(nc *datamodel.NetworkContainerEntity) (
 }
 
 func processNetworkContainerUnReserve(nc *datamodel.NetworkContainerEntity) *api.JsonErr {
+
+	// create a MAC cleanup request if needed
+	containerType := nc.Config.GetAssociationInfo().ContainerType
+	if api.IsBareMetalContainer(containerType) && nc.Config.MACAddress != "" {
+		if err := macAllocator.CreateMacCleanupRequest(nc); err != nil {
+			return err
+		}
+	} else {
+		logger.Debugf("[MacAllocator] Skipping MAC cleanup. ContainerType:%s, MAC:%s",
+			containerType, nc.Config.MACAddress)
+	}
+
 	if !nc.Config.ImplicitReservation {
 		sessionInfo := map[string]string{
 			datamodel.ReservationRepositoryName: nc.Config.ReservationID,
@@ -1146,12 +1158,6 @@ func processNetworkContainerDisAssociate(nc *datamodel.NetworkContainerEntity, n
 	}
 
 	logger.Debugf("[CNS] DisAssociated NC %s from node %s", nc.Config.NetworkContainerID, nc.Config.GetAssociationInfo().NodeID)
-
-	// In baremetal containers first deallocate MAC before freeing the IP.
-	containerType := nc.Config.GetAssociationInfo().ContainerType
-	if api.IsBareMetalContainer(containerType) {
-		return false, transitionNCStateAndLog(nc, datamodel.DisAssociate, datamodel.DeallocateMAC, datamodel.Pending)
-	}
 
 	return false, transitionNCStateAndLog(nc, datamodel.DisAssociate, datamodel.UnReserve, datamodel.Pending)
 }
@@ -1675,11 +1681,6 @@ func unpublishNetworkContainerWithPubSubProxy(
 		}
 	}
 
-	containerType := nc.Config.GetAssociationInfo().ContainerType
-	if api.IsBareMetalContainer(containerType) {
-		return false, transitionNCStateAndLog(nc, datamodel.UnPublish, datamodel.DeallocateMAC, datamodel.Pending)
-	}
-
 	return false, transitionNCStateAndLog(nc, datamodel.UnPublish, datamodel.UnReserve, datamodel.Pending)
 }
 
@@ -2153,9 +2154,6 @@ func processNetworkContainerRequest(
 		case datamodel.DisAssociate:
 			removeRequestFromPendingQueue, err = processNetworkContainerDisAssociate(&repoNCData, sessionInfo)
 
-		case datamodel.DeallocateMAC:
-			removeRequestFromPendingQueue, err = macAllocator.ProcessDeallocateMAC(&repoNCData)
-
 		case datamodel.UnReserve:
 			removeRequestFromPendingQueue = false // there is no obvious case where un-reserving requires removing the item from the pending queue
 			err = processNetworkContainerUnReserve(&repoNCData)
@@ -2350,6 +2348,7 @@ func processPendingRequests(
 
 		go func(rid string, rc datamodel.RequestContext, requestsMap *sync.Map, goroutines chan struct{}) {
 			logger.Debugf("Processing request: %+v", rc)
+			processRequest(rid, &rc)
 			processRequest(rid, &rc)
 			// Remove the request from the in-process map
 			requestsMap.Delete(rid)

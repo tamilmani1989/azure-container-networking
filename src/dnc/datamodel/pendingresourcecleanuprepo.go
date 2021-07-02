@@ -28,6 +28,9 @@ const (
 
 	// IP
 	IPCleanup
+
+	// Mac address cleanup
+	MACCleanup
 )
 
 const (
@@ -39,6 +42,9 @@ func (c ResourceCleanupType) String() string {
 
 	case IPCleanup:
 		return "IPCleanup"
+
+	case MACCleanup:
+		return "MACCleanup"
 
 	case InvalidResourceCleanupType:
 		return "InvalidResourceCleanupType"
@@ -209,6 +215,30 @@ func (p *PendingResourceCleanupRepo) CreateOrMergeIPResourceCleanupRequestFromIP
 		Type:                     IPCleanup}
 
 	return p.CreateOrMergePendingCleanupRequest(cleanupRowKey, cleanupRequest)
+}
+
+// Create or Merge the PendingResourceCleanup Job from IpAllocations Entities
+func (p *PendingResourceCleanupRepo) CreateMACResourceCleanupRequest(networkId string, ncId string) *api.JsonErr {
+	cleanupRowKey := GetPendingResourceCleanupKey(MACCleanup, networkId, ncId)
+
+	// Check if item exists
+	existingRequestEntity, err := p.TryGetPendingCleanupRequest(cleanupRowKey)
+	if err != nil {
+		return err
+	}
+
+	// if entry already exists, work is done here
+	if existingRequestEntity != nil {
+		return nil
+	}
+
+	p.logger.Debugf("CreateMACResourceCleanupRequest: Creating CleanupJob for cleanupRowKey %s", cleanupRowKey)
+
+	// Created the CleanupContext
+	cleanupRequest := &CleanupContext{
+		Type: MACCleanup}
+
+	return p.createPendingCleanupRequest(cleanupRowKey, cleanupRequest)
 }
 
 // Create Or Merge entry (if it matches the etag) else retry

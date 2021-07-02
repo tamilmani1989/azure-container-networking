@@ -385,40 +385,6 @@ func InvokeAznmContainerApi(
 	return err
 }
 
-func GetNICProgrammingStatus(reservationID string) (string, error) {
-
-	partitionKey := generateAznmStatusPartitionKey(reservationID)
-	relativePath := networkInterfaceStatusPath
-
-	for pubsubAzId, publisher := range publisherContext.publishers {
-
-		err := publisher.getData(partitionKey, relativePath)
-
-		if err != nil {
-			return "", fmt.Errorf("getData(%s, %s) failed with error: %+v", partitionKey, relativePath, err)
-		}
-
-		aznmStatusResult, err := publisher.getPublishResults(partitionKey + relativePath)
-		if err != nil {
-			return "", fmt.Errorf("getPublishResults(%s, %s) failed with error: %+v", partitionKey, relativePath, err)
-		}
-
-		networkInterfaceStatus := &sdn.NetworkInterfaceStatus{}
-		err = proto.Unmarshal(aznmStatusResult.Data, networkInterfaceStatus)
-		if err != nil {
-			logErrorf("OnResultReceived GetData: Publisher: %s. PartitionKey: %s. Path: %s. Error: %v",
-				pubsubAzId, partitionKey, relativePath, err)
-			return "", fmt.Errorf("Unmarshal failed on aznmStatusResult ")
-		}
-
-		logDebugf("OnResultReceived GetData: Publisher: %s. PartitionKey: %s. Path: %s. Data: %v",
-			pubsubAzId, partitionKey, relativePath, networkInterfaceStatus)
-		return networkInterfaceStatus.ProgrammingStatus.String(), nil
-	}
-
-	return "", fmt.Errorf("PubSubAzID not found from publisher")
-}
-
 func generateAznmStatusPartitionKey(reservationId string) string {
 	return networkInterfacesPartitionKey + reservationId
 }

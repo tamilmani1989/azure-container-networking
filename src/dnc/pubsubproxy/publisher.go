@@ -415,6 +415,31 @@ func unpublishDataAndWaitForStatus(
 	return publisher.getPublishStatusError(publishPath)
 }
 
+// This makes a call to pubsub to get data and wait for the pubsub notification
+func getData(
+	pubsubAzId string,
+	partitionKey string,
+	relativePath string) (MadariResult, error) {
+	publisher, err := getPublisher(pubsubAzId)
+	if err != nil {
+		return MadariResult{}, err
+	}
+
+	return getDataWithPublisher(publisher, partitionKey, relativePath)
+}
+
+func getDataWithPublisher(
+	publisher *publisher,
+	partitionKey string,
+	relativePath string) (MadariResult, error) {
+	err := publisher.getData(partitionKey, relativePath)
+	if err != nil {
+		return MadariResult{}, err
+	}
+
+	return publisher.getPublishResults(partitionKey + relativePath)
+}
+
 func createContextSelector(
 	pubsubAzId string,
 	partitionKey string) error {

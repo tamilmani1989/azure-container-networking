@@ -50,9 +50,6 @@ const (
 	// AllocateMAC - Allocate MAC address
 	AllocateMAC
 
-	// DeallocateMAC - Deallocate MAC address
-	DeallocateMAC
-
 	// PrepareSecondaryIpCleanup
 	PrepareSecondaryIpCleanup
 )
@@ -75,7 +72,6 @@ func IsDeleteInProgress(ncState NetworkContainerState) bool {
 	return ncState == UnPublish ||
 		ncState == DisAssociate ||
 		ncState == UnReserve ||
-		ncState == DeallocateMAC ||
 		ncState == Purge
 }
 
@@ -101,8 +97,6 @@ func PromoteContainerState(nc NetworkContainerEntity) *api.JsonErr {
 			nc.Config.State = UnPublish
 		case UnPublish:
 			nc.Config.State = DisAssociate
-		case DeallocateMAC:
-			nc.Config.State = UnReserve
 		}
 
 		nc.Config.FailureDetail = api.JsonErr{}
@@ -168,9 +162,6 @@ func (networkContainerState NetworkContainerState) String() string {
 
 	case AllocateMAC:
 		return "AllocateMAC"
-
-	case DeallocateMAC:
-		return "DeallocateMAC"
 
 	case PrepareSecondaryIpCleanup:
 		return "PrepareSecondaryIpCleanup"

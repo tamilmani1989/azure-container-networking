@@ -62,15 +62,18 @@ size_t SizeofTagConfiguration() {
 import "C"
 
 import (
+	"context"
 	"dnc/api"
 	"dnc/datamodel"
 	sdn "dnc/microsoft/azure/sdncontracts"
 	"dnc/nmagentcontracts"
 	"dnc/resourceupdatehandler/networkupdatehandler"
+	"dnc/retry"
 	"dnc/utils"
 	"fmt"
 	"google.golang.org/protobuf/proto"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 	"unsafe"
@@ -137,7 +140,7 @@ type ncJob struct {
 	context jobContext
 	ncId    string
 	vnetId  string
-	nc  []byte
+	nc      []byte
 }
 
 // vnetJob
@@ -310,7 +313,7 @@ func processNcPendingRequests() {
 				context: jobContext,
 				ncId:    requestContext.NetworkContainerID,
 				vnetId:  requestContext.NetworkID,
-				nc:  requestContext.NcData,
+				nc:      requestContext.NcData,
 			}
 
 			workerPool().scheduleJob(job)
@@ -715,7 +718,7 @@ func (job *subnetJob) process() error {
 	// If subnet is not in cache, it means it has been unsubscribed. Any pending tasks in queue should ignore it
 	if _, getErr := getActiveSubscriber().getCachedSubnetConfig(job.vnetId, job.subnetId); getErr != nil {
 		logDebugf("Job %s: %s abandoned as subnet is deleted", jobContext.jobType.String(), jobContext.id)
-	    // return nil as we don't want to add this task to failedQueue in defer function above
+		// return nil as we don't want to add this task to failedQueue in defer function above
 		return nil
 	}
 
@@ -745,9 +748,9 @@ func (job *subnetJob) getContext() *jobContext {
 
 func (job *subnetJob) processSubnetRegister() error {
 	var (
-		vnetPath = getActiveSubscriber().getSubnetPartitionKey(job.vnetId, job.subnetId)
+		vnetPath   = getActiveSubscriber().getSubnetPartitionKey(job.vnetId, job.subnetId)
 		subnetPath = getActiveSubscriber().getSubnetRelativePath(job.vnetId, job.subnetId)
-		fullPath = fmt.Sprintf("%s%s", vnetPath, subnetPath)
+		fullPath   = fmt.Sprintf("%s%s", vnetPath, subnetPath)
 		jobContext = job.getContext()
 	)
 
@@ -775,7 +778,7 @@ func (job *subnetJob) processSubnetRegister() error {
 
 func (job *subnetJob) processSubnetUnregister() error {
 	var (
-		vnetPath = getActiveSubscriber().getSubnetPartitionKey(job.vnetId, job.subnetId)
+		vnetPath   = getActiveSubscriber().getSubnetPartitionKey(job.vnetId, job.subnetId)
 		subnetPath = getActiveSubscriber().getSubnetRelativePath(job.vnetId, job.subnetId)
 		jobContext = job.getContext()
 		startTime = time.Now()
@@ -835,8 +838,8 @@ func (job *subnetJob) processSubnetUpdate() error {
 	var subnetConfigInfo SubnetConfiguration
 	subnetConfigInfo.SubnetVersion = nwSubnet.Version
 	subnetConfigInfo.SubnetName = job.subnetId
-    subnetConfigInfo.AddressPrefix = ipAddrWithPrefix
-    subnetConfigInfo.OwningService = sal.Service
+	subnetConfigInfo.AddressPrefix = ipAddrWithPrefix
+	subnetConfigInfo.OwningService = sal.Service
 	subnetConfigInfo.ExpectedToken = sal.ContextId
 
 	// Update the cached subnet config
@@ -953,7 +956,7 @@ func updateSubnetConfiguration(
 	repoSubnetConfiguration, err := subnetRepo.TryQuerySubnetConfiguration(vnetID, subnetId)
 	if err != nil {
 		return api.InternalServerErrorf(api.StatusInternalServerError,
-			"Failed to retrieve subnet config. vnet: %s, subnet:%s due to error: %v", vnetID, subnetId,  err)
+			"Failed to retrieve subnet config. vnet: %s, subnet:%s due to error: %v", vnetID, subnetId, err)
 	}
 
 	if repoSubnetConfiguration == nil {
@@ -970,11 +973,11 @@ func updateSubnetConfiguration(
 	}
 
 	dmSubnetConfig := datamodel.SubnetConfiguration{
-        SubnetName: subnetConfig.SubnetName,
-        IPSubnet: subnetConfig.AddressPrefix,
-        AccessToken: repoSubnetConfiguration.AccessToken,
-        Joined: repoSubnetConfiguration.Joined,
-        Version: subnetConfig.SubnetVersion,
+		SubnetName:  subnetConfig.SubnetName,
+		IPSubnet:    subnetConfig.AddressPrefix,
+		AccessToken: repoSubnetConfiguration.AccessToken,
+		Joined:      repoSubnetConfiguration.Joined,
+		Version:     subnetConfig.SubnetVersion,
 	}
 
 	return networkupdatehandler.UpdateSubnetConfiguration(vnetID, subnetId, &dmSubnetConfig)
@@ -1030,6 +1033,13 @@ func createContextSelectorAndPublishData(
 
 func deleteContextSelectorAndUnPublishData(
 	pubsubAzId string, primary pubsubContext, pubsubCtx []pubsubContext, jobCtx *jobContext) error {
+
+	// Before deleting DNC published NIC goal state, wait until AZNM deletes the NIC from its side.
+	// Otherwise IP/MAC could still be in use and DNC will delete it and reuse it thus assigning
+	// same MAC/IP to multiple NCs
+	if err := ensureNetworkInterfaceDeleted(pubsubAzId, pubsubCtx, jobCtx); err != nil {
+		return err
+	}
 
 	// Remove secondary paths first
 	if err := removePubsubPaths(pubsubAzId, pubsubCtx, jobCtx); err != nil {
@@ -1092,6 +1102,54 @@ func removePubsubPaths(
 	}
 
 	return nil
+}
+
+func ensureNetworkInterfaceDeleted(pubsubAzId string, pubsubCtx []pubsubContext, jobCtx *jobContext) error {
+	retrier := retry.Retrier{
+		Attempts:   20,
+		Delay:      time.Second * 5,
+		ExpBackoff: false,
+	}
+
+	return retrier.Do(context.Background(), func() error {
+		nicsDeleted := make(map[string]struct{})
+		nicsRemaining := false
+		nicCount := 0
+		for _, ctx := range pubsubCtx {
+
+			// make sure context selector is for a nic
+			if !strings.HasPrefix(ctx.Key, networkInterfacesPartitionKey) {
+				continue
+			}
+
+			nicCount = nicCount + 1
+			if _, ok := nicsDeleted[ctx.Key]; !ok {
+
+				status, err := getNetworkInterfaceStatus(pubsubAzId, ctx.Key, networkInterfaceStatusPath)
+				if err != nil {
+					nicsRemaining = true
+					logDebugf("error in getting status for nic %s in AzId %s. %s", ctx.Key, pubsubAzId, err)
+					continue
+				}
+
+				if status.ProgrammingStatus != sdn.ProgrammingStatus_ProgrammingStatus_Deleted {
+					nicsRemaining = true
+					logDebugf("Pubsubproxy[%s] nic %s still not deleted. State:%s", jobCtx.id, ctx.Key, status.ProgrammingStatus.String())
+					continue
+				}
+
+				nicsDeleted[ctx.Key] = struct{}{}
+				logDebugf("Pubsubproxy[%s] nic %s deleted. State:%s", jobCtx.id, ctx.Key, status.ProgrammingStatus.String())
+			}
+		}
+
+		logDebugf("Pubsubproxy[%s] total nics: %d, deleted:%d", jobCtx.id, nicCount, len(nicsDeleted))
+		if !nicsRemaining {
+			return nil
+		}
+
+		return fmt.Errorf("%d networkinterfaces still not deleted in aznm", len(nicsDeleted))
+	})
 }
 
 /*

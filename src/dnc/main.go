@@ -349,6 +349,7 @@ func startDNC(config *configuration.Configuration, stdErr bool) {
 		resourceCleanupMonitor := monitor.ResourceCleanupMonitor{
 			IsPrimary:          true, // todo: make this dynamic
 			IpAllocator:        &ipAllocator,
+			MacAllocator:       &macAllocator,
 			Logger:             logger,
 			PendingCleanupRepo: datamodel.PendingCleanupRepo,
 		}

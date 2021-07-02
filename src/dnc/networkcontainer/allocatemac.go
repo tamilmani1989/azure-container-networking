@@ -9,9 +9,10 @@ import (
 )
 
 type MacAllocator struct {
-	PersistNC        PersistNCFunc
-	Logger           loggershim.LoggerInterface
-	MacManagerClient macmgr.MacManagerClient
+	PersistNC          PersistNCFunc
+	Logger             loggershim.LoggerInterface
+	MacManagerClient   macmgr.MacManagerClient
+	PendingCleanupRepo *datamodel.PendingResourceCleanupRepo
 }
 
 // This function allocate a MAC address
@@ -44,31 +45,24 @@ func (m *MacAllocator) ProcessAllocateMAC(nc *datamodel.NetworkContainerEntity) 
 }
 
 // This function deallocates a MAC address.
-func (m *MacAllocator) ProcessDeallocateMAC(nc *datamodel.NetworkContainerEntity) (bool, *api.JsonErr) {
-	if nc.Config.MACAddress == "" {
-		m.Logger.Debugf("[MacAllocator] MAC address is already empty. No need to deallocate.")
-	} else {
-		m.Logger.Debugf("[MacAllocator] Resetting MAC address to empty for NC %s.", nc.Config.NetworkContainerID)
+func (m *MacAllocator) ProcessDeallocateMAC(ncId, networkId string) *api.JsonErr {
+	m.Logger.Debugf("[MacAllocator] Resetting MAC address to empty for NC %s.", ncId)
 
-		allocationId := nc.Config.NetworkContainerID + nc.Config.NetworkID
-		_, err := m.MacManagerClient.DeallocateMac(allocationId)
+	allocationId := ncId + networkId
+	_, err := m.MacManagerClient.DeallocateMac(allocationId)
 
-		if err != nil {
-			if err.HTTPStatus == http.StatusBadRequest {
-				m.Logger.Debugf("[MacAllocator] Failed to deallocate MAC. Reason : %s, HttpStatus : %d. DNC will NOT retry.", err.Error, err.HTTPStatus)
-				return true, err
-			} else {
-				m.Logger.Debugf("[MacAllocator] Failed to deallocate MAC. Reason : %s, HttpStatus : %d. DNC will retry.", err.Error, err.HTTPStatus)
-				return false, err
-			}
-		}
-
-		m.Logger.Debugf("[MacAllocator][Response] Deallocate MAC Successful. NC = %s.", nc.Config.NetworkContainerID)
-		nc.Config.MACAddress = ""
+	if err != nil {
+		m.Logger.Debugf("[MacAllocator] Failed to deallocate MAC. Reason : %s, HttpStatus : %d.", err.Error, err.HTTPStatus)
+		return err
 	}
 
-	err := m.markNCToUnreserve(nc)
-	return false, err
+	m.Logger.Debugf("[MacAllocator][Response] Deallocate MAC Successful. NC = %s.", ncId)
+	return err
+}
+
+// Create a MAC address clean up request, which will deallcoate the MAC later when NC has been cleaned up from pubsub
+func (m *MacAllocator) CreateMacCleanupRequest(nc *datamodel.NetworkContainerEntity) *api.JsonErr {
+	return m.PendingCleanupRepo.CreateMACResourceCleanupRequest(nc.Config.NetworkID, nc.Config.NetworkContainerID)
 }
 
 // This utility function sets the NC state as published.

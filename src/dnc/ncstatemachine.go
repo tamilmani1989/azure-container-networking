@@ -49,6 +49,7 @@ func initNetworkContainerStateMachine() {
 		PersistNC:        datamodel.NcRepo.PersistNetworkContainerData,
 		Logger:           logger,
 		MacManagerClient: macManagerClient,
+		PendingCleanupRepo: datamodel.PendingCleanupRepo,
 	}
 
 	if config.FeatureFlagSettings.EnableBatchAllocationProcessing {
