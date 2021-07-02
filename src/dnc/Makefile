@@ -117,6 +117,7 @@ dnc-image: ## Build the Azure DNC image
 	-f $(REPO_ROOT)/src/dnc/builds/dnc/Dockerfile \
 	-t $(DNC_IMAGE):$(VERSION) \
 	--build-arg GENERATE_BOND_FILE=$(GENERATE_BOND_FILE) \
+	--build-arg VERSION=$(VERSION) \
 	$(REPO_ROOT)
 	$(MKDIR) $(IMAGE_DIR)
 	docker save $(DNC_IMAGE):$(VERSION) | gzip -c > $(IMAGE_DIR)/$(DNC_IMAGE_ARCHIVE_NAME)
@@ -127,6 +128,7 @@ mdnc-image: ##
 	-t $(MDNC_IMAGE):$(VERSION) \
 	--build-arg aiMetadata=$(DNC_RP_AI_ID) \
 	--build-arg GENERATE_BOND_FILE=$(GENERATE_BOND_FILE) \
+	--build-arg VERSION=$(VERSION) \
 	$(REPO_ROOT)
 	$(MKDIR) $(IMAGE_DIR)
 	docker save $(MDNC_IMAGE):$(VERSION) | gzip -c > $(IMAGE_DIR)/$(MDNC_IMAGE_ARCHIVE_NAME)
