@@ -228,6 +228,14 @@ func processSubnetCleanupRequest(requestContext *datamodel.RequestContext) (bool
 		return removeFromPendingQ, nil //todo: should the error be nil?
 	}
 
+	// Depopulate the subnet allocations
+	if config.FeatureFlagSettings.UsePrepopulatedIPAllocations {
+		if err = ipAllocator.DepopulateSubnet(networkID, subnetName); err != nil {
+			loggershim.LS.Errorf("Failed to delete prepopulated allocations for subnet %s in network %s: %v", subnetName, networkID, err)
+			return dontRemoveFromPendingQ, err
+		}
+	}
+
 	networkConfiguration, err := datamodel.TryQueryNetworkConfiguration(networkID)
 	if err != nil {
 		loggershim.LS.Errorf("Failed to retrieve network configuration for network: %s. Error: %v", networkID, err)
@@ -239,18 +247,6 @@ func processSubnetCleanupRequest(requestContext *datamodel.RequestContext) (bool
 		return removeFromPendingQ, nil
 	}
 
-	// Update markedForDelete to false to allow user to be able to join this subnet again
-	// Joined is set to false here so that if user calls GET status on the subnet while the cleanup is in process
-	// it still returns the status as CleanupPending instead of 404.
-	requestedSubnetConfig.Joined = false
-	requestedSubnetConfig.MarkedForDelete = false
-	requestedSubnetConfig.UpdateStatus = datamodel.SubnetUpdateCompleted
-	if err := datamodel.PutSubnetConfiguration(requestedSubnetConfig); err != nil {
-		loggershim.LS.Errorf("Failed to persist subnet configuration for subnet: %s in network: %s. Error: %v", subnetName, networkID, err)
-		return dontRemoveFromPendingQ, api.InternalServerErrorf(api.StatusInternalServerError,
-			"could not persist subnet: %s. error: %+v", datamodel.GetSubnetKey(networkID, subnetName), err)
-	}
-
 	// Delete the network configuration if there are no subnets left in 'joined' state.
 	subnetConfigs, err := datamodel.TryQueryAllSubnetConfigsInNetworkConfig(networkConfiguration)
 	if err != nil {
@@ -258,11 +254,24 @@ func processSubnetCleanupRequest(requestContext *datamodel.RequestContext) (bool
 		return dontRemoveFromPendingQ, err
 	}
 
-	// Delete the network if there are no 'Joined' subnets in this network
+	// Delete the network if there are no other 'Joined' subnets in this network
 	for subnet, subnetConfig := range subnetConfigs {
-		if subnetConfig.Joined {
+		if subnet != subnetName && subnetConfig.Joined {
 			loggershim.LS.Debugf("Cannot delete the network: %s as subnet: %s. Joined: %t", networkID, subnet, subnetConfig.Joined)
-			// No further processing is needed and we should remove the pending work item for subnet cleanup request
+
+			// Update the subnet that's undergoing cleanup and remove the pending work item
+			// Update markedForDelete to false to allow user to be able to join this subnet again
+			// Joined is set to false here so that if user calls GET status on the subnet while the cleanup is in process
+			// it still returns the status as CleanupPending instead of 404.
+			requestedSubnetConfig.Joined = false
+			requestedSubnetConfig.MarkedForDelete = false
+			requestedSubnetConfig.UpdateStatus = datamodel.SubnetUpdateCompleted
+			if err := datamodel.PutSubnetConfiguration(requestedSubnetConfig); err != nil {
+				loggershim.LS.Errorf("Failed to persist subnet configuration for subnet: %s in network: %s. Error: %v", subnetName, networkID, err)
+				return dontRemoveFromPendingQ, api.InternalServerErrorf(api.StatusInternalServerError,
+					"could not persist subnet: %s. error: %+v", datamodel.GetSubnetKey(networkID, subnetName), err)
+			}
+
 			return removeFromPendingQ, nil
 		}
 	}
