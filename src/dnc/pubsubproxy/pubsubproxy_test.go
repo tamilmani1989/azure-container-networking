@@ -616,8 +616,8 @@ func testPublishNetworkContainer(t *testing.T, ncID string, expectedSuccess bool
 		for _, pubsubvip := range settings.pubsubVips {
 			ncPendingPublishContextKey := datamodel.GetNcPendingPublishContextKey(
 				ncPublishRequest.VirtualNetworkID, ncPublishRequest.NcID, pubsubvip.AzId)
-			pendingPublishContext, _ := ncPendingPublishRequestContextRepo.QueryNcPendingPublishContext(ncPendingPublishContextKey)
-			if pendingPublishContext != nil {
+			pendingPublishEntity, _ := ncPendingPublishRequestContextRepo.QueryNcPendingPublishContext(ncPendingPublishContextKey)
+			if pendingPublishEntity.RowKey != "" {
 				t.Fatalf("testPublishNetworkContainer failed. Unexpected data in NcPendingPublishRequestContext table")
 			}
 		}
@@ -626,8 +626,8 @@ func testPublishNetworkContainer(t *testing.T, ncID string, expectedSuccess bool
 		for _, pubsubvip := range settings.pubsubVips {
 			ncPendingPublishContextKey := datamodel.GetNcPendingPublishContextKey(ncPublishRequest.VirtualNetworkID,
 				ncPublishRequest.NcID, pubsubvip.AzId)
-			pendingPublishContext, _ := ncPendingPublishRequestContextRepo.QueryNcPendingPublishContext(ncPendingPublishContextKey)
-			if pendingPublishContext == nil {
+			pendingPublishEntity, _ := ncPendingPublishRequestContextRepo.QueryNcPendingPublishContext(ncPendingPublishContextKey)
+			if pendingPublishEntity.RowKey == "" {
 				t.Fatalf("testPublishNetworkContainer failed. Expected data in NcPendingPublishRequestContext table for %s", pubsubvip.AzId)
 			}
 		}
@@ -645,8 +645,8 @@ func testUnpublishNetworkContainer(t *testing.T, ncID string, expectedSuccess bo
 		for _, pubsubvip := range settings.pubsubVips {
 			ncPendingPublishContextKey := datamodel.GetNcPendingPublishContextKey(
 				ncUnpublishRequest.VnetID, ncUnpublishRequest.NcID, pubsubvip.AzId)
-			pendingPublishContext, _ := ncPendingPublishRequestContextRepo.QueryNcPendingPublishContext(ncPendingPublishContextKey)
-			if pendingPublishContext != nil {
+			pendingPublishEntity, _ := ncPendingPublishRequestContextRepo.QueryNcPendingPublishContext(ncPendingPublishContextKey)
+			if pendingPublishEntity.RowKey != "" {
 				t.Fatalf("testUnpublishNetworkContainer failed. Unexpected data in NcPendingPublishRequestContext table")
 			}
 		}
@@ -655,8 +655,8 @@ func testUnpublishNetworkContainer(t *testing.T, ncID string, expectedSuccess bo
 		for _, pubsubvip := range settings.pubsubVips {
 			ncPendingPublishContextKey := datamodel.GetNcPendingPublishContextKey(
 				ncUnpublishRequest.VnetID, ncUnpublishRequest.NcID, pubsubvip.AzId)
-			pendingPublishContext, _ := ncPendingPublishRequestContextRepo.QueryNcPendingPublishContext(ncPendingPublishContextKey)
-			if pendingPublishContext == nil {
+			pendingPublishEntity, _ := ncPendingPublishRequestContextRepo.QueryNcPendingPublishContext(ncPendingPublishContextKey)
+			if pendingPublishEntity.RowKey == "" {
 				t.Fatalf("testPublishNetworkContainer failed. Expected data in NcPendingPublishRequestContext table for %s", pubsubvip.AzId)
 			}
 		}

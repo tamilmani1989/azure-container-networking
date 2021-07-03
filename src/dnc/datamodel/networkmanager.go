@@ -95,7 +95,7 @@ func Init(
 	AllocRepo = &AllocationRepo{Datastore: ds}
 	IpReservationRepo = NewReservationRepo(ds, dncPartitionKey, loggershim.LS)
 	PendingCleanupRepo = NewPendingResourceCleanupRepo(ds, loggershim.LS)
-	NcPendingPublishRepo = NewNcPendingPublishRequestRepo(ds)
+	NcPendingPublishRepo = NewNcPendingPublishRequestRepo(ds, dataStoreSettings.AzureStorageInfo.PartitionKey)
 	NodeConfigRepo = &NodeConfigurationRepo{Datastore: ds}
 	IpReservationSetRepo = NewReservationSetRepo(ds, dncPartitionKey, loggershim.LS)
 	NcRepo = NewNetworkContainerRepo(ds, dncPartitionKey, loggershim.LS)

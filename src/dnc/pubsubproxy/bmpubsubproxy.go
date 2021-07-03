@@ -185,14 +185,18 @@ func PublishBaremetalNetworkContainer(
 			PodName:            podInfo.PodName,
 			NetworkInterfaces:  networkInterfaces,
 		}
-
 		ncPendingPublishContextKey := datamodel.GetNcPendingPublishContextKey(
 			ncGoalState.NetworkID,
 			ncGoalState.NetworkContainerID,
 			pubsubAzId)
+		ncPendingPublishRequestEntity := datamodel.NcPendingPublishRequestEntity{
+			RowKey:        ncPendingPublishContextKey,
+			Configuration: ncPendingPublishRequestContext,
+			NCKey:         datamodel.GetNCKey(ncGoalState.NetworkID, ncGoalState.NetworkContainerID),
+		}
 		sessionInfo := map[string]string{datamodel.NCPendingPublishRepositoryName: ncPendingPublishContextKey}
 		sessionManager.BeginWriteSession(sessionInfo)
-		err := datamodel.NcPendingPublishRepo.CreateOrUpdateNcPendingPublishRequest(&ncPendingPublishRequestContext)
+		err := datamodel.NcPendingPublishRepo.CreateOrUpdateNcPendingPublishRequestEntity(ncPendingPublishRequestEntity)
 		sessionManager.EndWriteSession(sessionInfo)
 
 		if err != nil {
@@ -269,15 +273,19 @@ func UnpublishBaremetalNetworkContainer(
 			PodName:            podInfo.PodName,
 			NetworkInterfaces:  networkInterfaces,
 		}
-
 		// TO DO : Switch to different key and struct but for now use this.
 		ncPendingPublishContextKey := datamodel.GetNcPendingPublishContextKey(
 			ncGoalState.NetworkID,
 			ncGoalState.NetworkContainerID,
 			pubsubAzId)
+		pendingNcUnpublishRequestEntity := datamodel.NcPendingPublishRequestEntity{
+			RowKey:        ncPendingPublishContextKey,
+			Configuration: pendingNcUnpublishRequestContext,
+			NCKey:         datamodel.GetNCKey(ncGoalState.NetworkID, ncGoalState.NetworkContainerID),
+		}
 		sessionInfo := map[string]string{datamodel.NCPendingPublishRepositoryName: ncPendingPublishContextKey}
 		sessionManager.BeginWriteSession(sessionInfo)
-		err := datamodel.NcPendingPublishRepo.CreateOrUpdateNcPendingPublishRequest(&pendingNcUnpublishRequestContext)
+		err := datamodel.NcPendingPublishRepo.CreateOrUpdateNcPendingPublishRequestEntity(pendingNcUnpublishRequestEntity)
 		sessionManager.EndWriteSession(sessionInfo)
 
 		if err != nil {

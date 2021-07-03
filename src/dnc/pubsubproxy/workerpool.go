@@ -71,12 +71,13 @@ import (
 	"dnc/retry"
 	"dnc/utils"
 	"fmt"
-	"google.golang.org/protobuf/proto"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 	"unsafe"
+
+	"google.golang.org/protobuf/proto"
 )
 
 var (
@@ -239,21 +240,21 @@ func (wp *workerPoolContext) processNcPendingPublishRequests() {
 }
 
 func processNcPendingRequests() {
-	pendingPublishRequests, err := ncPendingPublishRequestContextRepo.GetNcPendingPublishRequestContexts()
+	pendingPublishEntities, err := ncPendingPublishRequestContextRepo.GetNcPendingPublishRequestContexts()
 	if err != nil {
 		logErrorf("could not get pending pubsub requests. error: %+v", err)
 		return
 	}
 
-	if len(pendingPublishRequests) == 0 {
+	if len(pendingPublishEntities) == 0 {
 		return
 	}
 
-	for _, requestContext := range pendingPublishRequests {
+	for _, requestEntity := range pendingPublishEntities {
 		if !replicaInstance.IsReplicaPrimary() {
 			return
 		}
-
+		requestContext := requestEntity.Configuration
 		if time.Now().UTC().Sub(requestContext.LastRetriedDateTime) > requestContext.RetryInterval {
 			// Check the request type
 			if !isValidPubSubJob(requestContext.Type) {
@@ -467,32 +468,41 @@ func (job *ncJob) process() error {
 	sessionManager.BeginWriteSession(sessionInfo)
 	defer sessionManager.EndWriteSession(sessionInfo)
 
-	pendingPublishContext, errDbOp := ncPendingPublishRequestContextRepo.QueryNcPendingPublishContext(ncPendingPublishContextKey)
-	if errDbOp != nil || pendingPublishContext == nil {
+	pendingPublishContextEntity, errDbOp := ncPendingPublishRequestContextRepo.QueryNcPendingPublishContext(ncPendingPublishContextKey)
+	if errDbOp != nil {
 		err = fmt.Errorf("%s: %s failed while querying NC pending publish context. "+
-			"Context: %+v. Error: %v", jobContext.jobType.String(), jobContext.id, pendingPublishContext, errDbOp)
+			"Context: %+v. Error: %v", jobContext.jobType.String(), jobContext.id, pendingPublishContextEntity, errDbOp)
 		// Return here since it won't be possible to update the table entry
 		return err
+	}
+	if pendingPublishContextEntity.RowKey == "" {
+		return fmt.Errorf("no row found for key %s", ncPendingPublishContextKey)
+	}
+
+	entity := datamodel.NcPendingPublishRequestEntity{
+		RowKey:        ncPendingPublishContextKey,
+		Configuration: pendingPublishContextEntity.Configuration,
+		NCKey:         ncPendingPublishContextKey,
 	}
 
 	if err != nil {
 		logErrorf("Job %s: %s failed due to error: %v", jobContext.jobType.String(), jobContext.id, err)
-		pendingPublishContext.LastRetriedDateTime = time.Now().UTC()
-		updateRetryInterval(&pendingPublishContext.RetryInterval, maxRetryBackoffInterval)
+		pendingPublishContextEntity.Configuration.LastRetriedDateTime = time.Now().UTC()
+		updateRetryInterval(&pendingPublishContextEntity.Configuration.RetryInterval, maxRetryBackoffInterval)
 
-		if errDbOp = ncPendingPublishRequestContextRepo.CreateOrUpdateNcPendingPublishRequest(pendingPublishContext); errDbOp != nil {
+		if errDbOp = ncPendingPublishRequestContextRepo.CreateOrUpdateNcPendingPublishRequestEntity(entity); errDbOp != nil {
 			logErrorf("Failed to persist pending %s request for NC: %s. Error: %v",
-				jobContext.jobType.String(), pendingPublishContext.NetworkContainerID, errDbOp)
+				jobContext.jobType.String(), entity.Configuration.NetworkContainerID, errDbOp)
 		}
 	} else {
 		logDebugf("Job %s: %s succeeded", jobContext.jobType.String(), jobContext.id)
 		// Delete the pending context table entry only if the timestamp matches.
 		// This avoids deletion of the updated entry
-		if jobContext.createdDateTime.Equal(pendingPublishContext.CreatedDateTime) {
+		if jobContext.createdDateTime.Equal(entity.Configuration.CreatedDateTime) {
 			errDbOp := ncPendingPublishRequestContextRepo.RemoveNcPendingPublishContext(job.vnetId, job.ncId, jobContext.pubsubAzId)
 			if errDbOp != nil {
-				err = fmt.Errorf("Failed to delete pending publish request %s for NC: %s. Error: %v",
-					jobContext.jobType.String(), pendingPublishContext.NetworkContainerID, errDbOp)
+				err = fmt.Errorf("failed to delete pending publish request %s for NC: %s. Error: %v",
+					jobContext.jobType.String(), entity.Configuration.NetworkContainerID, errDbOp)
 			}
 		}
 	}
@@ -781,7 +791,7 @@ func (job *subnetJob) processSubnetUnregister() error {
 		vnetPath   = getActiveSubscriber().getSubnetPartitionKey(job.vnetId, job.subnetId)
 		subnetPath = getActiveSubscriber().getSubnetRelativePath(job.vnetId, job.subnetId)
 		jobContext = job.getContext()
-		startTime = time.Now()
+		startTime  = time.Now()
 	)
 
 	getActiveSubscriber().deleteCachedSubnetConfig(job.vnetId, job.subnetId)

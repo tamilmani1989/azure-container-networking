@@ -3,10 +3,10 @@ package fakes
 import (
 	"dnc/api"
 	"dnc/datamodel"
-	"net/http"
 	"fmt"
-	"time"
+	"net/http"
 	"sync"
+	"time"
 )
 
 type NCRepo struct {
@@ -346,17 +346,17 @@ func (f *NetworkRepo) PersistNetworkConfiguration(networkConfig *datamodel.Netwo
 
 type NcPendingPublishRequestContextRepo struct {
 	// Data is a sync map to allow concurrent read, writes
-	Data sync.Map // This holds map[string]datamodel.NcPendingPublishRequestContext
+	Data sync.Map // This holds map[string]datamodel.NcPendingPublishRequestEntity
 }
 
 func NewNcPendingPublishRequestContextRepo() *NcPendingPublishRequestContextRepo {
 	return &NcPendingPublishRequestContextRepo{}
 }
 
-func (f *NcPendingPublishRequestContextRepo) GetNcPendingPublishRequestContexts() (map[string]datamodel.NcPendingPublishRequestContext, *api.JsonErr) {
-	m := make(map[string]datamodel.NcPendingPublishRequestContext)
+func (f *NcPendingPublishRequestContextRepo) GetNcPendingPublishRequestContexts() (map[string]datamodel.NcPendingPublishRequestEntity, *api.JsonErr) {
+	m := make(map[string]datamodel.NcPendingPublishRequestEntity)
 	f.Data.Range(func(key interface{}, value interface{}) bool {
-		m[key.(string)] = value.(datamodel.NcPendingPublishRequestContext)
+		m[key.(string)] = value.(datamodel.NcPendingPublishRequestEntity)
 		return true
 	})
 
@@ -369,24 +369,23 @@ func (f *NcPendingPublishRequestContextRepo) RemoveNcPendingPublishContext(netwo
 	return nil
 }
 
-func (f *NcPendingPublishRequestContextRepo) CreateOrUpdateNcPendingPublishRequest(requestContext *datamodel.NcPendingPublishRequestContext) *api.JsonErr {
-	key := datamodel.GetNcPendingPublishContextKey(requestContext.NetworkID, requestContext.NetworkContainerID, requestContext.PubsubAzId)
-	f.Data.Store(key, *requestContext)
+func (f *NcPendingPublishRequestContextRepo) CreateOrUpdateNcPendingPublishRequestEntity(entity datamodel.NcPendingPublishRequestEntity) *api.JsonErr {
+	key := datamodel.GetNcPendingPublishContextKey(entity.Configuration.NetworkID, entity.Configuration.NetworkContainerID, entity.Configuration.PubsubAzId)
+	f.Data.Store(key, entity)
 	return nil
 }
 
-func (f *NcPendingPublishRequestContextRepo) QueryNcPendingPublishContext(key string) (*datamodel.NcPendingPublishRequestContext, *api.JsonErr) {
-	requestContextValue, found := f.Data.Load(key)
+func (f *NcPendingPublishRequestContextRepo) QueryNcPendingPublishContext(key string) (datamodel.NcPendingPublishRequestEntity, *api.JsonErr) {
+	entityValue, found := f.Data.Load(key)
 	if !found {
-		return nil, &api.JsonErr{
+		return datamodel.NcPendingPublishRequestEntity{}, &api.JsonErr{
 			Code:       api.StatusInternalServerError,
 			Text:       "data not found",
 			HTTPStatus: http.StatusInternalServerError}
 	}
-	requestContext := requestContextValue.(datamodel.NcPendingPublishRequestContext)
-	return &requestContext, nil
+	entity := entityValue.(datamodel.NcPendingPublishRequestEntity)
+	return entity, nil
 }
-
 
 func (f *AllocationRepo) DeleteIPAllocations(networkID, subnetName string, keys []string) *api.JsonErr {
 	if len(keys) > f.MaxBatchSize {

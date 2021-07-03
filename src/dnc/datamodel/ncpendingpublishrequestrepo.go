@@ -7,13 +7,27 @@ import (
 	"net/http"
 )
 
+const (
+	NcPendingPublishContextProperty = "NcPendingPublishContext"
+	NcKeyProperty                   = "NcKey"
+)
+
 type NcPendingPublishRequestRepo struct {
-	dataStore datastoreshim.DataStoreShim
+	dataStore    datastoreshim.DataStoreShim
+	partitionKey string
 }
 
-func NewNcPendingPublishRequestRepo(dataStore datastoreshim.DataStoreShim) *NcPendingPublishRequestRepo {
+// NcPendingPublishRequestEntity Table Schema
+type NcPendingPublishRequestEntity struct {
+	RowKey        string
+	Configuration NcPendingPublishRequestContext
+	NCKey         string
+}
+
+func NewNcPendingPublishRequestRepo(dataStore datastoreshim.DataStoreShim, partitionKey string) *NcPendingPublishRequestRepo {
 	return &NcPendingPublishRequestRepo{
-		dataStore: dataStore,
+		dataStore:    dataStore,
+		partitionKey: partitionKey,
 	}
 }
 
@@ -42,10 +56,10 @@ func (p *NcPendingPublishRequestRepo) TryGetNcPendingPublish(requestKey string) 
 		return nil, nil
 	}
 
-	serializedContextData, ok := entity.Properties[NcPendingPublishContextTag].(string)
+	serializedContextData, ok := entity.Properties[NcPendingPublishContextProperty].(string)
 	if !ok {
 		return nil, api.InternalServerErrorf(api.StatusInternalServerError,
-			"Failed to retrieve entity context data from %s", entity.Properties[NcPendingPublishContextTag])
+			"Failed to retrieve entity context data from %s", entity.Properties[NcPendingPublishContextProperty])
 	}
 
 	var pendingPublishContext NcPendingPublishRequestContext
@@ -58,10 +72,10 @@ func (p *NcPendingPublishRequestRepo) TryGetNcPendingPublish(requestKey string) 
 }
 
 // GetNcPendingPublishRequestContexts - Retrieve all NC publish / unpublish pending request contexts
-func (p *NcPendingPublishRequestRepo) GetNcPendingPublishRequestContexts() (map[string]NcPendingPublishRequestContext, *api.JsonErr) {
+func (p *NcPendingPublishRequestRepo) GetNcPendingPublishRequestContexts() (map[string]NcPendingPublishRequestEntity, *api.JsonErr) {
 	var (
 		context           interface{}
-		requestsToProcess = make(map[string]NcPendingPublishRequestContext)
+		requestsToProcess = make(map[string]NcPendingPublishRequestEntity)
 	)
 
 	for {
@@ -75,13 +89,20 @@ func (p *NcPendingPublishRequestRepo) GetNcPendingPublishRequestContexts() (map[
 		}
 
 		for _, entity := range entities {
-			serializedRequestContext := entity.Properties[NcPendingPublishContextTag].(string)
-			var requestContext NcPendingPublishRequestContext
-			if err := json.Unmarshal([]byte(serializedRequestContext), &requestContext); err != nil {
-				return nil, api.InternalServerErrorf(api.JsonBodyUnMarshalFailed,
-					"Failed to unmarshal pending pubsub request: %s. error: %v", serializedRequestContext, err)
+			ncKeyProp := ExtractStringProperty(entity, NcKeyProperty)
+			publishContextJSON := ExtractStringProperty(entity, NcPendingPublishContextProperty)
+
+			var publishConf NcPendingPublishRequestContext
+			if err := json.Unmarshal([]byte(publishContextJSON), &publishConf); err != nil {
+				return nil, api.InternalServerError(api.JsonBodyUnMarshalFailed, err.Error())
 			}
-			requestsToProcess[entity.RowKey] = requestContext
+
+			e := NcPendingPublishRequestEntity{
+				RowKey:        entity.RowKey,
+				Configuration: publishConf,
+				NCKey:         ncKeyProp,
+			}
+			requestsToProcess[e.RowKey] = e
 		}
 
 		if !hasMoreData {
@@ -94,55 +115,55 @@ func (p *NcPendingPublishRequestRepo) GetNcPendingPublishRequestContexts() (map[
 	return requestsToProcess, nil
 }
 
-// CreateOrUpdateNcPendingPublishRequest - Creates or updates NC publish / unpublish context from the table.
-func (p *NcPendingPublishRequestRepo) CreateOrUpdateNcPendingPublishRequest(
-	requestContext *NcPendingPublishRequestContext) *api.JsonErr {
-	return p.persistNcPendingPublishContext(requestContext)
-}
-
-func (p *NcPendingPublishRequestRepo) persistNcPendingPublishContext(
-	context *NcPendingPublishRequestContext) *api.JsonErr {
-	var (
-		jsonSerializedBytes []byte
-		err                 error
-	)
-
-	jsonSerializedBytes, err = json.Marshal(context)
+// CreateOrUpdateNcPendingPublishRequestEntity - Creates or updates NC publish / unpublish entity from the table.
+func (p *NcPendingPublishRequestRepo) CreateOrUpdateNcPendingPublishRequestEntity(
+	entity NcPendingPublishRequestEntity) *api.JsonErr {
+	jsonSerializedBytes, err := json.Marshal(entity.Configuration)
 	if err != nil {
 		return api.InternalServerErrorf(api.JsonMarshallingFailed,
-			"could not serialize pending pubsub request. NC: %s. error: %v", context.NetworkContainerID, err)
+			"could not serialize pending pubsub request. NC: %s. error: %v", entity.Configuration.NetworkContainerID, err)
 	}
+	properties := map[string]interface{}{
+		NcKeyProperty:                   entity.NCKey,
+		NcPendingPublishContextProperty: string(jsonSerializedBytes),
+	}
+	err = p.dataStore.InsertOrUpdateProperties(NcPendingPublishContextTableName, p.partitionKey, entity.RowKey, properties)
 
-	key := GetNcPendingPublishContextKey(context.NetworkID, context.NetworkContainerID, context.PubsubAzId)
-	err = p.dataStore.InsertOrUpdate(NcPendingPublishContextTableName, key,
-		TableToColumnMap[NcPendingPublishContextTableName], string(jsonSerializedBytes[:]))
 	if err != nil {
 		return api.InternalServerErrorf(api.StatusInternalServerError,
-			"could not persist pending pubsub request. key: %s error: %v", key, err)
+			"could not persist pending pubsub request. key: %s error: %v", entity.RowKey, err)
 	}
 
 	return nil
 }
 
-func (p *NcPendingPublishRequestRepo) QueryNcPendingPublishContext(key string) (*NcPendingPublishRequestContext, *api.JsonErr) {
+func (p *NcPendingPublishRequestRepo) QueryNcPendingPublishContext(key string) (NcPendingPublishRequestEntity, *api.JsonErr) {
 	entity, status, err := p.dataStore.Query(NcPendingPublishContextTableName, key)
 	if err != nil && status != http.StatusNotFound {
-		return nil, api.InternalServerErrorf(api.StatusInternalServerError,
+		return NcPendingPublishRequestEntity{}, api.InternalServerErrorf(api.StatusInternalServerError,
 			"could not retrieve pending pubsub request. key: %s error: %v", key, err)
 	}
 
 	if entity == nil {
-		return nil, nil
+		return NcPendingPublishRequestEntity{}, nil
 	}
 
-	serializedContextData := entity.Properties[NcPendingPublishContextTag].(string)
+	serializedContextData := entity.Properties[NcPendingPublishContextProperty].(string)
 	var pendingPublishContext NcPendingPublishRequestContext
 	if err := json.Unmarshal([]byte(serializedContextData), &pendingPublishContext); err != nil {
-		return nil, api.InternalServerErrorf(api.JsonBodyUnMarshalFailed,
+		return NcPendingPublishRequestEntity{}, api.InternalServerErrorf(api.JsonBodyUnMarshalFailed,
 			"could not unmarshal pending pubsub request. key: %s error: %v", key, err)
 	}
 
-	return &pendingPublishContext, nil
+	ncKey := ExtractStringProperty(entity, NcKeyProperty)
+
+	ncPendingPublishRequestEntity := NcPendingPublishRequestEntity{
+		RowKey:        entity.RowKey,
+		Configuration: pendingPublishContext,
+		NCKey:         ncKey,
+	}
+
+	return ncPendingPublishRequestEntity, nil
 }
 
 func (p *NcPendingPublishRequestRepo) AnyPendingPublishRequestExists() (bool, *api.JsonErr) {

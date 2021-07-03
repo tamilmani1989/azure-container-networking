@@ -33,7 +33,6 @@ const (
 	tagDefinitionsTag                  = "TagDefinitions"
 	sharedSubnetDelegationMigrationTag = "SharedSubnetDelegationMigrationComplete"
 	masterElectionTag                  = "MasterElection"
-	NcPendingPublishContextTag         = "NcPendingPublishContext"
 	featureMigrationTag                = "FeatureMigrationComplete"
 	PendingResourceCleanupTag          = "PendingResourceCleanup"
 )
@@ -73,7 +72,7 @@ var TableToColumnMap = map[string]string{
 	sharedSubnetDelegationMigrationTableName:         sharedSubnetDelegationMigrationTag,
 	sharedSubnetDelegationMigrationRegionalTableName: sharedSubnetDelegationMigrationTag,
 	MasterElectionTableName:                          masterElectionTag,
-	NcPendingPublishContextTableName:                 NcPendingPublishContextTag,
+	NcPendingPublishContextTableName:                 NcPendingPublishContextProperty,
 	featureMigrationTableName:                        featureMigrationTag,
 	PendingResourceCleanupTableName:                  PendingResourceCleanupTag,
 	reservationSetTableName:                          reservationSetIDProperty}

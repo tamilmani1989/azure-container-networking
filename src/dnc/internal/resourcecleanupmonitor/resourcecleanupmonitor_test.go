@@ -157,7 +157,7 @@ func TestResourceCleanupMonitor_ProcessResourceCleanup(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			testDataStore := getTestDataStore()
 			hydrateTestNCPendingPublishRepo(testDataStore, tt.fields.ncid, tt.fields.networkid, tt.fields.ncPendingPublishRequestContexts, tt.fields.cleanupContexts)
-			datamodel.NcPendingPublishRepo = datamodel.NewNcPendingPublishRequestRepo(testDataStore)
+			datamodel.NcPendingPublishRepo = datamodel.NewNcPendingPublishRequestRepo(testDataStore, testPartitionKey)
 			c := &ResourceCleanupMonitor{
 				PendingCleanupRepo: datamodel.NewPendingResourceCleanupRepo(testDataStore, loggermock.NewDummyLogger()),
 				Logger:             logger,
@@ -184,7 +184,7 @@ func hydrateTestNCPendingPublishRepo(testDataStore *testpersistencestore.TestPer
 		entity := storage.Entity{
 			RowKey: datamodel.GetNcPendingPublishContextKey(pendingPublish.NetworkID, pendingPublish.NetworkContainerID, pendingPublish.PubsubAzId),
 			Properties: map[string]interface{}{
-				datamodel.NcPendingPublishContextTag: string(b[:]),
+				datamodel.NcPendingPublishContextProperty: string(b[:]),
 			},
 		}
 		pubsubEntities = append(pubsubEntities, entity)

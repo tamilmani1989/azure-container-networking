@@ -38,7 +38,7 @@ type SubnetRepo interface {
 	TryQuerySubnetConfiguration(networkID, subnetName string) (*datamodel.SubnetConfiguration, *api.JsonErr)
 	UpdateSubnetReservationSet(reservationID, allocatedSubnet string, remove bool, subnetConfig *datamodel.SubnetConfiguration) *api.JsonErr
 	PutSubnetConfiguration(subnetConfig *datamodel.SubnetConfiguration) *api.JsonErr
-    TryQueryAllSubnetConfigurations() ([]datamodel.SubnetConfiguration, *api.JsonErr)
+	TryQueryAllSubnetConfigurations() ([]datamodel.SubnetConfiguration, *api.JsonErr)
 }
 
 // An IPReservationRepo performs CRUD operations on IP reservations
@@ -81,8 +81,8 @@ type NetworkRepo interface {
 
 // A NcPendingPublishRequestContextRepo performs CRUD operations on NC pending publish request contexts
 type NcPendingPublishRequestContextRepo interface {
-	GetNcPendingPublishRequestContexts() (map[string]datamodel.NcPendingPublishRequestContext, *api.JsonErr)
+	GetNcPendingPublishRequestContexts() (map[string]datamodel.NcPendingPublishRequestEntity, *api.JsonErr)
 	RemoveNcPendingPublishContext(networkID, networkContainerID, pubsubAzID string) *api.JsonErr
-	CreateOrUpdateNcPendingPublishRequest(requestContext *datamodel.NcPendingPublishRequestContext) *api.JsonErr
-	QueryNcPendingPublishContext(key string) (*datamodel.NcPendingPublishRequestContext, *api.JsonErr)
+	CreateOrUpdateNcPendingPublishRequestEntity(entity datamodel.NcPendingPublishRequestEntity) *api.JsonErr
+	QueryNcPendingPublishContext(key string) (datamodel.NcPendingPublishRequestEntity, *api.JsonErr)
 }

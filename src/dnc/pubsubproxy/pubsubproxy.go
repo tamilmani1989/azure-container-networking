@@ -325,9 +325,14 @@ func PublishNetworkContainer(
 
 		ncPendingPublishContextKey := datamodel.GetNcPendingPublishContextKey(ncPublishRequest.VirtualNetworkID,
 			ncPublishRequest.NcID, pubsubAzId)
+		ncPendingPublishRequestEntity := datamodel.NcPendingPublishRequestEntity{
+			RowKey:        ncPendingPublishContextKey,
+			Configuration: ncPendingPublishRequestContext,
+			NCKey:         datamodel.GetNCKey(ncPublishRequest.VirtualNetworkID, ncPublishRequest.NcID),
+		}
 		sessionInfo := map[string]string{datamodel.NCPendingPublishRepositoryName: ncPendingPublishContextKey}
 		sessionManager.BeginWriteSession(sessionInfo)
-		err := ncPendingPublishRequestContextRepo.CreateOrUpdateNcPendingPublishRequest(&ncPendingPublishRequestContext)
+		err := ncPendingPublishRequestContextRepo.CreateOrUpdateNcPendingPublishRequestEntity(ncPendingPublishRequestEntity)
 		sessionManager.EndWriteSession(sessionInfo)
 
 		if err != nil {
@@ -384,9 +389,14 @@ func UnpublishNetworkContainer(
 		//can't use this in cleanup because we acccess data model here
 		ncPendingPublishContextKey := datamodel.GetNcPendingPublishContextKey(ncUnpublishRequest.VnetID,
 			ncUnpublishRequest.NcID, pubsubAzId)
+		pendingNcUnpublishRequestEntity := datamodel.NcPendingPublishRequestEntity{
+			RowKey:        ncPendingPublishContextKey,
+			Configuration: pendingNcUnpublishRequestContext,
+			NCKey:         datamodel.GetNCKey(ncUnpublishRequest.VnetID, ncUnpublishRequest.NcID),
+		}
 		sessionInfo := map[string]string{datamodel.NCPendingPublishRepositoryName: ncPendingPublishContextKey}
 		sessionManager.BeginWriteSession(sessionInfo)
-		err := ncPendingPublishRequestContextRepo.CreateOrUpdateNcPendingPublishRequest(&pendingNcUnpublishRequestContext)
+		err := ncPendingPublishRequestContextRepo.CreateOrUpdateNcPendingPublishRequestEntity(pendingNcUnpublishRequestEntity)
 		sessionManager.EndWriteSession(sessionInfo)
 
 		if err != nil {

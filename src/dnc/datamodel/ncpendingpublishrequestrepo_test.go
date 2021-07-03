@@ -95,7 +95,7 @@ func hydrateTestNCPendingPublishRepo(testDataStore *testpersistencestore.TestPer
 		entity := storage.Entity{
 			RowKey: GetNcPendingPublishContextKey(pendingPublish.NetworkID, pendingPublish.NetworkContainerID, pendingPublish.PubsubAzId),
 			Properties: map[string]interface{}{
-				NcPendingPublishContextTag: string(b[:]),
+				NcPendingPublishContextProperty: string(b[:]),
 			},
 		}
 		entities = append(entities, entity)
