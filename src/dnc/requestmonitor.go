@@ -2358,7 +2358,6 @@ func processPendingRequests(
 		go func(rid string, rc datamodel.RequestContext, requestsMap *sync.Map, goroutines chan struct{}) {
 			logger.Debugf("Processing request: %+v", rc)
 			processRequest(rid, &rc)
-			processRequest(rid, &rc)
 			// Remove the request from the in-process map
 			requestsMap.Delete(rid)
 			goroutines <- struct{}{}
