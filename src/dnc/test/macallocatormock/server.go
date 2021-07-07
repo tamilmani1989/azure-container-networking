@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	defaultAddr        = "localhost:5012"
+	defaultAddr        = "0.0.0.0:5012"
 	contentTypeHeader  = "Content-Type"
 	jsonContentType    = "application/json"
 	startingMAC        = "001111AAAA"

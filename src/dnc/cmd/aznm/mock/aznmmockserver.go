@@ -33,6 +33,9 @@ func (s *serverApi) UpdateContainer(ctx context.Context, req *containersprotocol
 		return nil, fmt.Errorf("PhysicalId is empty")
 	}
 
+	log.Debugf("updateContainer succeeded for LogicalContainerId %+v in node %+v\n",
+		bmReq.BareMetalContainer.LogicalContainerId, bmReq.BareMetalContainer.BladeId)
+
 	return &containersprotocol.UpdateContainerResponse{}, nil
 }
 
@@ -45,6 +48,8 @@ func (s *serverApi) DeleteContainer(ctx context.Context, req *containersprotocol
 	if req.ContainerIdentifier.ContainerId == nil {
 		return nil, fmt.Errorf("PhysicalId is empty")
 	}
+
+	log.Debugf("deleteContainer succeeded for LogicalContainerId %+v \n", req.ContainerIdentifier.LogicalContainerId)
 
 	return &containersprotocol.DeleteContainerResponse{}, nil
 }
@@ -77,7 +82,7 @@ func (s *MockServer) StartGrpcServer(port int) {
 
 func (s *MockServer) StopGrpcServer() {
 	if s.srv == nil {
-		fmt.Printf("s.srv is nil \n")
+		log.Debugf("s.srv is nil \n")
 	}
 	s.srv.Stop()
 }

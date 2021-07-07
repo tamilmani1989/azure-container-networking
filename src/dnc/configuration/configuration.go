@@ -283,15 +283,23 @@ type PubSubProxySettings struct {
 type AznmSettings struct {
 	// port where aznm service is listening at
 	Port int
-	// settings to be used for tests only
-	TestsSettings AznmTestsSettings
+	// whether to create ssl connection or not. Used for local testing and will be
+	// set in test config
+	InsecureConnection bool
+	// endpoint of aznm service. This is mostly used for local testing for now
+	// For production, url is constructed using the AzID
+	AznmEndpoint string
+	// Skip waiting for aznm to delete NIC
+	SkipAznmWaitForDelete bool
+	// Test settings
+	TestSettings AznmTestSettings
 }
 
-type AznmTestsSettings struct {
-	AzId               string
-	CertPath           string
-	InsecureConnection bool
-	UseMockAznmServer  bool
+type AznmTestSettings struct {
+	// AZNM to use authenticating with AZNM
+	CertPath string
+	// Whether to start a mock aznm
+	StartMockAznm bool
 }
 
 // Configuration - Details related to dnc configuration settings

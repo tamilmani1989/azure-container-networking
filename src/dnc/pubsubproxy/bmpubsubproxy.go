@@ -348,7 +348,8 @@ func InvokeAznmContainerApi(
 	var err error
 	var aznmReq aznm.AznmRequest
 
-	if aznmReq, err = aznm.CreateAznmRequestWithAzName(azIdOrName, aznmSettings.Port, azureEnvironmentName); err != nil {
+	if aznmReq, err = aznm.CreateAznmRequestWithAzName(
+		azIdOrName, aznmSettings.Port, azureEnvironmentName, aznmSettings.InsecureConnection, aznmSettings.AznmEndpoint); err != nil {
 		return err
 	}
 

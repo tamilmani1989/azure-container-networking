@@ -7,7 +7,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const defaultAddr = "localhost:5012"
+const defaultAddr = "0.0.0.0:5012"
 
 func main() {
 	addrFlag := flag.String("address", defaultAddr, "host:port")

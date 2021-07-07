@@ -2,6 +2,7 @@ package aznm
 
 import (
 	"context"
+	aznmmock "dnc/cmd/aznm/mock"
 	"dnc/configuration"
 	"dnc/logger/loggermock"
 	"dnc/microsoft/azure/aznm/contracts"
@@ -10,7 +11,6 @@ import (
 	"github.com/google/uuid"
 	"os"
 	"testing"
-	aznmmock "dnc/cmd/aznm/mock"
 )
 
 var (
@@ -33,16 +33,16 @@ func TestMain(m *testing.M) {
 func TestUpdateAndDeleteContainer(t *testing.T) {
 
 	// cert file needed if you are connecting to a real aznm server
-	certFile := config.AznmSettings.TestsSettings.CertPath
+	certFile := "mockcert"
 	// azid where aznm server name is located
-	azId := config.AznmSettings.TestsSettings.AzId
+	azId := ""
 	client := NewAznmGrpcClient(certFile, loggermock.NewDummyLogger())
 
-	aznmReq, err := CreateAznmRequestWithAzName(azId, config.AznmSettings.Port, "AZUREPUBLICCLOUD")
+	aznmReq, err := CreateAznmRequestWithAzName(
+		azId, config.AznmSettings.Port, "AZUREPUBLICCLOUD", config.AznmSettings.InsecureConnection, config.AznmSettings.AznmEndpoint)
 	if err != nil {
 		t.Fatalf("Error creating aznm request: %s", err)
 	}
-	aznmReq.InsecureConnection = config.AznmSettings.TestsSettings.InsecureConnection
 
 	t.Logf("Calling aznm endpoint: %s, activityId: %s \n", aznmReq.Endpoint, aznmReq.ActivityId)
 
@@ -70,16 +70,14 @@ func TestUpdateAndDeleteContainer(t *testing.T) {
 func TestUpdateContainerError(t *testing.T) {
 
 	// cert file needed if you are connecting to a real aznm server
-	certFile := config.AznmSettings.TestsSettings.CertPath
-	// azid where aznm server name is located
-	azId := config.AznmSettings.TestsSettings.AzId
+	certFile := config.AznmSettings.TestSettings.CertPath
 	client := NewAznmGrpcClient(certFile, loggermock.NewDummyLogger())
 
-	aznmReq, err := CreateAznmRequestWithAzName(azId, config.AznmSettings.Port, "AZUREPUBLICCLOUD")
+	aznmReq, err := CreateAznmRequestWithAzName(
+		"", config.AznmSettings.Port, "AZUREPUBLICCLOUD", config.AznmSettings.InsecureConnection, config.AznmSettings.AznmEndpoint)
 	if err != nil {
 		t.Fatalf("Error creating aznm request: %s", err)
 	}
-	aznmReq.InsecureConnection = config.AznmSettings.TestsSettings.InsecureConnection
 
 	t.Logf("Calling aznm endpoint: %s, activityId: %s \n", aznmReq.Endpoint, aznmReq.ActivityId)
 
@@ -123,16 +121,14 @@ func TestUpdateContainerError(t *testing.T) {
 func TestDeleteContainerError(t *testing.T) {
 
 	// cert file needed if you are connecting to a real aznm server
-	certFile := config.AznmSettings.TestsSettings.CertPath
-	// azid where aznm server name is located
-	azId := config.AznmSettings.TestsSettings.AzId
+	certFile := config.AznmSettings.TestSettings.CertPath
 	client := NewAznmGrpcClient(certFile, loggermock.NewDummyLogger())
 
-	aznmReq, err := CreateAznmRequestWithAzName(azId, config.AznmSettings.Port, "AZUREPUBLICCLOUD")
+	aznmReq, err := CreateAznmRequestWithAzName(
+		"", config.AznmSettings.Port, "AZUREPUBLICCLOUD", config.AznmSettings.InsecureConnection, config.AznmSettings.AznmEndpoint)
 	if err != nil {
 		t.Fatalf("Error creating aznm request: %s", err)
 	}
-	aznmReq.InsecureConnection = config.AznmSettings.TestsSettings.InsecureConnection
 
 	t.Logf("Calling aznm endpoint: %s, activityId: %s \n", aznmReq.Endpoint, aznmReq.ActivityId)
 
@@ -228,7 +224,7 @@ func setup() {
 	fmt.Printf("configpath: %s\n", configpath)
 	config = configuration.Load(configpath)
 
-	if config.AznmSettings.TestsSettings.UseMockAznmServer {
+	if config.AznmSettings.TestSettings.StartMockAznm {
 		mockserver = aznmmock.NewMockServer()
 		go mockserver.StartGrpcServer(config.AznmSettings.Port)
 		fmt.Println("aznm mock server started")

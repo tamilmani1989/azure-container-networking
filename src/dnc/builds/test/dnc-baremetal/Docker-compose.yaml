@@ -1,0 +1,30 @@
+version: '3'
+services:
+  dnc:
+    build:
+      context: ../../../../../
+      dockerfile: ./src/dnc/builds/test/dnc-baremetal/Dockerfile
+      args:
+        GENERATE_BOND_FILE: "false"
+    image: dnc-local
+    container_name: dnc-local
+    ports:
+        - "9000:9000"
+
+  macallocatormock:
+    build:
+      context: ../../../../../
+      dockerfile: ./src/dnc/builds/macallocatormock/Dockerfile
+    image: macallocatormock
+    container_name: macallocatormock
+    ports:
+        - "5012:5012"
+
+  aznmmock:
+    build:
+      context: ../../../../
+      dockerfile: ./dnc/builds/aznmmock/Dockerfile
+    image: aznmmock
+    container_name: aznmmock
+    ports:
+        - "444:444"

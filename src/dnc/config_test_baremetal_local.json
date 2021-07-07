@@ -66,8 +66,8 @@
     }
   },
   "MacManagerSettings": {
-    "AllocateMacURL": "https://macallocator-service:5012/macallocator/allocate",
-    "DeallocateMacURL": "https://macallocator-service:5012/macallocator/deallocate"
+    "AllocateMacURL": "http://macallocatormock:5012/macallocator/allocate",
+    "DeallocateMacURL": "http://macallocatormock:5012/macallocator/deallocate"
   },
   "VlanSettings": {
     "Min": 1,
@@ -117,7 +117,10 @@
     "DisableAiLogging": false
   },
   "AznmSettings": {
-    "Port": 444
+    "Port": 444,
+    "InsecureConnection": true,
+    "AznmEndpoint": "aznmmock:444",
+    "SkipAznmWaitForDelete": true
   },
   "PubSubProxySettings": {
     "EnablePubSubProxy": true,

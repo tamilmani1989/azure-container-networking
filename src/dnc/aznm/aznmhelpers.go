@@ -15,36 +15,34 @@ const (
 
 // TODO: Activity ID needs to be in format XX-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX-XXXXXXXXXXXXXXXX-XX
 // TODO: Get code/api to generate this. This is an requirement from telemetry API aznm is using
-func CreateAznmRequestWithAzName(azIdOrName string, aznmPort int, azureEnvName string) (AznmRequest, error) {
+func CreateAznmRequestWithAzName(
+	azIdOrName string, aznmPort int, azureEnvName string, insecureConnection bool, aznmendpoint string) (AznmRequest, error) {
 
-	var url string
-	suffix := getEndpointSuffix(azureEnvName)
-	if suffix == "" {
-		return AznmRequest{}, fmt.Errorf("aznm url suffix not found for environment: %s", azureEnvName)
-	}
+	var endpoint string
 
-	if azIdOrName == "localhost" || azIdOrName == "" {
-		url = azIdOrName
+	// if config supplies aznm endpoint, use it otherwise construct it from AZID
+	if aznmendpoint != "" {
+		endpoint = aznmendpoint
 	} else {
-		url = strings.Join([]string{azIdOrName, suffix}, ".")
+		var url string
+		suffix := getEndpointSuffix(azureEnvName)
+		if suffix == "" {
+			return AznmRequest{}, fmt.Errorf("aznm url suffix not found for environment: %s", azureEnvName)
+		}
+
+		if azIdOrName == "localhost" || azIdOrName == "" {
+			url = azIdOrName
+		} else {
+			url = strings.Join([]string{azIdOrName, suffix}, ".")
+		}
+
+		endpoint = strings.Join([]string{url, fmt.Sprintf("%d", aznmPort)}, ":")
 	}
 
-	endpoint := strings.Join([]string{url, fmt.Sprintf("%d", aznmPort)}, ":")
-
 	return AznmRequest{
-		Endpoint:   endpoint,
-		ActivityId: "11-11111111111111111111111111111111-1111111111111111-11",
-	}, nil
-}
-
-// TODO: Activity ID needs to be in format XX-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX-XXXXXXXXXXXXXXXX-XX
-// TODO: Get code/api to generate this. This is an requirement from telemetry API aznm is using
-func CreateAznmRequestWithAzIPAddress(azIPAddress string, aznmPort int) (AznmRequest, error) {
-
-	endpoint := strings.Join([]string{azIPAddress, fmt.Sprintf("%d", aznmPort)}, ":")
-	return AznmRequest{
-		Endpoint:   endpoint,
-		ActivityId: "11-11111111111111111111111111111111-1111111111111111-11",
+		Endpoint:           endpoint,
+		ActivityId:         "11-11111111111111111111111111111111-1111111111111111-11",
+		InsecureConnection: insecureConnection,
 	}, nil
 }
 

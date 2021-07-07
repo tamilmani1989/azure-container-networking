@@ -102,11 +102,11 @@
   },
   "AznmSettings": {
     "Port": 444,
-    "TestsSettings": {
-      "AzId": "",
+    "InsecureConnection": true,
+    "AznmEndpoint": "127.0.0.1:444",
+    "TestSettings": {
       "CertPath": "",
-      "InsecureConnection": true,
-      "UseMockAznmServer": true
+      "StartMockAznm": true
     }
   },
   "PubSubProxySettings": {

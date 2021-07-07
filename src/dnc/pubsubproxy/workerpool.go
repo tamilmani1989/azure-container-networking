@@ -1047,8 +1047,12 @@ func deleteContextSelectorAndUnPublishData(
 	// Before deleting DNC published NIC goal state, wait until AZNM deletes the NIC from its side.
 	// Otherwise IP/MAC could still be in use and DNC will delete it and reuse it thus assigning
 	// same MAC/IP to multiple NCs
-	if err := ensureNetworkInterfaceDeleted(pubsubAzId, pubsubCtx, jobCtx); err != nil {
-		return err
+	if !aznmSettings.SkipAznmWaitForDelete {
+		if err := ensureNetworkInterfaceDeleted(pubsubAzId, pubsubCtx, jobCtx); err != nil {
+			return err
+		}
+	} else {
+		logDebugf("pubsubproxy[%s] Skip waiting for NIC deletion in AZNM", jobCtx.id)
 	}
 
 	// Remove secondary paths first
@@ -1121,6 +1125,7 @@ func ensureNetworkInterfaceDeleted(pubsubAzId string, pubsubCtx []pubsubContext,
 		ExpBackoff: false,
 	}
 
+	logDebugf("pubsubproxy[%s] Waiting until NIC is deleted in AZNM", jobCtx.id)
 	return retrier.Do(context.Background(), func() error {
 		nicsDeleted := make(map[string]struct{})
 		nicsRemaining := false
