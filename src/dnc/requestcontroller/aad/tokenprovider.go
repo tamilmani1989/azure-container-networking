@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"sync"
-	"time"
 
 	"golang.org/x/crypto/pkcs12"
 
@@ -19,7 +18,6 @@ import (
 )
 
 const (
-	expirationDeltaSeconds             = 60
 	tokenProviderFailureMetricName     = "DNCRCTokenProviderFailure"
 	tokenProviderErrorMessageDimension = "ErrorMessage"
 )
@@ -61,7 +59,7 @@ func (t *TokenProvider) GetToken(ctx context.Context, tokenOptions requestcontro
 	// check the cache to see if we already have a token
 	if token, err := t.getTokenFromCache(tokenOptions); err == nil {
 		// if the token is not about to expire, just return it
-		if !token.WillExpireIn(expirationDeltaSeconds * time.Second) {
+		if !token.WillExpireIn(requestcontroller.TokenExpirationDelta) {
 			logger.Info("successfully received token")
 			return token, nil
 		}

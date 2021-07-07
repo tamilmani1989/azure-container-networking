@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"sync"
+	"time"
 
 	"dnc/requestcontroller"
 
@@ -53,9 +54,9 @@ func (*kubeconfigClusterAuthConfig) Refresh(context.Context) error {
 	return nil
 }
 
-func (*kubeconfigClusterAuthConfig) RefreshForever(context.Context) {
-	// TODO: should we re-read the file each time we refresh? it probably won't change since it is generally a
-	// k8s Secret mounted to the filesystem, but probably wouldn't hurt.
-
-	// For now, do nothing and just return
+func (*kubeconfigClusterAuthConfig) Expires() time.Time {
+	// TODO: Should we expire these on purpose to trigger a re-read from disk?
+	// For now, return 1 year, which should be long enough between RC deployments to never
+	// actually trigger a refresh
+	return time.Now().Add(8760 * time.Hour) // 1 year
 }

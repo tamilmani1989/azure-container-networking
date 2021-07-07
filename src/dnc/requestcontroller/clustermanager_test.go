@@ -332,10 +332,10 @@ func (mockClusterAuthConfig) Refresh(context.Context) error {
 	return nil
 }
 
-func (mockClusterAuthConfig) RefreshForever(ctx context.Context) {
-	<-ctx.Done()
-}
-
 func (mockClusterAuthConfig) GetConfig() *rest.Config {
 	return &rest.Config{}
+}
+
+func (mockClusterAuthConfig) Expires() time.Time {
+	return time.Now().Add(time.Hour)
 }

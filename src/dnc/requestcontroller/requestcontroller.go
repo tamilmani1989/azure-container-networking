@@ -18,6 +18,7 @@ const (
 	kubeClusterAuthConfigRefreshIntervalSeconds        = 300
 	kubeClusterAuthConfigRefreshOnErrorIntervalSeconds = 30
 	OrchestratorIDContextKey                           = "orchestratorID"
+	TokenExpirationDelta                               = 6 * time.Hour
 )
 
 // ContextKey is used as a key to context.WithValue, which should not use built-in types
@@ -115,8 +116,22 @@ func (r *RequestController) refreshClusterAuthConfigs(ctx context.Context) error
 	// build a manager for each and add to the manager pool
 	for orchestratorID, clusterAuthConfig := range clusterAuthConfigs {
 		if r.clusterManagerPool.has(orchestratorID) {
-			// skip this orchestrator since it's already in the pool
-			continue
+			// If we already have the clusterManager, but its config is about to expire, then refresh it
+			if within(clusterAuthConfig.Expires(), TokenExpirationDelta) {
+				// Try to refresh the config. If it doesn't work, skip it and try again later
+				if err := clusterAuthConfig.Refresh(ctx); err != nil {
+					r.Logger.Infof("auth config for orchestrator %s expires in %v, but failed to refresh token with error: %v; will retry next refresh loop", orchestratorID, time.Until(clusterAuthConfig.Expires()), err)
+					continue
+				}
+				// remove from the pool to stop the existing manager, and next code block will re-add
+				r.Logger.Infof("auth config for orchestrator %s about to expire, got new one, so removing the old one from the pool", orchestratorID)
+				r.clusterManagerPool.remove(orchestratorID)
+			} else {
+				// skip this orchestrator since it's already in the pool and not expiring
+				r.Logger.Infof("token for orchestrator %s still valid, expires in: %v", orchestratorID, time.Until(clusterAuthConfig.Expires()))
+				continue
+			}
+
 		}
 		go func(orchestratorID string, clusterAuthConfig ClusterAuthConfig) {
 			retrier := retry.Retrier{
@@ -220,7 +235,7 @@ type KubeClusterAuthProvider interface {
 type ClusterAuthConfig interface {
 	GetConfig() *rest.Config
 	Refresh(ctx context.Context) error
-	RefreshForever(ctx context.Context)
+	Expires() time.Time
 }
 
 //SecretProvider provides a named secret
@@ -266,4 +281,10 @@ type TokenOptions struct {
 	ClientCertificateKeyPair []byte
 	ServerTenantID           string
 	AzureEnvironment         string
+}
+
+// within returns whether the time will occur between now and the end of the duration
+func within(t time.Time, d time.Duration) bool {
+	endTime := time.Now().Add(d)
+	return t.Before(endTime)
 }

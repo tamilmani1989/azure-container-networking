@@ -96,9 +96,6 @@ func (c *clusterManagerPool) runClusterManager(clusterManager *ClusterManager, c
 
 	var backoff time.Duration
 
-	// keep the auth config updated while the manager is running
-	go clusterAuthConfig.RefreshForever(clusterManager.RunningContext)
-
 	for {
 		// start the manager
 		go func(errChan chan error) {

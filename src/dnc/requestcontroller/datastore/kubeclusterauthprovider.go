@@ -209,37 +209,6 @@ func (d *datastoreClusterAuthConfig) GetConfig() *rest.Config {
 	return d.restConfig
 }
 
-// RefreshForever blocks and ensures that the rest.Config for this ClusterAuthConfig does not expire
-func (d *datastoreClusterAuthConfig) RefreshForever(ctx context.Context) {
-	// refresh the rest.Config
-	if err := d.Refresh(ctx); err != nil {
-
-		d.logger.WithError(err).Error("unable to refresh rest.Config for the orchestrator")
-	}
-
-	d.mutex.RLock()
-	nextRefresh := d.tokenExpires.Sub(time.Now().Add(30 * time.Second)) // refresh 30 seconds before expiration
-	d.mutex.RUnlock()
-
-	d.logger.Infof("next refresh in %v", nextRefresh)
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-time.After(nextRefresh):
-			if err := d.Refresh(ctx); err != nil {
-				d.logger.Error("unable to refresh token")
-				nextRefresh = 30 * time.Second // TODO: exp backoff?
-				continue
-			}
-			d.mutex.RLock()
-			nextRefresh = d.tokenExpires.Sub(time.Now().Add(30 * time.Second)) // refresh 30 seconds before expiration
-			d.mutex.RUnlock()
-		}
-	}
-}
-
 // Refresh will refresh this ClusterAuthConfig's rest.Config
 func (d *datastoreClusterAuthConfig) Refresh(ctx context.Context) error {
 	d.mutex.Lock()
@@ -287,4 +256,10 @@ func (d *datastoreClusterAuthConfig) Refresh(ctx context.Context) error {
 	d.restConfig.BearerToken = token.AccessToken
 
 	return nil
+}
+
+func (d *datastoreClusterAuthConfig) Expires() time.Time {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+	return d.tokenExpires
 }
