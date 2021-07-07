@@ -1001,6 +1001,16 @@ func UpsertPendingQueueItem(key string, req RequestContext) *api.JsonErr {
 
 // ProcessNetworkContainerForRelease - Process network container configuration pending release.
 func ProcessNetworkContainerForRelease(networkID, networkContainerID string) *api.JsonErr {
+	err := processNetworkContainerForRelease(networkID, networkContainerID)
+	if err != nil {
+		sendNCRequestCountMetric(networkID, networkContainerID, ncRequestTypeDelete, nil, err)
+	}
+
+	return err
+}
+
+// processNetworkContainerForRelease - Process network container configuration pending release.
+func processNetworkContainerForRelease(networkID, networkContainerID string) *api.JsonErr {
 	loggershim.LS.Debugf("ProcessNetworkContainerForRelease: vnet id %s nc id %s", networkID, networkContainerID)
 	nc, err := NcRepo.TryQueryNetworkContainer(networkID, networkContainerID)
 	if err != nil {
@@ -1052,7 +1062,12 @@ func ProcessNetworkContainerForRelease(networkID, networkContainerID string) *ap
 		}
 
 		ncKey := GetNCKey(nc.Config.NetworkID, nc.Config.NetworkContainerID)
-		return AddRequestToPendingQueue(ncKey, &requestContext)
+		if err = AddRequestToPendingQueue(ncKey, &requestContext); err != nil {
+			return err
+		}
+
+		sendNCRequestCountMetric(networkID, networkContainerID, ncRequestTypeDelete, nil, nil)
+		return nil
 	}
 
 	if nc.Config.MarkedForDelete {
@@ -1075,7 +1090,12 @@ func ProcessNetworkContainerForRelease(networkID, networkContainerID string) *ap
 			NetworkID: nc.Config.NetworkID,
 			NodeID:    nc.Config.GetAssociationInfo().NodeID}
 
-		return AddRequestToPendingQueue(requestID, &requestContext)
+		if err = AddRequestToPendingQueue(requestID, &requestContext); err != nil {
+			return err
+		}
+
+		sendNCRequestCountMetric(networkID, networkContainerID, ncRequestTypeDelete, nil, nil)
+		return nil
 	}
 
 	return nil
@@ -1548,19 +1568,38 @@ func GetReservationResponse(
 	return &response, nil
 }
 
-func sendNCCreationReqMetric(networkID, ncID, status string, associationInfo api.AssociationInfo) {
+func sendNCRequestCountMetric(networkID, ncID, requestType string, associationInfo *api.AssociationInfo, err *api.JsonErr) {
 	metric := aitelemetry.Metric{
-		Name: aiwrapper.NCCreationReqCountMetric,
-		// Value 1.0 is to track number of NC Create Requests
+		Name: aiwrapper.NCRequestCountMetric,
+		// Value 1.0 is to track number of NC Requests
 		Value:            1.0,
 		CustomDimensions: make(map[string]string),
 	}
 
 	metric.CustomDimensions[aiwrapper.NetworkIDStr] = networkID
 	metric.CustomDimensions[aiwrapper.NetworkContainerIDStr] = ncID
-	metric.CustomDimensions[aiwrapper.StatusStr] = status
-	metric.CustomDimensions[aiwrapper.NodeIDStr] = associationInfo.NodeID
-	metric.CustomDimensions[aiwrapper.ContainerTypeStr] = associationInfo.ContainerType
+	metric.CustomDimensions[aiwrapper.NCRequestTypeStr] = requestType
+
+	if associationInfo != nil {
+		metric.CustomDimensions[aiwrapper.NodeIDStr] = associationInfo.NodeID
+		metric.CustomDimensions[aiwrapper.ContainerTypeStr] = associationInfo.ContainerType
+	}
+
+	var (
+		errCode     = "NoError"
+		errHttpCode = "NoError"
+	)
+
+	if err != nil {
+		metric.CustomDimensions[aiwrapper.StatusStr] = aiwrapper.Invalid
+		errCode = err.Code.String()
+		errHttpCode = http.StatusText(err.HTTPStatus)
+	} else {
+		metric.CustomDimensions[aiwrapper.StatusStr] = aiwrapper.Valid
+	}
+
+	metric.CustomDimensions[aiwrapper.NCOperationErrorCodeStr] = errCode
+	metric.CustomDimensions[aiwrapper.NCOperationErrorHttpCodeStr] = errHttpCode
 
 	go aiwrapper.SendMetric(metric)
 }
@@ -1590,11 +1629,10 @@ func EnsureNCPendingWorkItem(vnetID, ncID, nodeID string) *api.JsonErr {
 func CreateOrUpdateNCRequestV1(networkID, ncID string, ncRequestV1 *api.NetworkContainerRequestV1, apiVersion string) *api.JsonErr {
 	if err := createOrUpdateNCRequestV1(networkID, ncID, ncRequestV1, apiVersion); err != nil {
 		loggershim.LS.Errorf("CreateOrUpdateNCRequestV1 failed. Error: %v", err)
-		sendNCCreationReqMetric(networkID, ncID, aiwrapper.Invalid, ncRequestV1.AssociationInfo)
+		sendNCRequestCountMetric(networkID, ncID, ncRequestTypeCreate, &ncRequestV1.AssociationInfo, err)
 		return err
 	}
 
-	sendNCCreationReqMetric(networkID, ncID, aiwrapper.Valid, ncRequestV1.AssociationInfo)
 	return nil
 
 }
@@ -1676,7 +1714,13 @@ func createOrUpdateNCRequestV1(
 		NetworkID: nc.Config.NetworkID,
 		NodeID:    nc.Config.GetAssociationInfo().NodeID}
 
-	return AddRequestToPendingQueue(GetNCKey(networkID, ncID), &requestContext)
+	if err = AddRequestToPendingQueue(GetNCKey(networkID, ncID), &requestContext); err != nil {
+		return err
+	}
+
+	sendNCRequestCountMetric(networkID, ncID, ncRequestTypeCreate, &ncRequestV1.AssociationInfo, nil)
+
+	return nil
 }
 
 func CreateSubnetCleanupRequest(networkID, subnetName string) *api.JsonErr {
@@ -1759,26 +1803,32 @@ func ensureSubnetCleanupPendingItem(networkID, subnetName string) *api.JsonErr {
 
 // CreateOrUpdateNCRequestV2 - Persists NetworkContainerRequestV2
 func CreateOrUpdateNCRequestV2(networkID, ncID string, ncRequestV2 *api.NetworkContainerRequestV2, apiVersion string) *api.JsonErr {
-	if err := createOrUpdateNCRequestV2(networkID, ncID, ncRequestV2, apiVersion); err != nil {
+	nc, err := NcRepo.TryQueryNetworkContainer(networkID, ncID)
+	if err != nil {
+		sendNCRequestCountMetric(networkID, ncID, "", &ncRequestV2.AssociationInfo, err)
+		return api.InternalServerErrorf(api.StatusInternalServerError,
+			"could not retrieve configuration for network container: %s. error: %v", ncID, err)
+	}
+
+	ncRequestType := ncRequestTypeCreate
+	if nc.RowKey != "" {
+		ncRequestType = ncRequestTypeUpdate
+	}
+
+	if err := createOrUpdateNCRequestV2(networkID, ncID, nc, ncRequestV2, apiVersion); err != nil {
 		loggershim.LS.Errorf("CreateOrUpdateNCRequestV2 failed. Error: %v", err)
-		sendNCCreationReqMetric(networkID, ncID, aiwrapper.Invalid, ncRequestV2.AssociationInfo)
+		sendNCRequestCountMetric(networkID, ncID, ncRequestType, &ncRequestV2.AssociationInfo, err)
 		return err
 	}
 
-	sendNCCreationReqMetric(networkID, ncID, aiwrapper.Valid, ncRequestV2.AssociationInfo)
 	return nil
 }
 
 func createOrUpdateNCRequestV2(
 	networkID, ncID string,
+	nc NetworkContainerEntity,
 	ncRequestV2 *api.NetworkContainerRequestV2,
 	apiVersion string) *api.JsonErr {
-	nc, err := NcRepo.TryQueryNetworkContainer(networkID, ncID)
-	if err != nil {
-		return api.InternalServerErrorf(api.StatusInternalServerError,
-			"could not retrieve configuration for network container: %s. error: %v", ncID, err)
-	}
-
 	// Update if the NC record is already present
 	if nc.RowKey != "" {
 		return UpdateNCRequestV2(&nc, *ncRequestV2)
@@ -1890,7 +1940,13 @@ func createOrUpdateNCRequestV2(
 		NetworkID: nc.Config.NetworkID,
 		NodeID:    nc.Config.GetAssociationInfo().NodeID}
 
-	return AddRequestToPendingQueue(GetNCKey(networkID, ncID), &requestContext)
+	if err = AddRequestToPendingQueue(GetNCKey(networkID, ncID), &requestContext); err != nil {
+		return err
+	}
+
+	// Send the NC creation request metric of the type create
+	sendNCRequestCountMetric(networkID, ncID, ncRequestTypeCreate, &ncRequestV2.AssociationInfo, nil)
+	return nil
 }
 
 func UpdateNCRequestV2(nc *NetworkContainerEntity, request api.NetworkContainerRequestV2) *api.JsonErr {
@@ -1938,7 +1994,12 @@ func UpdateNCRequestV2(nc *NetworkContainerEntity, request api.NetworkContainerR
 			NetworkID: nc.Config.NetworkID,
 			NodeID:    nc.Config.GetAssociationInfo().NodeID,
 		}
-		return AddRequestToPendingQueue(GetNCKey(nc.Config.NetworkID, nc.Config.NetworkContainerID), &requestContext)
+		if err := AddRequestToPendingQueue(GetNCKey(nc.Config.NetworkID, nc.Config.NetworkContainerID), &requestContext); err != nil {
+			return err
+		}
+
+		sendNCRequestCountMetric(nc.Config.NetworkID, nc.Config.NetworkContainerID, ncRequestTypeUpdate, &request.AssociationInfo, nil)
+		return nil
 	default:
 		return api.InternalServerError(api.StatusInternalServerError, fmt.Sprintf("unknown handling level %d", handling))
 	}

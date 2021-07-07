@@ -19,6 +19,10 @@ const (
 	// Properties in the NetworkContainerConfigurationTable
 	networkContainerConfigProperty = "NetworkContainerConfiguration"
 	// subnetKeyProperty is already defined in datamodel
+
+	ncRequestTypeCreate = "create"
+	ncRequestTypeUpdate = "update"
+	ncRequestTypeDelete = "delete"
 )
 
 type NetworkContainerRepo struct {

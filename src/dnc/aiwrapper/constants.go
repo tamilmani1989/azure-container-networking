@@ -7,7 +7,7 @@ const (
 const (
 	// Metrics
 	NCProcessTimeMetric                = "NCProcessTimeMs"
-	NCCreationReqCountMetric           = "NCCreationRequestCount"
+	NCRequestCountMetric               = "NCRequestCount"
 	SubnetAllocationsProcessTimeMetric = "SubnetAllocationProcessTimeMs"
 	DataStoreOperationTimeMetric       = "DataStoreOperationTimeMs"
 	LeakedNCEventMetric                = "LeakedNCEvent"
@@ -47,6 +47,7 @@ const (
 	AllocationsRemovedStr       = "AllocationsRemoved"
 	SubnetSizeStr               = "SubnetSize"
 	SubnetAllocationOpStr       = "SubnetAllocationOperation"
+	NCRequestTypeStr            = "NCRequestType"
 
 	// DataStore operation dimensions
 	OperationStr = "DataStoreOperation"
