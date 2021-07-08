@@ -1128,8 +1128,8 @@ func ensureNetworkInterfaceDeleted(pubsubAzId string, pubsubCtx []pubsubContext,
 	logDebugf("pubsubproxy[%s] Waiting until NIC is deleted in AZNM", jobCtx.id)
 	return retrier.Do(context.Background(), func() error {
 		nicsDeleted := make(map[string]struct{})
+		nicsMap := make(map[string]struct{})
 		nicsRemaining := false
-		nicCount := 0
 		for _, ctx := range pubsubCtx {
 
 			// make sure context selector is for a nic
@@ -1137,7 +1137,13 @@ func ensureNetworkInterfaceDeleted(pubsubAzId string, pubsubCtx []pubsubContext,
 				continue
 			}
 
-			nicCount = nicCount + 1
+			// Use map to remove duplicate keys
+			if _, ok := nicsMap[ctx.Key]; ok {
+				continue
+			} else {
+				nicsMap[ctx.Key] = struct{}{}
+			}
+
 			if _, ok := nicsDeleted[ctx.Key]; !ok {
 
 				status, err := getNetworkInterfaceStatus(pubsubAzId, ctx.Key, networkInterfaceStatusPath)
@@ -1158,7 +1164,7 @@ func ensureNetworkInterfaceDeleted(pubsubAzId string, pubsubCtx []pubsubContext,
 			}
 		}
 
-		logDebugf("Pubsubproxy[%s] total nics: %d, deleted:%d", jobCtx.id, nicCount, len(nicsDeleted))
+		logDebugf("Pubsubproxy[%s] total nics: %d, deleted:%d", jobCtx.id, len(nicsMap), len(nicsDeleted))
 		if !nicsRemaining {
 			return nil
 		}
