@@ -25,6 +25,11 @@ import (
 	"github.com/Azure/go-autorest/autorest/azure"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	metrics "github.com/slok/go-http-metrics/metrics/prometheus"
+	"github.com/slok/go-http-metrics/middleware"
+	"github.com/slok/go-http-metrics/middleware/std"
 )
 
 type partitionRepo struct {
@@ -220,7 +225,7 @@ func wipeAllAssociatedData(ctx context.Context, repo *partitionRepo) error {
 }
 
 var (
-	jsonlogger      simplejson.ExpandableLogger = simplejson.NewLogger("DNCCleanupEvent")
+	jsonlogger      simplejson.ExpandableLogger = simplejson.NewLogger("DNCCleanupEvent").WithField("Version", utils.Version)
 	azStorageClient storage.Client
 	config          *configuration.Configuration
 )
@@ -325,6 +330,7 @@ func main() {
 	if err != nil {
 		log.Fatalln("Error getting ARM token. Error:", err)
 	}
+
 	// todo: discuss with team: what should be our workflow for key rotation?
 	keyFetcher := ad.CosmosKeyFetcher{ARMEndpoint: env.ResourceManagerEndpoint}
 	keys, err := keyFetcher.GetReadWriteKeys(ctx, token, config.DataStoreSettings.AzureStorageInfo.CosmosDBResourceID)
@@ -360,12 +366,31 @@ func main() {
 	}
 
 	router := mux.NewRouter().StrictSlash(true)
+
+	// Create our middleware.
+	mdlw := middleware.New(middleware.Config{
+		Service:  "dnc-cleanup-" + utils.Version,
+		Recorder: metrics.NewRecorder(metrics.Config{}),
+	})
+
+	//the string used in in clean partition here keeps the handler dimension from exploding by ignoring the parition in metrics
+	//https://github.com/slok/go-http-metrics/#custom-handler-id
+	cleanhandler := std.Handler("/clean/:partition", mdlw, http.HandlerFunc(CleanPartition))
+	healthz := std.Handler("", mdlw, http.HandlerFunc(Health))
 	router.Methods(http.MethodDelete).
 		Path("/clean/{partition}").
-		Handler(http.HandlerFunc(CleanPartition))
+		Handler(cleanhandler)
 	router.Methods(http.MethodGet).
 		Path("/healthz").
-		Handler(http.HandlerFunc(Health))
+		Handler(healthz)
+
+	// Serve our metrics.
+	go func() {
+		loggershim.LS.Debugf("metrics listening at 8081")
+		if err := http.ListenAndServe(":8081", promhttp.Handler()); err != nil {
+			log.Panicf("error while serving metrics: %s", err)
+		}
+	}()
 
 	loggershim.LS.Debugf("Serving on port 9000")
 	r := handlers.LoggingHandler(jsonlogger, panicHandler{router})
