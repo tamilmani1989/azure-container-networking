@@ -455,10 +455,22 @@ func (n *NodeNetworkConfigReconciler) publishCreateOrUpdateNC(ctx context.Contex
 		}, cache.NoExpiration)
 	}
 
+	requestedCount := nodeNetworkConfig.Spec.RequestedIPCount
+	maxCount := requestedCount
+	// Set the max count to the node's max if the node isn't nil
+	if node != nil {
+		maxCount = getMaxIPCountOfNode(*node)
+	}
+
+	// If the requested count exceeds the max, then set it to the max
+	if requestedCount > maxCount {
+		requestedCount = maxCount
+	}
+
 	ncReq := api.NetworkContainerRequestV2{
 		AllocationRequest: api.AllocationRequest{
 			SubnetName:       subnetName,
-			SecondaryIPCount: int(nodeNetworkConfig.Spec.RequestedIPCount),
+			SecondaryIPCount: int(requestedCount),
 		},
 		AssociationInfo: api.AssociationInfo{
 			NodeID:        dncNodeName,
