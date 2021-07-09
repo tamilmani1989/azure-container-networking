@@ -29,7 +29,8 @@ func unpublishFromPendingPublishRequests(ctx context.Context, repo *partitionRep
 		return err
 	}
 
-	for rowKey, requestContext := range pendingPublishRequests {
+	for rowKey, requestEntity := range pendingPublishRequests {
+		requestContext := requestEntity.Configuration
 		if requestContext.Type == datamodel.NetworkContainerUnpublishRequest {
 			err = pubsubproxy.ForceUnpublishInAz(requestContext.InfraNetworkID, requestContext.NodeInterfaceIP, requestContext.NetworkContainerID, requestContext.PubsubAzId)
 			if err != nil {
