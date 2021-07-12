@@ -34,6 +34,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         public const string HttpStatusCode = "HttpStatusCode";
         public const string InternalErrorCode = "InternalErrorCode";
         public const string Result = "Result";
+        public const string ResourceGuid = "ResourceGuid";
     }
 
     public struct MetricResult
