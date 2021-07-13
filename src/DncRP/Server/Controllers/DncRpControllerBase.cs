@@ -89,7 +89,10 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             }
 
             metricDimensions.Add(new DimensionValue() { Name = DimensionNames.Result, Value = MetricResult.Success });
-            metricDimensions.Add(new DimensionValue() { Name = DimensionNames.ResourceGuid, Value = response.Properties.ResourceGuid });
+            if (response != null && response.Properties != null)
+            {
+                metricDimensions.Add(new DimensionValue() { Name = DimensionNames.ResourceGuid, Value = response.Properties.ResourceGuid });
+            }
             metricsProvider.EmitMetric($"{methodNameForLogging}", 1.0, metricDimensions);
             return this.ConvertToContentResult(response, method, methodNameForLogging);
         }
