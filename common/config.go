@@ -11,7 +11,8 @@ const (
 	OptEnvironmentAzure        = "azure"
 	OptEnvironmentMAS          = "mas"
 	OptEnvironmentFileIpam     = "fileIpam"
-	OptEnvironmentIPv6NodeIpam = "ipv6NodeIpam"
+	OptEnvironmentIPv6NodeIpam = "ipv6NodeIpam" // v4 vnet and v6 non-vnet
+	OptEnvironmentIPv4NodeIpam = "ipv4NodeIpam" // ipv4 overlay
 
 	// API server URL.
 	OptAPIServerURL      = "api-url"

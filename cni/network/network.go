@@ -198,6 +198,10 @@ func (plugin *netPlugin) findMasterInterface(nwCfg *cni.NetworkConfig, subnetPre
 		return nwCfg.Master
 	}
 
+	if strings.Contains(nwCfg.ExecutionMode, "Overlay") {
+		return "eth0"
+	}
+
 	// Otherwise, pick the first interface with an IP address in the given subnet.
 	subnetPrefixString := subnetPrefix.String()
 	interfaces, _ := net.Interfaces()
