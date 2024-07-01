@@ -10,7 +10,7 @@ require (
 	github.com/Microsoft/go-winio v0.4.17
 	github.com/Microsoft/hcsshim v0.8.23
 	github.com/avast/retry-go/v3 v3.1.1
-	github.com/billgraziano/dpapi v0.4.0
+	github.com/billgraziano/dpapi v0.5.0
 	github.com/containernetworking/cni v1.1.2
 	github.com/docker/libnetwork v0.8.0-dev.2.0.20210525090646-64b7a4574d14
 	github.com/golang/mock v1.6.0
@@ -31,7 +31,7 @@ require (
 	github.com/spf13/viper v1.12.0
 	github.com/stretchr/testify v1.8.0
 	go.uber.org/zap v1.21.0
-	golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a
+	golang.org/x/sys v0.13.0
 	google.golang.org/grpc v1.47.0
 	google.golang.org/protobuf v1.28.0
 	k8s.io/api v0.24.2
